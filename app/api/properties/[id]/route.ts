@@ -51,7 +51,9 @@ export const PATCH = withAuth(
       };
 
       parsed = propertySchema.safeParse(payload);
-      images = formData.getAll("images").filter((value): value is File => value instanceof File && value.name);
+      images = formData.getAll("images").filter(
+        (value): value is File => value instanceof File && Boolean(value.name)
+      );
       const maybeVideo = formData.get("video");
       if (maybeVideo instanceof File && maybeVideo.name) {
         video = maybeVideo;

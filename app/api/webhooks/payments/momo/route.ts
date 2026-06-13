@@ -98,13 +98,13 @@ export const POST = async (req: NextRequest) => {
     if (!validation.success) {
       logger.warn("Invalid webhook payload", {
         requestId,
-        errors: validation.error.errors,
+        errors: validation.error.issues,
       });
       return new Response(
         JSON.stringify({
           success: false,
           message: "Invalid payload",
-          errors: validation.error.errors,
+          errors: validation.error.issues,
         }),
         { status: 400 }
       );

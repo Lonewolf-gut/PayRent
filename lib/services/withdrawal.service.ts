@@ -59,7 +59,17 @@ export class WithdrawalService {
       },
     });
 
-    await otpService.create(userId, "WITHDRAWAL");
+    const otp = await otpService.create(userId, "WITHDRAWAL");
+
+    await notificationService.create({
+      userId,
+      title: "Withdrawal OTP",
+      body: `Your withdrawal verification code is: ${otp}. It expires in 10 minutes.`,
+      channel: "EMAIL",
+      sendEmail: true,
+      sendSms: true,
+    });
+
     return withdrawal;
   }
 

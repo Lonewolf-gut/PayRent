@@ -24,8 +24,20 @@ export class TwoFactorService {
   }
 
   async verify(userId: string, token: string) {
+    await this.validateToken(userId, token);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorEnabled: true },
+    });
+
+    return true;
+  }
+
+  async validateToken(userId: string, token: string) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user?.twoFactorSecret) throw new AppError("2FA not configured");
+    if (!user.twoFactorEnabled) throw new AppError("2FA is not enabled on this account");
 
     const totp = new TOTP({
       secret: decrypt(user.twoFactorSecret),
@@ -33,11 +45,6 @@ export class TwoFactorService {
 
     const delta = totp.validate({ token, window: 1 });
     if (delta === null) throw new AppError("Invalid 2FA code");
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { twoFactorEnabled: true },
-    });
 
     return true;
   }

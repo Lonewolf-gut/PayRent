@@ -26,12 +26,16 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "settlement:read",
     "wallet:read",
     "wallet:withdraw",
+    "kyc:manage",
+    "subscription:manage",
     "message:send",
   ],
   AGENT: [
     "property:read",
     "property:update",
     "application:review",
+    "kyc:manage",
+    "subscription:manage",
     "message:send",
   ],
   LENDER: [
@@ -43,6 +47,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "wallet:read",
     "wallet:deposit",
     "wallet:withdraw",
+    "kyc:manage",
+    "subscription:manage",
     "message:send",
   ],
   ADMIN: [

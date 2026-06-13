@@ -23,8 +23,12 @@ export const GET = withAuth(
       },
     });
 
-    const installments = requests.flatMap((r) =>
-      (r.repaymentPlan?.installments ?? []).map((inst) => ({
+    type FundedRequest = (typeof requests)[number];
+    type Installment = NonNullable<
+      NonNullable<FundedRequest["repaymentPlan"]>["installments"]
+    >[number];
+    const installments = requests.flatMap((r: FundedRequest) =>
+      (r.repaymentPlan?.installments ?? []).map((inst: Installment) => ({
         ...inst,
         propertyName: r.property.name,
         financingRequestId: r.id,

@@ -204,7 +204,6 @@ enum TransactionStatus {
 
 enum SubscriptionPlan {
   FREE
-  STANDARD
   PREMIUM
 }
 

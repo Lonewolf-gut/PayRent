@@ -117,7 +117,7 @@ export default function AdminPropertiesPage() {
                       size="sm"
                       className="bg-emerald-600 hover:bg-emerald-700"
                       onClick={() => approveMutation.mutate(property.id)}
-                      disabled={approveMutation.status === "loading"}
+                      disabled={approveMutation.isPending}
                     >
                       Approve
                     </Button>
@@ -276,7 +276,7 @@ export default function AdminPropertiesPage() {
                       <Button
                         className="w-full"
                         onClick={() => selectedProperty && approveMutation.mutate(selectedProperty.id)}
-                          disabled={approveMutation.status === "loading"}
+                          disabled={approveMutation.isPending}
                       >
                         Approve listing
                       </Button>

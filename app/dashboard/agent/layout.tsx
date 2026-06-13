@@ -6,6 +6,7 @@ const navItems = [
   { href: "/dashboard/agent/listings", label: "Assigned Listings", icon: "Building2" as const },
   { href: "/dashboard/agent/applications", label: "Applications", icon: "FileText" as const },
   { href: "/dashboard/agent/messages", label: "Messages", icon: "MessageSquare" as const },
+  { href: "/dashboard/agent/kyc", label: "Profile & KYC", icon: "Shield" as const },
   { href: "/dashboard/agent/settings", label: "Settings", icon: "Settings" as const },
 ];
 

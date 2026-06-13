@@ -36,3 +36,18 @@ if (!sourceDir) {
 
 copyDirectory(sourceDir, targetDir);
 console.log(`Copied Prisma client from ${sourceDir} to ${targetDir}`);
+
+const defaultDtsPath = path.join(
+  __dirname,
+  "..",
+  "node_modules",
+  "@prisma",
+  "client",
+  "default.d.ts"
+);
+const defaultDtsContent = 'export * from "./.prisma/client/index"\n';
+
+if (!fs.existsSync(defaultDtsPath)) {
+  fs.writeFileSync(defaultDtsPath, defaultDtsContent);
+  console.log(`Created missing Prisma type entrypoint at ${defaultDtsPath}`);
+}

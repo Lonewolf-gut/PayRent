@@ -5,11 +5,15 @@ import {
   bankAccountSchema,
 } from "@/lib/validations/kyc";
 import { kycService } from "@/lib/services/kyc.service";
-import { prisma } from "@/lib/db/prisma";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 
+const KYC_ROLES = ["TENANT", "LANDLORD", "LENDER", "AGENT"] as const;
+
 export const GET = withAuth(async (_req, _ctx, session) => {
-  const status = await kycService.getVerificationStatus(session.user.id);
+  const status = await kycService.getVerificationStatus(
+    session.user.id,
+    session.user.role
+  );
   return apiResponse(status, 200, "Verification status retrieved.");
 });
 
@@ -21,31 +25,27 @@ export const POST = withAuth(
     if (action === "profile") {
       const parsed = tenantProfileSchema.safeParse(body.data);
       if (!parsed.success) return apiResponse(null, 400, "Validation failed.");
-      const tenant = await prisma.tenant.findUnique({
-        where: { userId: session.user.id },
-      });
-      if (!tenant) return apiResponse(null, 403, "Tenant profile required.");
-      const updated = await kycService.updateTenantProfile(
-        tenant.id,
+      const updated = await kycService.updateProfile(
         session.user.id,
+        session.user.role,
         parsed.data
       );
-      return apiResponse(updated, 200, "Tenant profile saved.");
+      return apiResponse(updated, 200, "Profile saved.");
     }
 
     if (action === "ghana-card") {
       const parsed = ghanaCardVerifySchema.safeParse(body.data);
       if (!parsed.success) return apiResponse(null, 400, "Validation failed.");
-      const tenant = await prisma.tenant.findUnique({
-        where: { userId: session.user.id },
-      });
-      if (!tenant) return apiResponse(null, 403, "Tenant profile required.");
-      const verification = await kycService.verifyGhanaCard(
+      const verification = await kycService.submitGhanaCard(
         session.user.id,
-        tenant.id,
+        session.user.role,
         parsed.data
       );
-      return apiResponse(verification, 200, "Identity verification completed.");
+      return apiResponse(
+        verification,
+        200,
+        "Identity submitted for admin review."
+      );
     }
 
     if (action === "bank-account") {
@@ -57,5 +57,5 @@ export const POST = withAuth(
 
     return apiResponse(null, 400, "Invalid action.");
   },
-  { roles: ["TENANT"], permission: "kyc:manage" }
+  { roles: [...KYC_ROLES], permission: "kyc:manage" }
 );

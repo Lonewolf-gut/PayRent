@@ -25,7 +25,15 @@ export const GET = withAuth(
 export const PATCH = withAuth(
   async (req: NextRequest, _ctx, session) => {
     const body = await req.json();
-    const { bankAccountId, exceptionId, resolutionNote } = body;
+    const { bankAccountId, verificationId, exceptionId, resolutionNote } = body;
+
+    if (verificationId) {
+      const verification = await kycService.approveIdentityVerification(
+        verificationId,
+        session.user.id
+      );
+      return apiResponse(verification, 200, "Identity verification approved.");
+    }
 
     if (bankAccountId) {
       const account = await kycService.validateBankAccount(

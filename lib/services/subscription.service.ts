@@ -1,13 +1,13 @@
 import { prisma } from "@/lib/db/prisma";
 import { SubscriptionPlan, BillingCycle } from "@prisma/client";
 import { AppError } from "@/lib/errors";
+import { FREE_PLAN_LIMITS } from "@/lib/subscription-limits";
 
 const PLAN_PRICES: Record<
   SubscriptionPlan,
   { monthly: number; annual: number }
 > = {
   FREE: { monthly: 0, annual: 0 },
-  STANDARD: { monthly: 29.99, annual: 299.99 },
   PREMIUM: { monthly: 79.99, annual: 799.99 },
 };
 
@@ -24,8 +24,11 @@ export class SubscriptionService {
     plan: SubscriptionPlan,
     billingCycle: BillingCycle
   ) {
+    if (plan === "FREE") {
+      throw new AppError("Use cancel to return to the free plan");
+    }
+
     const current = await this.getCurrent(userId);
-    const price = PLAN_PRICES[plan][billingCycle === "MONTHLY" ? "monthly" : "annual"];
 
     if (current) {
       await prisma.subscription.update({
@@ -57,33 +60,36 @@ export class SubscriptionService {
     const current = await this.getCurrent(userId);
     if (!current) throw new AppError("No active subscription");
 
-    return prisma.subscription.update({
+    await prisma.subscription.update({
       where: { id: current.id },
       data: { status: "CANCELLED", cancelledAt: new Date(), autoRenew: false },
+    });
+
+    return prisma.subscription.create({
+      data: { userId, plan: "FREE", status: "ACTIVE" },
     });
   }
 
   getPlanFeatures(plan: SubscriptionPlan) {
     const features: Record<SubscriptionPlan, string[]> = {
       FREE: [
-        "Access to up to 20 properties total",
-        "Up to 10 houses/apartments",
-        "Up to 5 cars",
-        "Up to 5 home appliances"
-      ],
-      STANDARD: [
-        "Access to properties",
-        "Financing review",
-        "Email support"
+        "Up to 10 properties, 5 cars, and 5 appliances",
+        "20 total asset limit across all types",
+        "Basic marketplace access",
+        "Email support",
       ],
       PREMIUM: [
         "Unlimited access to all property types",
         "Priority financing review",
         "Premium listings placement",
-        "Advanced support"
+        "Advanced support",
       ],
     };
     return { plan, features: features[plan], pricing: PLAN_PRICES[plan] };
+  }
+
+  getFreeLimits() {
+    return FREE_PLAN_LIMITS;
   }
 }
 

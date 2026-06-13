@@ -11,8 +11,7 @@ import type { UserRole } from "@prisma/client";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 
 const SUBSCRIPTION_LIMITS = {
-  FREE: { propertyViews: 10, financingRequests: 1 },
-  STANDARD: { propertyViews: Infinity, financingRequests: 5 },
+  FREE: { propertyViews: 20, financingRequests: 1 },
   PREMIUM: { propertyViews: Infinity, financingRequests: Infinity },
 };
 

@@ -8,6 +8,8 @@ const navItems = [
   { href: "/dashboard/lender/repayments", label: "Repayments", icon: "CreditCard" as const },
   { href: "/dashboard/lender/wallet", label: "Wallet", icon: "Wallet" as const },
   { href: "/dashboard/lender/messages", label: "Messages", icon: "MessageSquare" as const },
+  { href: "/dashboard/lender/kyc", label: "Profile & KYC", icon: "Shield" as const },
+  { href: "/dashboard/lender/settings", label: "Settings", icon: "Settings" as const },
 ];
 
 export default function LenderLayout({ children }: { children: React.ReactNode }) {

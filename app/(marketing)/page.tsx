@@ -2,49 +2,52 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ArrowRight,
   Building2,
+  Car,
+  Check,
   FileText,
-  House,
-  Landmark,
   Quote,
   Shield,
   Star,
-  Users,
   Wallet,
 } from "lucide-react";
 import { PLATFORM_NAME, PLATFORM_TAGLINE } from "@/constants/platform";
 import { ROLE_HOW_IT_WORKS } from "@/constants/roles";
 
-const roles = [
+const whoItsFor = [
   {
-    icon: Users,
+    number: "01",
     title: "Tenants",
     description:
-      "Register, verify identity, apply for properties, request rent financing, and track repayments.",
+      "Browse homes, cars, and appliances. Apply for listings and request rent financing from verified lenders.",
+    href: "/roles/tenant",
   },
   {
-    icon: Building2,
-    title: "Landlords & Agents",
+    number: "02",
+    title: "Landlords",
     description:
-      "Publish listings, review applications, confirm tenancy, and monitor settlement visibility.",
+      "List properties, cars, and appliances. Review applications and track settlements from one dashboard.",
+    href: "/roles/landlord",
   },
   {
-    icon: Landmark,
+    number: "03",
+    title: "Agents",
+    description:
+      "Advocate listings, support tenants and landlords, and close deals with transparent workflows.",
+    href: "/roles/agent",
+  },
+  {
+    number: "04",
     title: "Lenders",
     description:
-      "Review eligible financing requests, approve funding, and monitor repayment performance.",
-  },
-  {
-    icon: Shield,
-    title: "Administrators",
-    description:
-      "Moderate listings, review KYC and mandates, resolve reconciliation exceptions, and audit workflows.",
+      "Review financing requests, fund deals, and monitor repayment performance across the marketplace.",
+    href: "/roles/lender",
   },
 ];
 
@@ -55,10 +58,7 @@ const heroImages = [
   { url: "/images/property-5.jpg" },
 ];
 
-const heroColumns = [
-  heroImages.slice(0, 2),
-  heroImages.slice(2),
-];
+const heroColumns = [heroImages.slice(0, 2), heroImages.slice(2)];
 
 const testimonials = [
   {
@@ -84,31 +84,42 @@ const testimonials = [
   },
 ];
 
+const pricingPlans = [
+  {
+    name: "Starter",
+    subtitle: "Free plan for small landlords",
+    price: "Free",
+    highlight: false,
+    features: [
+      "Up to 10 houses/apartments",
+      "Up to 5 cars & appliances",
+      "Basic marketplace access",
+      "Email support",
+    ],
+    cta: "Get Started",
+    href: "/register",
+  },
+  {
+    name: "Premium",
+    subtitle: "For growing property management companies",
+    price: "GHS 79.99",
+    period: "per month",
+    highlight: true,
+    features: [
+      "Unlimited listings and browsing",
+      "Priority financing review",
+      "Premium placement in search",
+      "Advanced support",
+      "Tenant & resident portal",
+    ],
+    cta: "Get Started",
+    href: "/register",
+  },
+];
 
 export default function HomePage() {
-  const [currentTestimonial, setCurrentTestimonial] = useState(0);
-  const [starCount, setStarCount] = useState(1);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
-    }, 4200);
-
-    return () => window.clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    let count = 1;
-    const starInterval = window.setInterval(() => {
-      count += 1;
-      setStarCount(Math.min(count, 5));
-      if (count >= 5) {
-        window.clearInterval(starInterval);
-      }
-    }, 150);
-
-    return () => window.clearInterval(starInterval);
-  }, []);
+  const [activeRole, setActiveRole] = useState(0);
+  const selectedRole = ROLE_HOW_IT_WORKS[activeRole];
 
   return (
     <div className="overflow-hidden bg-white">
@@ -121,11 +132,12 @@ export default function HomePage() {
           >
             <h1 className="mt-2 text-4xl font-bold tracking-tight text-emerald-950 sm:text-5xl lg:text-6xl">
               Subscription-first access to homes, cars,
-              <span className="text-emerald-600">and appliances</span>
+              <span className="text-emerald-600"> and appliances</span>
             </h1>
             <p className="mt-4 text-lg text-emerald-800/80">
               {PLATFORM_NAME} connects tenants, landlords, agents, and lenders in one marketplace,
-              enabling listings, financing, and subscription upgrades for expanded access to every asset.
+              enabling listings, financing, and subscription upgrades for expanded access to every
+              asset.
             </p>
             <div className="mt-10 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
               <Button size="lg" asChild className="bg-emerald-600 hover:bg-emerald-700">
@@ -151,13 +163,11 @@ export default function HomePage() {
                   className="space-y-4"
                 >
                   {[...column, ...column].map((image, imageIndex) => (
-                    <div key={`${image.url}-${imageIndex}`} className="relative h-[250px] w-full bg-transparent shadow-none">
-                      <Image
-                        src={image.url}
-                        alt="hero image"
-                        fill
-                        className="object-cover"
-                      />
+                    <div
+                      key={`${image.url}-${imageIndex}`}
+                      className="relative h-[250px] w-full bg-transparent shadow-none"
+                    >
+                      <Image src={image.url} alt="hero image" fill className="object-cover" />
                     </div>
                   ))}
                 </motion.div>
@@ -183,6 +193,58 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="bg-emerald-50 py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-emerald-950 sm:text-4xl">
+              Who it&apos;s for
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-emerald-800/70">
+              One platform for every participant in the rental and asset financing chain.
+            </p>
+          </div>
+
+          <div className="mt-12 overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_20px_50px_rgba(6,78,59,0.08)]">
+            <div className="grid divide-y divide-emerald-100 lg:grid-cols-4 lg:divide-x lg:divide-y-0">
+              {whoItsFor.map((role, index) => (
+                <div key={role.title} className="relative px-6 py-10 sm:px-8 lg:py-12">
+                  <p
+                    className="pointer-events-none select-none font-serif text-5xl leading-none text-emerald-600/15 sm:text-6xl"
+                    aria-hidden
+                  >
+                    {role.number}
+                  </p>
+                  <h3 className="mt-4 text-xl font-bold tracking-tight text-emerald-950">
+                    {role.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-relaxed text-emerald-800/70 sm:text-[15px]">
+                    {role.description}
+                  </p>
+                  <Link
+                    href={role.href}
+                    className="mt-5 inline-flex items-center text-sm font-medium text-emerald-600 transition hover:text-emerald-700"
+                  >
+                    Learn more
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                  </Link>
+
+                  {index < whoItsFor.length - 1 ? (
+                    <div
+                      className="absolute right-0 top-1/2 z-10 hidden -translate-y-1/2 translate-x-1/2 lg:flex"
+                      aria-hidden
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50">
+                        <ArrowRight className="h-3.5 w-3.5 text-emerald-600" />
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="how-it-works" className="bg-white py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">
@@ -192,74 +254,151 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="mt-16 space-y-20">
-            {ROLE_HOW_IT_WORKS.map((role, idx) => (
-              <motion.div
-                key={role.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                viewport={{ once: true }}
-                className={`relative grid items-center gap-12 lg:grid-cols-2 ${idx % 2 === 1 ? "lg:flex-row-reverse" : ""}`}
+          <div className="mt-10 flex flex-wrap justify-center gap-2">
+            {ROLE_HOW_IT_WORKS.map((role, index) => (
+              <button
+                key={role.slug}
+                type="button"
+                onClick={() => setActiveRole(index)}
+                className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+                  activeRole === index
+                    ? "bg-emerald-600 text-white shadow"
+                    : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                }`}
               >
-                <div className={`relative overflow-hidden rounded-3xl ${idx % 2 === 1 ? "lg:order-last" : ""}`}>
-                  <div className="relative h-[500px] w-full overflow-hidden rounded-3xl shadow-lg">
-                    <Image
-                      src={role.image}
-                      alt={role.title}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                </div>
-
-                <div className={idx % 2 === 1 ? "lg:order-first" : ""}>
-                  <div className="relative pl-12">
-                    <span className="absolute left-5 top-0 h-5 w-5 rounded-full bg-emerald-600" />
-                    <span className="absolute left-7 top-5 h-full w-px bg-emerald-200/80" />
-
-                    <div className="relative rounded-3xl border border-emerald-100 bg-white p-10 shadow-lg">
-                      <div className="inline-flex items-center rounded-full bg-emerald-100 px-4 py-2 text-sm font-semibold text-emerald-700">
-                        Role branch
-                      </div>
-                      <h3 className="mt-6 text-4xl font-bold text-emerald-950">{role.title}</h3>
-                      <p className="mt-3 text-xl text-emerald-700 font-medium">{role.tagline}</p>
-
-                      <ul className="mt-8 space-y-4">
-                        {role.benefits.map((benefit) => (
-                          <li key={benefit} className="flex items-start gap-3">
-                            <div className="mt-1 h-5 w-5 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0">
-                              <svg
-                                className="h-3 w-3 text-white"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            </div>
-                            <span className="text-lg text-slate-700">{benefit}</span>
-                          </li>
-                        ))}
-                      </ul>
-
-                      <div className="mt-10">
-                        <Button
-                          size="lg"
-                          className="bg-emerald-600 hover:bg-emerald-700 px-8"
-                          asChild
-                        >
-                          <Link href={`/roles/${role.slug}`}>{role.buttonText}</Link>
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+                {role.title.replace("For ", "")}
+              </button>
             ))}
+          </div>
+
+          <motion.div
+            key={selectedRole.slug}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mt-12 grid items-center gap-10 lg:grid-cols-2"
+          >
+            <div className="relative h-[420px] overflow-hidden rounded-3xl shadow-lg">
+              <Image
+                src={selectedRole.image}
+                alt={selectedRole.title}
+                fill
+                className="object-cover"
+              />
+            </div>
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wider text-emerald-600">
+                Step-by-step
+              </p>
+              <h3 className="mt-2 text-3xl font-bold text-emerald-950">{selectedRole.title}</h3>
+              <p className="mt-2 text-lg text-emerald-700">{selectedRole.tagline}</p>
+              <ol className="mt-8 space-y-4">
+                {selectedRole.benefits.map((step, stepIndex) => (
+                  <li key={step} className="flex gap-4">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white">
+                      {stepIndex + 1}
+                    </span>
+                    <span className="pt-1 text-slate-700">{step}</span>
+                  </li>
+                ))}
+              </ol>
+              <Button size="lg" className="mt-8 bg-emerald-600 hover:bg-emerald-700" asChild>
+                <Link href={`/roles/${selectedRole.slug}`}>{selectedRole.buttonText}</Link>
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      <section id="pricing" className="bg-emerald-950 py-20 text-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Simple, transparent pricing
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-emerald-100/75">
+              Start free with limited access, or upgrade to Premium for unlimited marketplace
+              visibility.
+            </p>
+          </div>
+
+          <div className="mx-auto mt-12 grid max-w-4xl gap-6 md:grid-cols-2">
+            {pricingPlans.map((plan) => (
+              <div
+                key={plan.name}
+                className={`relative flex flex-col rounded-xl p-8 ${
+                  plan.highlight
+                    ? "border border-emerald-400 bg-gradient-to-b from-emerald-600 to-emerald-700 shadow-[0_20px_40px_rgba(16,185,129,0.25)]"
+                    : "border border-emerald-800/60 bg-emerald-900/40 backdrop-blur-sm"
+                }`}
+              >
+                {plan.highlight ? (
+                  <span className="mb-6 inline-flex w-fit rounded-sm bg-emerald-300 px-2.5 py-1 text-[10px] font-bold tracking-[0.15em] text-emerald-950">
+                    MOST POPULAR
+                  </span>
+                ) : (
+                  <span className="mb-6 block h-[26px]" aria-hidden />
+                )}
+
+                <div>
+                  <h3 className="text-xl font-bold">{plan.name}</h3>
+                  <p className={`mt-1 text-sm ${plan.highlight ? "text-emerald-50/90" : "text-emerald-100/60"}`}>
+                    {plan.subtitle}
+                  </p>
+                  <p className="mt-6 text-4xl font-bold tracking-tight">
+                    {plan.price}
+                    {plan.period ? (
+                      <span
+                        className={`text-base font-normal ${plan.highlight ? "text-emerald-50/80" : "text-emerald-100/50"}`}
+                      >
+                        {" "}
+                        / {plan.period}
+                      </span>
+                    ) : null}
+                  </p>
+                </div>
+
+                <div
+                  className={`my-8 border-t ${plan.highlight ? "border-emerald-400/40" : "border-emerald-800/60"}`}
+                />
+
+                <ul className="flex-1 space-y-3.5">
+                  {plan.features.map((feature) => (
+                    <li
+                      key={feature}
+                      className={`flex items-start gap-3 text-sm ${plan.highlight ? "text-emerald-50" : "text-emerald-100/85"}`}
+                    >
+                      <Check
+                        className={`mt-0.5 h-4 w-4 shrink-0 ${plan.highlight ? "text-emerald-100" : "text-emerald-400"}`}
+                        strokeWidth={1.5}
+                      />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  href={plan.href}
+                  className={`mt-8 inline-flex w-full items-center justify-center rounded-md px-4 py-2.5 text-sm font-semibold transition ${
+                    plan.highlight
+                      ? "bg-white text-emerald-700 hover:bg-emerald-50"
+                      : "border border-emerald-600/50 text-white hover:border-emerald-500 hover:bg-emerald-800/50"
+                  }`}
+                >
+                  {plan.cta}
+                </Link>
+              </div>
+            ))}
+          </div>
+
+          <div className="mx-auto mt-10 max-w-4xl text-right">
+            <Link
+              href="/register"
+              className="inline-flex items-center text-sm font-medium text-emerald-400 transition hover:text-emerald-300"
+            >
+              See full pricing details
+              <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Link>
           </div>
         </div>
       </section>
@@ -278,10 +417,26 @@ export default function HomePage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                { icon: Shield, title: "KYC & verification", text: "Identity and bank validation with admin exception review." },
-                { icon: Wallet, title: "Payments & mandates", text: "Direct debit mandates, deductions, retries, and settlement." },
-                { icon: Building2, title: "Listings & applications", text: "Publication workflow with landlord and agent review queues." },
-                { icon: Users, title: "Role-based access", text: "Dedicated dashboards for every participant in the rental chain." },
+                {
+                  icon: Shield,
+                  title: "KYC & verification",
+                  text: "Identity and bank validation with admin exception review.",
+                },
+                {
+                  icon: Wallet,
+                  title: "Payments & mandates",
+                  text: "Direct debit mandates, deductions, retries, and settlement.",
+                },
+                {
+                  icon: Building2,
+                  title: "Listings & applications",
+                  text: "Publication workflow with landlord and agent review queues.",
+                },
+                {
+                  icon: Car,
+                  title: "Cars & appliances",
+                  text: "List and browse vehicles and home appliances alongside properties.",
+                },
               ].map((item) => (
                 <Card key={item.title}>
                   <CardHeader>
@@ -301,47 +456,40 @@ export default function HomePage() {
       <section className="bg-emerald-50 py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-700">What our users say</p>
-            <h2 className="mt-4 text-3xl font-bold text-emerald-950">Beautiful rental experiences, one review at a time</h2>
-            <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
-              Trusted by tenants, landlords, and lenders across Ghana for faster move-ins, safer payments, and cleaner workflows.
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-700">
+              What our users say
             </p>
+            <h2 className="mt-4 text-3xl font-bold text-emerald-950">
+              Trusted across Ghana
+            </h2>
           </div>
 
-          <div className="relative mx-auto mt-12 overflow-hidden rounded-none bg-transparent px-0 py-0">
-            <motion.div
-              animate={{ x: `-${currentTestimonial * 100}%` }}
-              transition={{ type: "spring", stiffness: 120, damping: 20 }}
-              className="flex w-[300%] gap-6"
-            >
-              {testimonials.map((item) => (
-                <div key={item.name} className="min-w-full rounded-[2rem] bg-slate-950 p-8 shadow-[0_30px_60px_rgba(15,23,42,0.15)]">
-                  <div className="mb-6 flex items-center justify-between">
-                    <Quote className="h-7 w-7 text-emerald-400" />
-                    <div className="flex items-center gap-1 text-amber-300">
-                      {[...Array(starCount)].map((_, index) => (
-                        <Star key={index} className="h-4 w-4" />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-lg leading-8 text-slate-100">“{item.quote}”</p>
-                  <div className="mt-8 flex items-center gap-4">
-                    <div className="relative h-14 w-14 overflow-hidden rounded-full border border-white/10 bg-slate-800">
-                      <Image
-                        src={item.image}
-                        alt={item.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-white">{item.name}</p>
-                      <p className="text-sm text-slate-400">{item.role}</p>
-                    </div>
+          <div className="mt-12 grid gap-6 md:grid-cols-3">
+            {testimonials.map((item) => (
+              <div
+                key={item.name}
+                className="rounded-[2rem] bg-slate-950 p-8 shadow-[0_30px_60px_rgba(15,23,42,0.15)]"
+              >
+                <div className="mb-6 flex items-center justify-between">
+                  <Quote className="h-7 w-7 text-emerald-400" />
+                  <div className="flex items-center gap-1 text-amber-300">
+                    {[...Array(5)].map((_, index) => (
+                      <Star key={index} className="h-4 w-4 fill-current" />
+                    ))}
                   </div>
                 </div>
-              ))}
-            </motion.div>
+                <p className="text-lg leading-8 text-slate-100">&ldquo;{item.quote}&rdquo;</p>
+                <div className="mt-8 flex items-center gap-4">
+                  <div className="relative h-14 w-14 overflow-hidden rounded-full border border-white/10 bg-slate-800">
+                    <Image src={item.image} alt={item.name} fill className="object-cover" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{item.name}</p>
+                    <p className="text-sm text-slate-400">{item.role}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -350,7 +498,8 @@ export default function HomePage() {
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
           <h2 className="text-2xl font-bold text-emerald-950">Ready to get started?</h2>
           <p className="mt-3 text-emerald-800/80">
-            Create your account as a tenant, landlord, agent, or lender and access your role-specific dashboard.
+            Create your account as a tenant, landlord, agent, or lender and access your
+            role-specific dashboard.
           </p>
           <Button asChild size="lg" className="mt-6 bg-emerald-600 hover:bg-emerald-700">
             <Link href="/register">Create your account</Link>
@@ -360,4 +509,3 @@ export default function HomePage() {
     </div>
   );
 }
-

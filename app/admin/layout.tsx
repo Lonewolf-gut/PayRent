@@ -9,7 +9,7 @@ const navItems = [
     icon: "Building2" as const,
     badgeCountEndpoint: "/api/admin/properties?status=PENDING_VERIFICATION",
   },
-  { href: "/admin/kyc", label: "KYC Review", icon: "FileText" as const },
+  { href: "/admin/kyc", label: "KYC Review", icon: "FileText" as const, badgeCountEndpoint: "/api/admin/reviews?type=kyc" },
   { href: "/admin/mandates", label: "Mandates", icon: "CreditCard" as const },
   { href: "/admin/transactions", label: "Transactions", icon: "DollarSign" as const },
   { href: "/admin/reconciliation", label: "Reconciliation", icon: "BarChart3" as const },

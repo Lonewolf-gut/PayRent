@@ -72,7 +72,7 @@ async function main() {
     create: {
       id: "demo-sub",
       userId: tenantUser.id,
-      plan: "STANDARD",
+      plan: "FREE",
       status: "ACTIVE",
       billingCycle: "MONTHLY",
     },

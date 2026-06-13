@@ -49,7 +49,7 @@ export default function PropertiesPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-full"
           />
-          <Select value={propertyType} onValueChange={(value) => setPropertyType(value)}>
+          <Select value={propertyType} onValueChange={(value) => setPropertyType(value ?? "ALL")}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="All property types" />
             </SelectTrigger>

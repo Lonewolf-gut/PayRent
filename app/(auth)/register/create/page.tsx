@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,13 +31,14 @@ const roleLabels: Record<string, string> = {
   LENDER: "lender",
 };
 
-interface RegisterCreatePageProps {
-  searchParams?: { role?: string };
-}
-
-export default function RegisterCreatePage({ searchParams }: RegisterCreatePageProps) {
+export default function RegisterCreatePage() {
   const router = useRouter();
-  const initialRole = (searchParams?.role ?? "TENANT") as "TENANT" | "LANDLORD" | "AGENT" | "LENDER";
+  const searchParams = useSearchParams();
+  const initialRole = (searchParams.get("role") ?? "TENANT") as
+    | "TENANT"
+    | "LANDLORD"
+    | "AGENT"
+    | "LENDER";
   const role = ["TENANT", "LANDLORD", "AGENT", "LENDER"].includes(initialRole) ? initialRole : "TENANT";
   const [loading, setLoading] = useState(false);
 

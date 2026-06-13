@@ -401,7 +401,7 @@ export default function LandlordPropertiesPage() {
                 <Label>Type</Label>
                 <Select
                   defaultValue={editingProperty.propertyType}
-                  onValueChange={(v) => setValue("propertyType", v as PropertyInput["propertyType"])}
+                  onValueChange={(v) => setEditValue("propertyType", v as PropertyInput["propertyType"])}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -637,9 +637,9 @@ export default function LandlordPropertiesPage() {
                   Upload up to 10 photos for admin review.
                 </p>
                 {fileError && <p className="text-xs text-destructive">{fileError}</p>}
-                {imagePreviews.length > 0 && (
+                {addImagePreviews.length > 0 && (
                   <div className="mt-3 grid gap-3 sm:grid-cols-4">
-                    {imagePreviews.map((src, index) => (
+                    {addImagePreviews.map((src: string, index: number) => (
                       <div key={index} className="relative h-24 overflow-hidden rounded-xl border border-slate-200 bg-white">
                         <Image
                           src={src}
