@@ -1,0 +1,8 @@
+{
+  "buildCommand": "prisma generate && next build",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "env": {
+    "AUTH_TRUST_HOST": "true"
+  }
+}

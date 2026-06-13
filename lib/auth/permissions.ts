@@ -1,0 +1,83 @@
+import type { UserRole } from "@prisma/client";
+
+export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
+  TENANT: [
+    "property:read",
+    "property:save",
+    "application:create",
+    "application:read",
+    "financing:create",
+    "financing:read",
+    "mandate:create",
+    "mandate:read",
+    "kyc:manage",
+    "wallet:read",
+    "wallet:deposit",
+    "wallet:pay",
+    "subscription:manage",
+    "message:send",
+  ],
+  LANDLORD: [
+    "property:create",
+    "property:update",
+    "property:delete",
+    "application:review",
+    "agent:manage",
+    "settlement:read",
+    "wallet:read",
+    "wallet:withdraw",
+    "message:send",
+  ],
+  AGENT: [
+    "property:read",
+    "property:update",
+    "application:review",
+    "message:send",
+  ],
+  LENDER: [
+    "financing:review",
+    "financing:approve",
+    "financing:reject",
+    "investment:read",
+    "repayment:read",
+    "wallet:read",
+    "wallet:deposit",
+    "wallet:withdraw",
+    "message:send",
+  ],
+  ADMIN: [
+    "admin:users",
+    "admin:properties",
+    "admin:transactions",
+    "admin:kyc",
+    "admin:mandates",
+    "admin:settlements",
+    "admin:reconciliation",
+    "admin:subscriptions",
+    "admin:commissions",
+    "admin:fraud",
+    "admin:disputes",
+    "ceo:analytics",
+    "ceo:revenue",
+    "ceo:reports",
+  ],
+};
+
+export function hasPermission(role: UserRole, permission: string): boolean {
+  return ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
+}
+
+export function requireRole(
+  userRole: UserRole,
+  allowedRoles: UserRole[]
+): boolean {
+  return allowedRoles.includes(userRole);
+}
+
+export const DASHBOARD_ROUTES: Record<UserRole, string> = {
+  TENANT: "/dashboard/tenant",
+  LANDLORD: "/dashboard/landlord",
+  AGENT: "/dashboard/agent",
+  LENDER: "/dashboard/lender",
+  ADMIN: "/admin",
+};

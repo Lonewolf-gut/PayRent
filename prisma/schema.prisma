@@ -1,0 +1,915 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  TENANT
+  LANDLORD
+  AGENT
+  LENDER
+  ADMIN
+  CEO
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  CLARIFICATION_REQUIRED
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum MandateType {
+  DIRECT_DEBIT
+  STANDING_ORDER
+}
+
+enum MandateSource {
+  SCANNED_UPLOAD
+  PLATFORM_GENERATED
+}
+
+enum MandateStatus {
+  DRAFT
+  PENDING_SUBMISSION
+  SUBMITTED
+  ADMIN_REVIEW
+  BANK_PROCESSING
+  ACTIVE
+  REJECTED
+  EXPIRED
+  REVOKED
+  ARCHIVED
+  PENDING_MANUAL_RESOLUTION
+}
+
+enum SettlementStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum BeneficiaryType {
+  LANDLORD
+  AGENT
+  LENDER
+  PLATFORM
+}
+
+enum ReconciliationStatus {
+  MATCHED
+  UNMATCHED_PAYMENT
+  MISSING_CONFIRMATION
+  DUPLICATE_CONFIRMATION
+  SETTLEMENT_MISMATCH
+  UNDER_REVIEW
+  RESOLVED
+}
+
+enum AdminReviewType {
+  KYC
+  LISTING
+  MANDATE
+  DISPUTE
+  RECONCILIATION
+  DEDUCTION
+}
+
+enum AdminReviewStatus {
+  PENDING
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+  ESCALATED
+}
+
+enum DeductionStatus {
+  PENDING
+  IN_PROGRESS
+  SUCCESSFUL
+  FAILED
+  RETRY_SCHEDULED
+  ESCALATED
+  COMPLETED
+}
+
+enum VerificationType {
+  EMAIL
+  PHONE
+  KYC
+  IDENTITY
+  PROPERTY
+  BANK
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  CONDO
+  TOWNHOUSE
+  STUDIO
+  COMMERCIAL
+  CAR
+  APPLIANCE
+}
+
+enum PropertyStatus {
+  DRAFT
+  PENDING_VERIFICATION
+  ACTIVE
+  RENTED
+  INACTIVE
+}
+
+enum EmploymentStatus {
+  EMPLOYED
+  SELF_EMPLOYED
+  UNEMPLOYED
+  STUDENT
+  RETIRED
+}
+
+enum FinancingStatus {
+  CREATED
+  ELIGIBILITY_PENDING
+  MANDATE_PENDING
+  READY_FOR_LENDER_REVIEW
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  WITHDRAWN
+  FUNDED
+  DISBURSED
+  REPAYMENT_ACTIVE
+  COMPLETED
+  CLOSED
+  DEFAULTED
+}
+
+enum RepaymentPlanType {
+  MONTHLY
+  DEFERRED
+  CUSTOM
+}
+
+enum InstallmentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  PARTIAL
+}
+
+enum WalletType {
+  TENANT
+  LENDER
+  LANDLORD
+  AGENT
+  PLATFORM
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  TRANSFER
+  PAYMENT
+  COMMISSION
+  REFUND
+  FUNDING
+  INSTALLMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum SubscriptionPlan {
+  FREE
+  STANDARD
+  PREMIUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAST_DUE
+}
+
+enum BillingCycle {
+  MONTHLY
+  ANNUAL
+}
+
+enum WithdrawalStatus {
+  PENDING
+  OTP_VERIFIED
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  IN_APP
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  emailVerified     DateTime?
+  phone             String?   @unique
+  phoneVerified     DateTime?
+  passwordHash      String
+  role              UserRole
+  image             String?
+  twoFactorEnabled  Boolean   @default(false)
+  twoFactorSecret   String?
+  transactionPinHash String?
+  withdrawalPinHash  String?
+  isActive          Boolean   @default(true)
+  failedLoginCount  Int       @default(0)
+  lockedUntil       DateTime?
+  refreshTokenHash  String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant            Tenant?
+  landlord          Landlord?
+  lender            Lender?
+  agentProfile      AgentProfile?
+  wallets           Wallet[]
+  notifications     Notification[]
+  sentMessages      Message[]       @relation("SentMessages")
+  conversations     ConversationParticipant[]
+  auditLogs         AuditLog[]
+  loginLogs         LoginLog[]
+  verifications     Verification[]
+  bankAccounts      BankAccount[]
+  withdrawalRequests WithdrawalRequest[]
+  savedProperties   SavedProperty[]
+  sessions          Session[]
+  accounts          Account[]
+  subscriptions     Subscription[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Tenant {
+  id                 String           @id @default(cuid())
+  userId             String           @unique
+  fullName           String
+  nationalId         String?          @unique
+  dateOfBirth        DateTime?
+  occupation         String?
+  employerName       String?
+  residentialAddress String?
+  employmentStatus   EmploymentStatus?
+  monthlyIncome      Decimal?         @db.Decimal(12, 2)
+  creditScore        Int?
+  kycVerified        Boolean          @default(false)
+  profileStatus      String           @default("INCOMPLETE")
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  financingRequests  FinancingRequest[]
+  applications       PropertyApplication[]
+  mandates           Mandate[]
+}
+
+model Landlord {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  fullName           String
+  nationalId         String?  @unique
+  identityVerified   Boolean  @default(false)
+  profileStatus      String   @default("INCOMPLETE")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  properties Property[]
+}
+
+model Lender {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  fullName         String
+  nationalId       String?  @unique
+  institutionName  String?
+  lenderType       String?
+  licenceReference String?
+  approvalLimit    Decimal? @db.Decimal(14, 2)
+  kycVerified      Boolean  @default(false)
+  identityVerified Boolean  @default(false)
+  profileStatus    String   @default("INCOMPLETE")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  investments  Investment[]
+}
+
+model AgentProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  fullName       String
+  agencyName     String?
+  licenceNumber  String?
+  region         String?
+  officeAddress  String?
+  profileStatus  String   @default("INCOMPLETE")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  properties Property[] @relation("AssignedAgent")
+}
+
+model Property {
+  id              String         @id @default(cuid())
+  landlordId      String
+  agentUserId     String?
+  name            String
+  propertyType    PropertyType
+  region          String?
+  city            String?
+  area            String?
+  monthlyRent     Decimal        @db.Decimal(12, 2)
+  annualRent      Decimal        @db.Decimal(12, 2)
+  location        String
+  latitude        Float?
+  longitude       Float?
+  description     String         @db.Text
+  amenities       String[]
+  status          PropertyStatus @default(DRAFT)
+  isPremium       Boolean        @default(false)
+  availableFrom   DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  landlord          Landlord              @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  assignedAgent     AgentProfile?         @relation("AssignedAgent", fields: [agentUserId], references: [id], onDelete: SetNull)
+  images            PropertyImage[]
+  videos            PropertyVideo[]
+  agent             Agent?
+  financingRequests FinancingRequest[]
+  savedBy           SavedProperty[]
+  applications      PropertyApplication[]
+
+  @@index([landlordId])
+  @@index([agentUserId])
+  @@index([status])
+  @@index([monthlyRent])
+  @@index([city])
+  @@index([region])
+}
+
+model PropertyImage {
+  id         String   @id @default(cuid())
+  propertyId String
+  url        String
+  alt        String?
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model PropertyVideo {
+  id         String   @id @default(cuid())
+  propertyId String
+  url        String
+  title      String?
+  createdAt  DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model Agent {
+  id         String   @id @default(cuid())
+  propertyId String   @unique
+  name       String
+  phone      String
+  email      String
+  image      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model SavedProperty {
+  id         String   @id @default(cuid())
+  userId     String
+  propertyId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId])
+}
+
+model Subscription {
+  id           String             @id @default(cuid())
+  userId       String
+  plan         SubscriptionPlan   @default(FREE)
+  status       SubscriptionStatus @default(ACTIVE)
+  billingCycle BillingCycle       @default(MONTHLY)
+  autoRenew    Boolean            @default(true)
+  startDate    DateTime           @default(now())
+  endDate      DateTime?
+  cancelledAt  DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Wallet {
+  id            String     @id @default(cuid())
+  userId        String?
+  type          WalletType
+  balance       Decimal    @default(0) @db.Decimal(14, 2)
+  currency      String     @default("GHS")
+  encryptedMeta String?
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  user         User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  transactions WalletTransaction[]
+
+  @@index([userId])
+  @@index([type])
+}
+
+model WalletTransaction {
+  id              String            @id @default(cuid())
+  walletId        String
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+  amount          Decimal           @db.Decimal(14, 2)
+  fee             Decimal           @default(0) @db.Decimal(14, 2)
+  commission      Decimal           @default(0) @db.Decimal(14, 2)
+  netAmount       Decimal           @db.Decimal(14, 2)
+  reference       String            @unique
+  description     String?
+  metadata        Json?
+  counterpartyId  String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  wallet           Wallet      @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  commissionRecord Commission?
+
+  @@index([walletId])
+  @@index([reference])
+  @@index([createdAt])
+}
+
+model PropertyApplication {
+  id                  String            @id @default(cuid())
+  propertyId          String
+  tenantId            String
+  status              ApplicationStatus @default(DRAFT)
+  requestedMoveInDate DateTime?
+  notes               String?
+  reviewedBy          String?
+  reviewedAt          DateTime?
+  decisionReason      String?
+  withdrawnAt         DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  property          Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  financingRequests FinancingRequest[]
+
+  @@index([tenantId, status])
+  @@index([propertyId, status])
+}
+
+model FinancingRequest {
+  id              String          @id @default(cuid())
+  tenantId        String
+  propertyId      String
+  applicationId   String?
+  mandateId       String?         @unique
+  requestedAmount Decimal         @db.Decimal(14, 2)
+  approvedAmount  Decimal?        @db.Decimal(14, 2)
+  durationMonths  Int
+  status          FinancingStatus @default(CREATED)
+  notes           String?
+  decisionReason  String?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  disbursedAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property      Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  application   PropertyApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  mandate       Mandate?             @relation(fields: [mandateId], references: [id], onDelete: SetNull)
+  investment    Investment?
+  repaymentPlan RepaymentPlan?
+  settlements   SettlementRecord[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([applicationId])
+  @@index([mandateId])
+}
+
+model Investment {
+  id                 String   @id @default(cuid())
+  lenderId           String
+  financingRequestId String   @unique
+  amount             Decimal  @db.Decimal(14, 2)
+  interestRate       Decimal  @db.Decimal(5, 2)
+  roi                Decimal? @db.Decimal(8, 2)
+  fundedAt           DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  lender           Lender           @relation(fields: [lenderId], references: [id], onDelete: Cascade)
+  financingRequest FinancingRequest @relation(fields: [financingRequestId], references: [id], onDelete: Cascade)
+}
+
+model RepaymentPlan {
+  id           String            @id @default(cuid())
+  financingId  String            @unique
+  planType     RepaymentPlanType
+  totalAmount  Decimal           @db.Decimal(14, 2)
+  interestRate Decimal           @db.Decimal(5, 2)
+  startDate    DateTime
+  endDate      DateTime
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  financing    FinancingRequest @relation(fields: [financingId], references: [id], onDelete: Cascade)
+  installments Installment[]
+}
+
+model Installment {
+  id              String            @id @default(cuid())
+  repaymentPlanId String
+  instalmentNumber Int              @default(1)
+  amount          Decimal           @db.Decimal(14, 2)
+  principalAmount Decimal?          @db.Decimal(14, 2)
+  interestAmount  Decimal?          @db.Decimal(14, 2)
+  feeAmount       Decimal?          @db.Decimal(14, 2)
+  amountPaid      Decimal           @default(0) @db.Decimal(14, 2)
+  dueDate         DateTime
+  paidAt          DateTime?
+  status          InstallmentStatus @default(PENDING)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  repaymentPlan   RepaymentPlan   @relation(fields: [repaymentPlanId], references: [id], onDelete: Cascade)
+  deductionEvents DeductionEvent[]
+
+  @@index([repaymentPlanId])
+  @@index([dueDate])
+  @@index([status])
+}
+
+model Commission {
+  id            String   @id @default(cuid())
+  transactionId String   @unique
+  serviceFee    Decimal  @db.Decimal(14, 2)
+  commissionFee Decimal  @db.Decimal(14, 2)
+  processingFee Decimal  @db.Decimal(14, 2)
+  totalFee      Decimal  @db.Decimal(14, 2)
+  createdAt     DateTime @default(now())
+
+  transaction WalletTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+}
+
+model WithdrawalRequest {
+  id            String           @id @default(cuid())
+  userId        String
+  bankAccountId String
+  amount        Decimal          @db.Decimal(14, 2)
+  status        WithdrawalStatus @default(PENDING)
+  otpVerified   Boolean          @default(false)
+  twoFaVerified Boolean          @default(false)
+  processedAt   DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankAccount BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model BankAccount {
+  id                  String   @id @default(cuid())
+  userId              String
+  accountType         String   @default("BANK")
+  bankCode            String?
+  bankName            String
+  accountNumber       String
+  accountNumberMasked String?
+  accountName         String
+  encryptedData       String?
+  validationStatus    String   @default("PENDING")
+  isVerified          Boolean  @default(false)
+  isDefault           Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  withdrawalRequests WithdrawalRequest[]
+  mandates           Mandate[]
+
+  @@index([userId])
+  @@index([validationStatus])
+}
+
+model Verification {
+  id        String             @id @default(cuid())
+  userId    String
+  type      VerificationType
+  status    VerificationStatus @default(PENDING)
+  data      Json?
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  id             String   @id @default(cuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime @default(now())
+  lastReadAt     DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String        @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String        @db.Text
+  status         MessageStatus @default(SENT)
+  createdAt      DateTime      @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  channel   NotificationChannel @default(IN_APP)
+  read      Boolean             @default(false)
+  metadata  Json?
+  createdAt DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model LoginLog {
+  id        String   @id @default(cuid())
+  userId    String
+  success   Boolean
+  ipAddress String?
+  userAgent String?
+  deviceId  String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String
+  purpose   String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, purpose])
+}
+
+model Mandate {
+  id                String        @id @default(cuid())
+  tenantId          String
+  bankAccountId     String
+  mandateType       MandateType   @default(DIRECT_DEBIT)
+  mandateSource     MandateSource @default(PLATFORM_GENERATED)
+  status            MandateStatus @default(DRAFT)
+  providerName      String?
+  providerReference String?
+  documentUrl       String?
+  submittedAt       DateTime?
+  activatedAt       DateTime?
+  rejectedReason    String?
+  revokedAt         DateTime?
+  expiresAt         DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bankAccount     BankAccount       @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  financingRequest FinancingRequest?
+  deductionEvents DeductionEvent[]
+
+  @@index([tenantId])
+  @@index([bankAccountId])
+  @@index([status])
+  @@index([providerReference])
+}
+
+model SettlementRecord {
+  id                  String           @id @default(cuid())
+  financingRequestId  String
+  beneficiaryUserId   String?
+  beneficiaryType     BeneficiaryType
+  grossAmount         Decimal          @db.Decimal(14, 2)
+  feeAmount           Decimal          @default(0) @db.Decimal(14, 2)
+  netAmount           Decimal          @db.Decimal(14, 2)
+  currency            String           @default("GHS")
+  status              SettlementStatus @default(PENDING)
+  settlementReference String?
+  settledAt           DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  financingRequest FinancingRequest @relation(fields: [financingRequestId], references: [id], onDelete: Cascade)
+
+  @@index([financingRequestId])
+  @@index([status])
+}
+
+model DeductionEvent {
+  id                String          @id @default(cuid())
+  installmentId     String
+  mandateId         String
+  attemptNumber     Int             @default(1)
+  providerReference String?
+  attemptedAmount   Decimal         @db.Decimal(14, 2)
+  status            DeductionStatus @default(PENDING)
+  failureReason     String?
+  attemptedAt       DateTime        @default(now())
+  completedAt       DateTime?
+  nextRetryAt       DateTime?
+
+  installment Installment @relation(fields: [installmentId], references: [id], onDelete: Cascade)
+  mandate     Mandate     @relation(fields: [mandateId], references: [id], onDelete: Cascade)
+
+  @@index([installmentId])
+  @@index([mandateId])
+  @@index([status])
+  @@index([nextRetryAt])
+}
+
+model ReconciliationException {
+  id                String               @id @default(cuid())
+  relatedRecordType String
+  relatedRecordId   String
+  exceptionType     String
+  expectedAmount    Decimal?             @db.Decimal(14, 2)
+  actualAmount      Decimal?             @db.Decimal(14, 2)
+  providerReference String?
+  status            ReconciliationStatus @default(UNDER_REVIEW)
+  assignedTo        String?
+  resolvedAt        DateTime?
+  resolutionNote    String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([status])
+  @@index([relatedRecordType, relatedRecordId])
+}
+
+model AdminReviewRecord {
+  id                 String            @id @default(cuid())
+  reviewType         AdminReviewType
+  relatedEntityType  String
+  relatedEntityId    String
+  assignedAdminUserId String?
+  status             AdminReviewStatus @default(PENDING)
+  decision           String?
+  decisionNote       String?
+  createdAt          DateTime          @default(now())
+  completedAt        DateTime?
+
+  @@index([reviewType, status])
+  @@index([relatedEntityType, relatedEntityId])
+}

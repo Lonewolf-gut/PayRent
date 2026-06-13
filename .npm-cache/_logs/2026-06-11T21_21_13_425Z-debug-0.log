@@ -1,0 +1,25 @@
+0 verbose cli C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.8.2
+2 info using node@v20.19.5
+3 silly config load:file:C:\Users\USER\AppData\Local\nvm\v20.19.5\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\USER\Desktop\PayRent\.npmrc
+5 silly config load:file:C:\Users\USER\.npmrc
+6 silly config load:file:C:\nvm4w\nodejs\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install" "--cache" ".npm-cache" "--no-audit" "--no-fund" "--loglevel" "verbose"
+9 verbose logfile logs-max:10 dir:C:\Users\USER\Desktop\PayRent\.npm-cache\_logs\2026-06-11T21_21_13_425Z-
+10 verbose logfile C:\Users\USER\Desktop\PayRent\.npm-cache\_logs\2026-06-11T21_21_13_425Z-debug-0.log
+11 silly packumentCache heap:2197815296 maxSize:549453824 maxEntrySize:274726912
+12 silly logfile done cleaning log files
+13 http fetch GET 200 https://registry.npmjs.org/npm 3397ms
+14 silly idealTree buildDeps
+15 silly fetch manifest @auth/prisma-adapter@^2.11.2
+16 silly packumentCache full:https://registry.npmjs.org/@auth%2fprisma-adapter cache-miss
+17 http fetch GET 200 https://registry.npmjs.org/@auth%2fprisma-adapter 3682ms (cache miss)
+18 silly packumentCache full:https://registry.npmjs.org/@auth%2fprisma-adapter set size:undefined disposed:false
+19 silly fetch manifest @prisma/client@^6.19.0
+20 silly packumentCache full:https://registry.npmjs.org/@prisma%2fclient cache-miss
+21 http fetch GET 200 https://registry.npmjs.org/@prisma%2fclient 59809ms (cache miss)
+22 silly packumentCache full:https://registry.npmjs.org/@prisma%2fclient set size:undefined disposed:false
+23 silly fetch manifest prisma@^6.19.0
+24 silly packumentCache full:https://registry.npmjs.org/prisma cache-miss
