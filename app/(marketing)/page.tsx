@@ -65,41 +65,42 @@ const testimonials = [
       "PayForme made finding and financing my apartment smooth. I felt supported at every step.",
     name: "Ama Boateng",
     role: "Tenant",
+    image:
+      "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&h=400&q=80",
   },
   {
     quote:
       "Our listings now reach more verified tenants, and the admin tools keep everything under control.",
     name: "Kwame Mensah",
     role: "Landlord",
+    image:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&h=400&q=80",
   },
   {
     quote:
       "As a lender, I love how clear the repayment tracking is — it saves so much time.",
     name: "Nana Yaa Asantewaa",
     role: "Lender",
+    image:
+      "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&h=400&q=80",
   },
   {
     quote:
       "Managing applications for multiple landlords is so much easier. The dashboard keeps every deal transparent.",
     name: "Efua Koranteng",
     role: "Agent",
+    image:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&h=400&q=80",
   },
   {
     quote:
       "The subscription model is fair — I started free and upgraded when my portfolio grew. No surprises.",
     name: "Kofi Adom",
     role: "Landlord",
+    image:
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80",
   },
 ];
-
-function testimonialInitials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 export default function HomePage() {
   const { data: session } = useSession();
@@ -378,8 +379,14 @@ export default function HomePage() {
                 {testimonials.map((item) => (
                   <div key={item.name} className="w-full flex-shrink-0 px-2">
                     <div className="flex flex-col items-center px-4 py-6 text-center sm:px-10 sm:py-8">
-                      <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-slate-200 bg-white text-xl font-semibold text-slate-600 shadow-sm">
-                        {testimonialInitials(item.name)}
+                      <div className="relative h-24 w-24 overflow-hidden rounded-full border-2 border-slate-200 bg-white shadow-sm">
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          sizes="96px"
+                          className="object-cover"
+                        />
                       </div>
                       <p className="mt-6 text-lg font-semibold text-slate-800">{item.name}</p>
                       <p className="mt-1 text-sm text-slate-500">{item.role}</p>
