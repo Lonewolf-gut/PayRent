@@ -41,5 +41,5 @@ export const GET = withAuth(
       limit,
     });
   },
-  { roles: ["ADMIN", "CEO"], permission: "admin:transactions" }
+  { roles: ["ADMIN"], permission: "admin:transactions" }
 );

@@ -22,5 +22,6 @@ declare module "@auth/core/jwt" {
     id: string;
     role: UserRole;
     twoFactorEnabled: boolean;
+    picture?: string | null;
   }
 }

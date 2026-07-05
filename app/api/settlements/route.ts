@@ -10,7 +10,7 @@ export const GET = withAuth(
     );
     return apiResponse(settlements, 200, "Settlements retrieved.");
   },
-  { roles: ["LANDLORD", "ADMIN", "CEO"] }
+  { roles: ["LANDLORD", "ADMIN"] }
 );
 
 export const PATCH = withAuth(
@@ -25,5 +25,5 @@ export const PATCH = withAuth(
     );
     return apiResponse(settlement, 200, "Settlement marked completed.");
   },
-  { roles: ["ADMIN", "CEO"], permission: "admin:settlements" }
+  { roles: ["ADMIN"], permission: "admin:settlements" }
 );

@@ -3,10 +3,15 @@ import { z } from "zod";
 import { twoFactorService } from "@/lib/services/two-factor.service";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 
+export const GET = withAuth(async (_req, _ctx, session) => {
+  const status = await twoFactorService.getStatus(session.user.id);
+  return apiResponse(status);
+});
+
 export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
   const body = await req.json();
   const schema = z.object({
-    action: z.enum(["enable", "verify"]),
+    action: z.enum(["enable", "verify", "disable"]),
     token: z.string().optional(),
   });
   const parsed = schema.safeParse(body);
@@ -18,6 +23,12 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
   }
 
   if (!parsed.data.token) return apiResponse({ error: "Token required" }, 400);
-  await twoFactorService.verify(session.user.id, parsed.data.token);
-  return apiResponse({ enabled: true });
+
+  if (parsed.data.action === "verify") {
+    await twoFactorService.verify(session.user.id, parsed.data.token);
+    return apiResponse({ enabled: true });
+  }
+
+  await twoFactorService.disable(session.user.id, parsed.data.token);
+  return apiResponse({ enabled: false });
 });

@@ -17,18 +17,6 @@ async function main() {
     },
   });
 
-  const ceo = await prisma.user.upsert({
-    where: { email: "ceo@rentvest.com" },
-    update: {},
-    create: {
-      email: "ceo@rentvest.com",
-      passwordHash,
-      role: "CEO",
-      emailVerified: new Date(),
-      isActive: true,
-    },
-  });
-
   const admin = await prisma.user.upsert({
     where: { email: "admin@rentvest.com" },
     update: {},
@@ -209,7 +197,7 @@ async function main() {
     });
   }
 
-  console.log("Seed completed:", { ceo: ceo.email, admin: admin.email });
+  console.log("Seed completed:", { admin: admin.email });
   console.log("Demo password for all: Password123!");
 }
 

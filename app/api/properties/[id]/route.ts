@@ -7,7 +7,8 @@ import { propertyRepository } from "@/lib/repositories/property.repository";
 import { apiResponse, apiError, withAuth, withPublicHandler } from "@/lib/api/handler";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/db/prisma";
-import { propertySchema } from "@/lib/validations/property";
+import { propertySchema, normalizePropertyPayload, parseOptionalFormNumber } from "@/lib/validations/property";
+import { firstZodIssueMessage } from "@/lib/validations/auth";
 
 const saveUploadedFile = async (file: File, folder: string) => {
   const mimeMatch = file.type.match(/\/([a-z0-9]+)(?:;|$)/i);
@@ -33,7 +34,6 @@ export const PATCH = withAuth(
     const { id } = await context.params;
     let parsed;
     let images: File[] = [];
-    let video: File | null = null;
 
     if (req.headers.get("content-type")?.includes("multipart/form-data")) {
       const formData = await req.formData();
@@ -41,7 +41,8 @@ export const PATCH = withAuth(
         name: formData.get("name")?.toString() ?? "",
         propertyType: formData.get("propertyType")?.toString() ?? "",
         monthlyRent: Number(formData.get("monthlyRent") ?? 0),
-        annualRent: Number(formData.get("annualRent") ?? 0),
+        annualRent: parseOptionalFormNumber(formData.get("annualRent")),
+        discountedPrice: parseOptionalFormNumber(formData.get("discountedPrice")),
         location: formData.get("location")?.toString() ?? "",
         latitude: formData.get("latitude") ? Number(formData.get("latitude")) : undefined,
         longitude: formData.get("longitude") ? Number(formData.get("longitude")) : undefined,
@@ -54,17 +55,20 @@ export const PATCH = withAuth(
       images = formData.getAll("images").filter(
         (value): value is File => value instanceof File && Boolean(value.name)
       );
-      const maybeVideo = formData.get("video");
-      if (maybeVideo instanceof File && maybeVideo.name) {
-        video = maybeVideo;
-      }
     } else {
       const body = await req.json();
       parsed = propertySchema.safeParse(body);
     }
 
     if (!parsed.success) {
-      return apiResponse({ error: parsed.error.flatten() }, 400);
+      return apiResponse(
+        { error: parsed.error.flatten() },
+        400,
+        firstZodIssueMessage(
+          parsed.error,
+          "Please review your listing details and try again."
+        )
+      );
     }
 
     const landlord = await prisma.landlord.findUnique({
@@ -80,10 +84,21 @@ export const PATCH = withAuth(
       return apiError(new AppError("Property not found", 404));
     }
 
+    const normalized = normalizePropertyPayload(parsed.data);
+
     const updateData: Prisma.PropertyUpdateInput = {
-      ...parsed.data,
-      monthlyRent: parsed.data.monthlyRent,
-      annualRent: parsed.data.annualRent,
+      name: normalized.name,
+      propertyType: normalized.propertyType,
+      monthlyRent: normalized.monthlyRent,
+      annualRent: normalized.annualRent,
+      discountedPrice: normalized.discountedPrice,
+      location: normalized.location,
+      latitude: normalized.latitude,
+      longitude: normalized.longitude,
+      description: normalized.description,
+      availableFrom: normalized.availableFrom
+        ? new Date(normalized.availableFrom)
+        : undefined,
     };
 
     if (images.length > 0) {
@@ -95,17 +110,6 @@ export const PATCH = withAuth(
             order: index,
           }))
         ),
-      };
-    }
-
-    if (video) {
-      updateData.videos = {
-        create: [
-          {
-            url: await saveUploadedFile(video, "videos"),
-            title: video.name,
-          },
-        ],
       };
     }
 

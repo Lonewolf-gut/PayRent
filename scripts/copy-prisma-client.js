@@ -7,6 +7,22 @@ const sourceCandidates = [
   path.join(__dirname, '..', 'node_modules', '@prisma', 'client', '.prisma', 'client'),
 ];
 const targetDir = path.join(__dirname, '..', 'node_modules', '@prisma', 'client', '.prisma', 'client');
+const legacyPrismaDir = path.join(__dirname, '..', 'node_modules', '@prisma', 'client', '.prisma');
+
+function removeLegacyFlatPrismaFiles() {
+  if (!fs.existsSync(legacyPrismaDir)) return;
+
+  for (const item of fs.readdirSync(legacyPrismaDir)) {
+    if (item === 'client') continue;
+    const itemPath = path.join(legacyPrismaDir, item);
+    const stat = fs.statSync(itemPath);
+    if (stat.isDirectory()) {
+      fs.rmSync(itemPath, { recursive: true, force: true });
+    } else {
+      fs.unlinkSync(itemPath);
+    }
+  }
+}
 
 function copyDirectory(src, dest) {
   if (!fs.existsSync(dest)) {
@@ -34,6 +50,7 @@ if (!sourceDir) {
   );
 }
 
+removeLegacyFlatPrismaFiles();
 copyDirectory(sourceDir, targetDir);
 console.log(`Copied Prisma client from ${sourceDir} to ${targetDir}`);
 
@@ -45,9 +62,7 @@ const defaultDtsPath = path.join(
   "client",
   "default.d.ts"
 );
-const defaultDtsContent = 'export * from "./.prisma/client/index"\n';
+const defaultDtsContent = 'export * from "./.prisma/client/default"\n';
 
-if (!fs.existsSync(defaultDtsPath)) {
-  fs.writeFileSync(defaultDtsPath, defaultDtsContent);
-  console.log(`Created missing Prisma type entrypoint at ${defaultDtsPath}`);
-}
+fs.writeFileSync(defaultDtsPath, defaultDtsContent);
+console.log(`Updated Prisma type entrypoint at ${defaultDtsPath}`);

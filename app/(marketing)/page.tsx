@@ -1,24 +1,28 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ArrowRight,
   Building2,
-  Car,
   Check,
+  ChevronLeft,
+  ChevronRight,
   FileText,
   Quote,
   Shield,
   Star,
+  Users,
   Wallet,
 } from "lucide-react";
 import { PLATFORM_NAME, PLATFORM_TAGLINE } from "@/constants/platform";
 import { ROLE_HOW_IT_WORKS } from "@/constants/roles";
+import { PricingCardsSection } from "@/components/subscription/pricing-cards-section";
+import { StatsBar } from "@/components/marketing/stats-bar";
 
 const whoItsFor = [
   {
@@ -26,28 +30,24 @@ const whoItsFor = [
     title: "Tenants",
     description:
       "Browse homes, cars, and appliances. Apply for listings and request rent financing from verified lenders.",
-    href: "/roles/tenant",
   },
   {
     number: "02",
     title: "Landlords",
     description:
       "List properties, cars, and appliances. Review applications and track settlements from one dashboard.",
-    href: "/roles/landlord",
   },
   {
     number: "03",
     title: "Agents",
     description:
       "Advocate listings, support tenants and landlords, and close deals with transparent workflows.",
-    href: "/roles/agent",
   },
   {
     number: "04",
     title: "Lenders",
     description:
       "Review financing requests, fund deals, and monitor repayment performance across the marketplace.",
-    href: "/roles/lender",
   },
 ];
 
@@ -66,78 +66,74 @@ const testimonials = [
       "PayForme made finding and financing my apartment smooth. I felt supported at every step.",
     name: "Ama Boateng",
     role: "Tenant",
-    image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300&q=80",
   },
   {
     quote:
       "Our listings now reach more verified tenants, and the admin tools keep everything under control.",
     name: "Kwame Mensah",
     role: "Landlord",
-    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&q=80",
   },
   {
     quote:
       "As a lender, I love how clear the repayment tracking is — it saves so much time.",
     name: "Nana Yaa Asantewaa",
     role: "Lender",
-    image: "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?w=300&q=80",
+  },
+  {
+    quote:
+      "Managing applications for multiple landlords is so much easier. The dashboard keeps every deal transparent.",
+    name: "Efua Koranteng",
+    role: "Agent",
+  },
+  {
+    quote:
+      "The subscription model is fair — I started free and upgraded when my portfolio grew. No surprises.",
+    name: "Kofi Adom",
+    role: "Landlord",
   },
 ];
 
-const pricingPlans = [
-  {
-    name: "Starter",
-    subtitle: "Free plan for small landlords",
-    price: "Free",
-    highlight: false,
-    features: [
-      "Up to 10 houses/apartments",
-      "Up to 5 cars & appliances",
-      "Basic marketplace access",
-      "Email support",
-    ],
-    cta: "Get Started",
-    href: "/register",
-  },
-  {
-    name: "Premium",
-    subtitle: "For growing property management companies",
-    price: "GHS 79.99",
-    period: "per month",
-    highlight: true,
-    features: [
-      "Unlimited listings and browsing",
-      "Priority financing review",
-      "Premium placement in search",
-      "Advanced support",
-      "Tenant & resident portal",
-    ],
-    cta: "Get Started",
-    href: "/register",
-  },
-];
+function testimonialInitials(name: string) {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export default function HomePage() {
+  const { data: session } = useSession();
   const [activeRole, setActiveRole] = useState(0);
+  const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const selectedRole = ROLE_HOW_IT_WORKS[activeRole];
+  const isSignedIn = !!session?.user;
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
+    }, 5000);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const goToTestimonial = (index: number) => {
+    setCurrentTestimonial((index + testimonials.length) % testimonials.length);
+  };
 
   return (
     <div className="overflow-hidden bg-white">
       <section className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-14">
         <div className="grid items-center gap-8 lg:grid-cols-2">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <h1 className="mt-2 text-4xl font-bold tracking-tight text-emerald-950 sm:text-5xl lg:text-6xl">
-              Subscription-first access to homes, cars,
-              <span className="text-emerald-600"> and appliances</span>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both">
+            <h1 className="mt-2 text-4xl font-bold leading-[1.1] tracking-tight text-emerald-950 sm:text-5xl lg:text-[3.25rem]">
+              The trusted marketplace for
+              <span className="text-emerald-600"> rental finance in Ghana</span>
             </h1>
-            <p className="mt-4 text-lg text-emerald-800/80">
-              {PLATFORM_NAME} connects tenants, landlords, agents, and lenders in one marketplace,
-              enabling listings, financing, and subscription upgrades for expanded access to every
-              asset.
+            <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
+              PayForMe brings tenants, landlords, agents, and lenders together to list assets,
+              review applications, and manage rent financing with transparent payments and
+              verified workflows.
             </p>
             <div className="mt-10 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
               <Button size="lg" asChild className="bg-emerald-600 hover:bg-emerald-700">
@@ -149,49 +145,40 @@ export default function HomePage() {
                 <Link href="/properties">Browse properties</Link>
               </Button>
             </div>
-          </motion.div>
+          </div>
           <div className="relative grid h-[520px] w-full grid-cols-2 gap-4 overflow-hidden">
             {heroColumns.map((column, columnIndex) => (
               <div key={columnIndex} className="overflow-hidden">
-                <motion.div
-                  animate={
-                    columnIndex === 0
-                      ? { y: ["0%", "-50%", "0%"] }
-                      : { y: ["-50%", "0%", "-50%"] }
-                  }
-                  transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                  className="space-y-4"
+                <div
+                  className={`space-y-4 ${columnIndex === 0 ? "hero-marquee-up" : "hero-marquee-down"}`}
                 >
-                  {[...column, ...column].map((image, imageIndex) => (
+                  {[...column, ...column].map((image, imageIndex) => {
+                    const isLcp = columnIndex === 0 && imageIndex === 0;
+                    return (
                     <div
                       key={`${image.url}-${imageIndex}`}
                       className="relative h-[250px] w-full bg-transparent shadow-none"
                     >
-                      <Image src={image.url} alt="hero image" fill className="object-cover" />
+                      <Image
+                        src={image.url}
+                        alt="Hero property showcase"
+                        fill
+                        sizes="(max-width: 1024px) 45vw, 320px"
+                        priority={isLcp}
+                        loading={isLcp ? "eager" : "lazy"}
+                        className="object-cover"
+                      />
                     </div>
-                  ))}
-                </motion.div>
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="w-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-400 py-10">
-        <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 text-center sm:grid-cols-4 sm:px-6">
-          {[
-            { label: "50+ property & other listings", value: "50+" },
-            { label: "Roles supported", value: "4" },
-            { label: "Reliability", value: "100%" },
-            { label: "Subscription access", value: "Available" },
-          ].map((stat) => (
-            <div key={stat.label}>
-              <p className="text-2xl font-bold text-white sm:text-3xl">{stat.value}</p>
-              <p className="text-xs text-emerald-50 sm:text-sm">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <StatsBar />
 
       <section className="bg-emerald-50 py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -220,13 +207,6 @@ export default function HomePage() {
                   <p className="mt-3 text-sm leading-relaxed text-emerald-800/70 sm:text-[15px]">
                     {role.description}
                   </p>
-                  <Link
-                    href={role.href}
-                    className="mt-5 inline-flex items-center text-sm font-medium text-emerald-600 transition hover:text-emerald-700"
-                  >
-                    Learn more
-                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                  </Link>
 
                   {index < whoItsFor.length - 1 ? (
                     <div
@@ -271,18 +251,16 @@ export default function HomePage() {
             ))}
           </div>
 
-          <motion.div
+          <div
             key={selectedRole.slug}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="mt-12 grid items-center gap-10 lg:grid-cols-2"
+            className="mt-12 grid animate-in fade-in slide-in-from-bottom-4 duration-300 fill-mode-both items-center gap-10 lg:grid-cols-2"
           >
-            <div className="relative h-[420px] overflow-hidden rounded-3xl shadow-lg">
+            <div className="relative h-[420px] overflow-hidden shadow-lg">
               <Image
                 src={selectedRole.image}
                 alt={selectedRole.title}
                 fill
+                sizes="(max-width: 1024px) 100vw, 640px"
                 className="object-cover"
               />
             </div>
@@ -303,113 +281,24 @@ export default function HomePage() {
                 ))}
               </ol>
               <Button size="lg" className="mt-8 bg-emerald-600 hover:bg-emerald-700" asChild>
-                <Link href={`/roles/${selectedRole.slug}`}>{selectedRole.buttonText}</Link>
+                <Link href="/register">Get started</Link>
               </Button>
             </div>
-          </motion.div>
-        </div>
-      </section>
-
-      <section id="pricing" className="bg-emerald-950 py-20 text-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Simple, transparent pricing
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-emerald-100/75">
-              Start free with limited access, or upgrade to Premium for unlimited marketplace
-              visibility.
-            </p>
-          </div>
-
-          <div className="mx-auto mt-12 grid max-w-4xl gap-6 md:grid-cols-2">
-            {pricingPlans.map((plan) => (
-              <div
-                key={plan.name}
-                className={`relative flex flex-col rounded-xl p-8 ${
-                  plan.highlight
-                    ? "border border-emerald-400 bg-gradient-to-b from-emerald-600 to-emerald-700 shadow-[0_20px_40px_rgba(16,185,129,0.25)]"
-                    : "border border-emerald-800/60 bg-emerald-900/40 backdrop-blur-sm"
-                }`}
-              >
-                {plan.highlight ? (
-                  <span className="mb-6 inline-flex w-fit rounded-sm bg-emerald-300 px-2.5 py-1 text-[10px] font-bold tracking-[0.15em] text-emerald-950">
-                    MOST POPULAR
-                  </span>
-                ) : (
-                  <span className="mb-6 block h-[26px]" aria-hidden />
-                )}
-
-                <div>
-                  <h3 className="text-xl font-bold">{plan.name}</h3>
-                  <p className={`mt-1 text-sm ${plan.highlight ? "text-emerald-50/90" : "text-emerald-100/60"}`}>
-                    {plan.subtitle}
-                  </p>
-                  <p className="mt-6 text-4xl font-bold tracking-tight">
-                    {plan.price}
-                    {plan.period ? (
-                      <span
-                        className={`text-base font-normal ${plan.highlight ? "text-emerald-50/80" : "text-emerald-100/50"}`}
-                      >
-                        {" "}
-                        / {plan.period}
-                      </span>
-                    ) : null}
-                  </p>
-                </div>
-
-                <div
-                  className={`my-8 border-t ${plan.highlight ? "border-emerald-400/40" : "border-emerald-800/60"}`}
-                />
-
-                <ul className="flex-1 space-y-3.5">
-                  {plan.features.map((feature) => (
-                    <li
-                      key={feature}
-                      className={`flex items-start gap-3 text-sm ${plan.highlight ? "text-emerald-50" : "text-emerald-100/85"}`}
-                    >
-                      <Check
-                        className={`mt-0.5 h-4 w-4 shrink-0 ${plan.highlight ? "text-emerald-100" : "text-emerald-400"}`}
-                        strokeWidth={1.5}
-                      />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href={plan.href}
-                  className={`mt-8 inline-flex w-full items-center justify-center rounded-md px-4 py-2.5 text-sm font-semibold transition ${
-                    plan.highlight
-                      ? "bg-white text-emerald-700 hover:bg-emerald-50"
-                      : "border border-emerald-600/50 text-white hover:border-emerald-500 hover:bg-emerald-800/50"
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
-              </div>
-            ))}
-          </div>
-
-          <div className="mx-auto mt-10 max-w-4xl text-right">
-            <Link
-              href="/register"
-              className="inline-flex items-center text-sm font-medium text-emerald-400 transition hover:text-emerald-300"
-            >
-              See full pricing details
-              <ArrowRight className="ml-1.5 h-4 w-4" />
-            </Link>
           </div>
         </div>
       </section>
+
+      <PricingCardsSection mode="marketing" />
 
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="grid items-start gap-10 lg:grid-cols-2">
             <div>
               <FileText className="h-10 w-10 text-emerald-600" />
-              <h2 className="mt-4 text-3xl font-bold">Compliance & trust by design</h2>
-              <p className="mt-4 text-muted-foreground">
+              <h2 className="mt-4 text-3xl font-bold text-emerald-950">
+                Compliance & trust by design
+              </h2>
+              <p className="mt-4 text-slate-600">
                 Ghana Card verification, bank account validation, mandate lifecycle tracking,
                 repayment schedules, settlement records, reconciliation exceptions, and audit logs
                 are built into every sensitive workflow.
@@ -433,18 +322,21 @@ export default function HomePage() {
                   text: "Publication workflow with landlord and agent review queues.",
                 },
                 {
-                  icon: Car,
-                  title: "Cars & appliances",
-                  text: "List and browse vehicles and home appliances alongside properties.",
+                  icon: Users,
+                  title: "Role-based access",
+                  text: "Dedicated dashboards for every participant in the rental chain.",
                 },
               ].map((item) => (
-                <Card key={item.title}>
+                <Card
+                  key={item.title}
+                  className="border border-slate-200 bg-white text-slate-900 shadow-sm ring-0"
+                >
                   <CardHeader>
                     <item.icon className="h-6 w-6 text-emerald-600" />
-                    <CardTitle className="text-base">{item.title}</CardTitle>
+                    <CardTitle className="text-base text-emerald-950">{item.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-muted-foreground">{item.text}</p>
+                    <p className="text-sm text-slate-600">{item.text}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -453,7 +345,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="bg-emerald-50 py-20">
+      <section className="bg-gradient-to-b from-emerald-50 via-emerald-100/40 to-emerald-50 py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-700">
@@ -462,47 +354,97 @@ export default function HomePage() {
             <h2 className="mt-4 text-3xl font-bold text-emerald-950">
               Trusted across Ghana
             </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-emerald-800/70">
+              Hear from tenants, landlords, agents, and lenders using {PLATFORM_NAME} every day.
+            </p>
           </div>
 
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {testimonials.map((item) => (
+          <div className="relative mx-auto mt-12 max-w-3xl">
+            <button
+              type="button"
+              onClick={() => goToTestimonial(currentTestimonial - 1)}
+              aria-label="Previous testimonial"
+              className="absolute -left-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-700 shadow-md transition hover:border-emerald-400 hover:bg-emerald-50 sm:-left-14"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+
+            <div className="overflow-hidden">
               <div
-                key={item.name}
-                className="rounded-[2rem] bg-slate-950 p-8 shadow-[0_30px_60px_rgba(15,23,42,0.15)]"
+                className="flex transition-transform duration-500 ease-in-out"
+                style={{ transform: `translateX(-${currentTestimonial * 100}%)` }}
               >
-                <div className="mb-6 flex items-center justify-between">
-                  <Quote className="h-7 w-7 text-emerald-400" />
-                  <div className="flex items-center gap-1 text-amber-300">
-                    {[...Array(5)].map((_, index) => (
-                      <Star key={index} className="h-4 w-4 fill-current" />
-                    ))}
+                {testimonials.map((item) => (
+                  <div key={item.name} className="w-full flex-shrink-0 px-1">
+                    <div className="border border-emerald-700/25 bg-gradient-to-br from-emerald-900 via-emerald-950 to-emerald-900 p-8 shadow-[0_24px_48px_rgba(6,78,59,0.25)]">
+                      <div className="mb-6 flex items-center justify-between">
+                        <Quote className="h-7 w-7 text-emerald-300" />
+                        <div className="flex items-center gap-1 text-emerald-300">
+                          {[...Array(5)].map((_, index) => (
+                            <Star key={index} className="h-4 w-4 fill-current" />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-lg leading-8 text-emerald-50">
+                        &ldquo;{item.quote}&rdquo;
+                      </p>
+                      <div className="mt-8 flex items-center gap-4">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-emerald-400/30 bg-emerald-800 text-sm font-semibold text-emerald-100">
+                          {testimonialInitials(item.name)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-white">{item.name}</p>
+                          <p className="text-sm text-emerald-300/80">{item.role}</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <p className="text-lg leading-8 text-slate-100">&ldquo;{item.quote}&rdquo;</p>
-                <div className="mt-8 flex items-center gap-4">
-                  <div className="relative h-14 w-14 overflow-hidden rounded-full border border-white/10 bg-slate-800">
-                    <Image src={item.image} alt={item.name} fill className="object-cover" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">{item.name}</p>
-                    <p className="text-sm text-slate-400">{item.role}</p>
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => goToTestimonial(currentTestimonial + 1)}
+              aria-label="Next testimonial"
+              className="absolute -right-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-700 shadow-md transition hover:border-emerald-400 hover:bg-emerald-50 sm:-right-14"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+
+            <div className="mt-8 flex items-center justify-center gap-2">
+              {testimonials.map((item, index) => (
+                <button
+                  key={item.name}
+                  type="button"
+                  onClick={() => setCurrentTestimonial(index)}
+                  aria-label={`Go to testimonial ${index + 1}`}
+                  className={`h-2.5 rounded-full transition-all ${
+                    index === currentTestimonial
+                      ? "w-8 bg-emerald-600"
+                      : "w-2.5 bg-emerald-300 hover:bg-emerald-400"
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       <section className="bg-emerald-50 py-16">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <h2 className="text-2xl font-bold text-emerald-950">Ready to get started?</h2>
+          <h2 className="text-2xl font-bold text-emerald-950">
+            {isSignedIn ? "Ready to explore?" : "Ready to get started?"}
+          </h2>
           <p className="mt-3 text-emerald-800/80">
-            Create your account as a tenant, landlord, agent, or lender and access your
-            role-specific dashboard.
+            {isSignedIn
+              ? "Browse verified listings for homes, vehicles, and appliances across Ghana."
+              : "Create your account as a tenant, landlord, agent, or lender and access your role-specific dashboard."}
           </p>
           <Button asChild size="lg" className="mt-6 bg-emerald-600 hover:bg-emerald-700">
-            <Link href="/register">Create your account</Link>
+            <Link href={isSignedIn ? "/properties" : "/register"}>
+              {isSignedIn ? "Browse listings" : "Get started"}
+            </Link>
           </Button>
         </div>
       </section>

@@ -3,7 +3,6 @@ import { financingRequestSchema } from "@/lib/validations/financing";
 import { financingService } from "@/lib/services/financing.service";
 import { prisma } from "@/lib/db/prisma";
 import { apiResponse, withAuth } from "@/lib/api/handler";
-
 export const GET = withAuth(
   async (req: NextRequest, _ctx, session) => {
     if (session.user.role === "LENDER") {

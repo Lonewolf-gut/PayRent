@@ -16,10 +16,10 @@ export const ROLE_HOW_IT_WORKS: RoleHowItWorks[] = [
     tagline: "Find your next home, not a headache",
     image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=80",
     benefits: [
-      "Browse up to 10 homes and 5 cars or appliances with a free account",
-      "Request financing for your chosen listings through PayForme lenders",
-      "See listings advocated by agents and verified for safety",
-      "Upgrade to unlock the full marketplace and unlimited inventory",
+      "Browse all verified homes, cars, and appliances for free",
+      "Apply for listings and request rent financing at no monthly cost",
+      "Work with agents who advocate for your application",
+      "Track mandates, repayments, and wallet activity in one dashboard",
     ],
     buttonText: "Learn more",
   },
@@ -29,7 +29,7 @@ export const ROLE_HOW_IT_WORKS: RoleHowItWorks[] = [
     tagline: "List properties, cars, and appliances with confidence",
     image: "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=1200&q=80",
     benefits: [
-      "Publish up to 5 homes, cars and home appliances on PayForme",
+      "Publish up to 5 homes, cars and home appliances on PayForMe",
       "Connect listings to tenant financing requests from lenders",
       "Use agents to advocate and close deals faster",
       "Upgrade to expand your inventory and premium placement",
@@ -42,10 +42,10 @@ export const ROLE_HOW_IT_WORKS: RoleHowItWorks[] = [
     tagline: "Fund deals across homes, vehicles, and appliances",
     image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1200&q=80",
     benefits: [
-      "Review up to 10 property financing requests with a standard account",
-      "See up to 5 car and 5 appliance financing opportunities",
-      "Support tenant-approved deals and monitor repayment performance",
-      "Upgrade to gain access to the full PayForme marketplace",
+      "Review the full financing queue at no monthly cost",
+      "Approve or reject tenant requests across properties, cars, and appliances",
+      "Monitor repayment performance and portfolio health",
+      "Collaborate with agents and landlords on funded deals",
     ],
     buttonText: "Learn more",
   },
@@ -57,7 +57,7 @@ export const ROLE_HOW_IT_WORKS: RoleHowItWorks[] = [
     benefits: [
       "Assist tenants, landlords, and lenders in one unified workflow",
       "Advocate houses, cars, and home appliances to the right buyers",
-      "Help finance your client’s purchases through PayForme partners",
+      "Help finance your client’s purchases through PayForMe partners",
       "Upgrade to support more listings and earn higher visibility",
     ],
     buttonText: "Learn more",
@@ -87,10 +87,10 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
     overview:
       "PayForme gives tenants a single place to discover homes, vehicles, and appliances while accessing lender-backed financing and agent support.",
     whyChoose: [
-      "See up to 10 homes, 5 cars, and 5 appliances before upgrading",
-      "Request financing from trusted lenders directly in the marketplace",
+      "Free access to browse the full marketplace",
+      "Apply and request financing without a subscription",
       "Work with agents who advocate for the best listings",
-      "Keep your rent and purchases secure through PayForme workflows",
+      "Keep rent and purchases secure through PayForMe workflows",
     ],
     howItWorks: [
       "Search and filter homes, cars, and appliances from verified landlords.",
@@ -99,17 +99,17 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
       "Agents can support and advocate for your application.",
     ],
     subscription: {
-      headline: "Tenant Subscription",
+      headline: "Free for tenants",
       description:
-        "Free accounts are limited in visibility and listing access. A subscription unlocks the full PayForme marketplace so you can browse unlimited homes, cars, and appliances.",
+        "Tenant accounts are always free. Browse the full marketplace, submit applications, and request rent financing without a monthly subscription.",
       features: [
         "Unlimited property search",
-        "Access to all cars and appliances",
-        "Priority financing review",
-        "Exclusive agent matches",
+        "Free applications and financing requests",
+        "Wallet, mandates, and repayment tracking",
+        "Email and in-app support",
       ],
       limitedAccess:
-        "Without a subscription, tenants can only view a curated sample of listings and must upgrade to see the full inventory.",
+        "Tenants never need a subscription. Platform fees may apply to specific transactions such as financing or payments.",
     },
   },
   landlord: {
@@ -119,10 +119,10 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
     overview:
       "PayForme helps landlords market homes, cars, and appliances while giving tenants lender-backed financing options and agent advocacy.",
     whyChoose: [
-      "List up to 5 assets in the free tier, including homes, cars, and appliances.",
-      "Connect each listing to tenant financing backed by lenders.",
-      "Let agents promote and advocate your listings to qualified buyers.",
-      "Receive tracked interest, applications, and settlement updates.",
+      "Start with a 7-day trial, then list on the Free plan (1 home, 1 car, 1 appliance)",
+      "Connect each listing to tenant financing backed by lenders",
+      "Assign agents to promote and advocate your listings",
+      "Receive tracked applications and settlement updates",
     ],
     howItWorks: [
       "Create a listing for properties, cars, or appliances.",
@@ -133,15 +133,15 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
     subscription: {
       headline: "Landlord Subscription",
       description:
-        "Free landlords can list a limited number of assets. Subscription unlocks unlimited listings and premium placement across homes, cars, and appliances.",
+        "Landlords get a 7-day trial with full access, then Free plan limits apply. Upgrade to Pro or Max for more listings, agent assignments, and premium placement.",
       features: [
-        "Unlimited listing uploads",
+        "Pro: up to 10 homes, 5 cars, 5 appliances",
+        "Max: unlimited listings",
         "Featured placement in search results",
-        "Priority agent promotion",
-        "Advanced performance analytics",
+        "Assign agents to advertise listings",
       ],
       limitedAccess:
-        "Without subscription, landlords are limited to a small number of active listings and reduced marketplace visibility.",
+        "After trial, Free landlords are limited to 3 total active listings. Upgrade to restore visibility and add more inventory.",
     },
   },
   lender: {
@@ -163,17 +163,17 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
       "Track repayments and portfolio performance through the dashboard.",
     ],
     subscription: {
-      headline: "Lender Subscription",
+      headline: "Free for lenders",
       description:
-        "Standard lenders can review a sample of requests. Subscription unlocks the full PayForme pipeline and deeper portfolio tools.",
+        "Lender accounts are always free. Access the full financing pipeline, approve deals, and monitor repayments without a monthly subscription.",
       features: [
-        "Access to all financing requests",
-        "Advanced borrower analytics",
-        "Priority deal notifications",
-        "Full portfolio reporting",
+        "Full financing request queue",
+        "Approve and reject requests",
+        "Portfolio and repayment reporting",
+        "Wallet and settlement tools",
       ],
       limitedAccess:
-        "Without subscription, lenders can only view a limited number of deals and miss the broader marketplace opportunities.",
+        "Lenders never need a subscription. Revenue comes from funded deals and agreed platform fees on transactions.",
     },
   },
   agent: {
@@ -197,15 +197,15 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
     subscription: {
       headline: "Agent Subscription",
       description:
-        "Free agents can support a limited number of listings. Subscription unlocks more inventory, higher visibility, and premium client tools.",
+        "Agents get a 7-day trial with full assignment capacity. After trial, Free plan limits apply to how many listings you can be assigned to. Upgrade for more capacity and visibility.",
       features: [
-        "Support unlimited listings",
-        "Access premium lead workflows",
-        "Earn higher agent placement",
-        "Get collaboration tools with lenders and landlords",
+        "Pro: support up to 20 assigned listings",
+        "Max: unlimited assigned listings",
+        "Premium agent placement on listings",
+        "Application review and client tools",
       ],
       limitedAccess:
-        "Without subscription, agents have limited support capacity and lower exposure for their clients.",
+        "After trial, Free agents can be assigned to 3 listings total. Landlords cannot assign you to new listings until you upgrade.",
     },
   },
 };

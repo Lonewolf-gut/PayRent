@@ -13,5 +13,5 @@ export const POST = withAuth(
     const mandate = await mandateService.review(id, session.user.id, parsed.data);
     return apiResponse(mandate, 200, "Mandate reviewed.");
   },
-  { roles: ["ADMIN", "CEO"], permission: "admin:mandates" }
+  { roles: ["ADMIN"], permission: "admin:mandates" }
 );

@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db/prisma";
+import { prisma, runTransaction } from "@/lib/db/prisma";
 import { auditService } from "@/lib/services/audit.service";
 import { AppError } from "@/lib/errors";
 
@@ -21,8 +21,8 @@ export class SettlementService {
     const platformFee = grossAmount * 0.025;
     const netLandlord = grossAmount - platformFee;
 
-    const settlements = await prisma.$transaction(async (tx) => {
-      const landlordSettlement = await tx.settlementRecord.create({
+    const settlements = await runTransaction(async (db) => {
+      const landlordSettlement = await db.settlementRecord.create({
         data: {
           financingRequestId,
           beneficiaryUserId: financing.property.landlord.userId,
@@ -35,7 +35,7 @@ export class SettlementService {
         },
       });
 
-      const platformSettlement = await tx.settlementRecord.create({
+      const platformSettlement = await db.settlementRecord.create({
         data: {
           financingRequestId,
           beneficiaryType: "PLATFORM",
@@ -73,9 +73,19 @@ export class SettlementService {
       });
     }
 
+    return this.listForAdmin();
+  }
+
+  async listForAdmin(filter?: { status?: "PENDING" | "COMPLETED" | "PROCESSING" | "FAILED" }) {
     return prisma.settlementRecord.findMany({
+      where: filter?.status ? { status: filter.status } : undefined,
       include: {
-        financingRequest: { include: { property: true, tenant: true } },
+        financingRequest: {
+          include: {
+            property: { select: { id: true, name: true } },
+            tenant: { include: { user: { select: { email: true } } } },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       take: 100,

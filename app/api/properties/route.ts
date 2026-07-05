@@ -3,20 +3,26 @@ import path from "path";
 import { randomUUID } from "crypto";
 import type { Prisma, PropertyType } from "@prisma/client";
 import { NextRequest } from "next/server";
-import { propertyFilterSchema, propertySchema } from "@/lib/validations/property";
+import { propertyFilterSchema, propertySchema, normalizePropertyPayload, parseOptionalFormNumber } from "@/lib/validations/property";
 import { propertyRepository } from "@/lib/repositories/property.repository";
 import { prisma } from "@/lib/db/prisma";
 import { auth } from "@/lib/auth";
 import { apiResponse, withAuth, withPublicHandler } from "@/lib/api/handler";
-import { subscriptionService } from "@/lib/services/subscription.service";
-import { notificationService } from "@/lib/services/notification.service";
 import {
-  FREE_PLAN_LIMITS,
+  getUserDisplayName,
+  notifyAllAdminsInAppAndEmail,
+  notifyUserInAppAndEmail,
+} from "@/lib/services/verification-notifications";
+import {
+  getPlanLimits,
   RESIDENTIAL_TYPES,
-  getPropertyCategory,
   isUnlimitedPlan,
 } from "@/lib/subscription-limits";
-import { AppError } from "@/lib/errors";
+import { assertLandlordListingLimit } from "@/lib/subscription/listing-access";
+import { getSubscriptionAccess } from "@/lib/subscription/access";
+import { roleHasFreePlatformAccess } from "@/lib/subscription/roles";
+import { assignAgentToProperty } from "@/lib/services/agent-assignment.service";
+import { firstZodIssueMessage } from "@/lib/validations/auth";
 
 const saveUploadedFile = async (file: File, folder: string) => {
   const mimeMatch = file.type.match(/\/([a-z0-9]+)(?:;|$)/i);
@@ -30,26 +36,44 @@ const saveUploadedFile = async (file: File, folder: string) => {
   return `/uploads/properties/${folder}/${fileName}`;
 };
 
-async function getBrowsePlan(userId?: string | null) {
+async function getBrowsePlan(userId?: string | null, role?: string | null) {
   if (!userId) return "FREE" as const;
-  const sub = await subscriptionService.getCurrent(userId);
-  return sub?.plan ?? "FREE";
+  if (role && roleHasFreePlatformAccess(role as "TENANT" | "LANDLORD" | "AGENT" | "LENDER" | "ADMIN")) {
+    return "MAX" as const;
+  }
+  const access = await getSubscriptionAccess(userId);
+  if (access.hasFullAccess && !access.isPaid) return "MAX" as const;
+  return access.plan;
 }
 
-async function fetchLimitedProperties(filters: {
+async function fetchLimitedProperties(
+  filters: {
   search?: string;
   propertyType?: string;
+  category?: "residential" | "car" | "appliance";
   minRent?: number;
   maxRent?: number;
   location?: string;
   page: number;
   limit: number;
-}) {
+},
+  plan?: string | null
+) {
+  const limits = getPlanLimits(plan ?? "FREE") ?? getPlanLimits("FREE")!;
+  const categoryTypeFilter =
+    filters.propertyType
+      ? { propertyType: filters.propertyType as PropertyType }
+      : filters.category === "car"
+        ? { propertyType: "CAR" as PropertyType }
+        : filters.category === "appliance"
+          ? { propertyType: "APPLIANCE" as PropertyType }
+          : filters.category === "residential"
+            ? { propertyType: { in: RESIDENTIAL_TYPES } }
+            : {};
+
   const baseWhere: Prisma.PropertyWhereInput = {
     status: "ACTIVE",
-    ...(filters.propertyType && {
-      propertyType: filters.propertyType as PropertyType,
-    }),
+    ...categoryTypeFilter,
     ...(filters.minRent && { monthlyRent: { gte: filters.minRent } }),
     ...(filters.maxRent && { monthlyRent: { lte: filters.maxRent } }),
     ...(filters.location && {
@@ -73,19 +97,19 @@ async function fetchLimitedProperties(filters: {
     prisma.property.findMany({
       where: { ...baseWhere, propertyType: { in: RESIDENTIAL_TYPES } },
       include,
-      take: FREE_PLAN_LIMITS.residential,
+      take: limits.residential,
       orderBy: [{ isPremium: "desc" }, { createdAt: "desc" }],
     }),
     prisma.property.findMany({
       where: { ...baseWhere, propertyType: "CAR" },
       include,
-      take: FREE_PLAN_LIMITS.cars,
+      take: limits.cars,
       orderBy: [{ isPremium: "desc" }, { createdAt: "desc" }],
     }),
     prisma.property.findMany({
       where: { ...baseWhere, propertyType: "APPLIANCE" },
       include,
-      take: FREE_PLAN_LIMITS.appliances,
+      take: limits.appliances,
       orderBy: [{ isPremium: "desc" }, { createdAt: "desc" }],
     }),
   ]);
@@ -99,7 +123,7 @@ async function fetchLimitedProperties(filters: {
     items,
     total: Math.min(
       residential.length + cars.length + appliances.length,
-      FREE_PLAN_LIMITS.total
+      limits.total
     ),
     page: filters.page,
     limit: filters.limit,
@@ -108,71 +132,7 @@ async function fetchLimitedProperties(filters: {
 }
 
 async function assertListingLimit(userId: string, propertyType: PropertyType) {
-  const sub = await subscriptionService.getCurrent(userId);
-  if (isUnlimitedPlan(sub?.plan)) return;
-
-  const landlord = await prisma.landlord.findUnique({ where: { userId } });
-  if (!landlord) throw new AppError("Landlord profile required", 403);
-
-  const existing = await prisma.property.findMany({
-    where: { landlordId: landlord.id, status: { not: "INACTIVE" } },
-    select: { propertyType: true },
-  });
-
-  const counts = {
-    residential: 0,
-    car: 0,
-    appliance: 0,
-    total: existing.length,
-  };
-
-  for (const property of existing) {
-    const category = getPropertyCategory(property.propertyType);
-    counts[category] += 1;
-  }
-
-  if (counts.total >= FREE_PLAN_LIMITS.total) {
-    throw new AppError(
-      "Free plan limit reached: maximum 20 total listings. Upgrade to Premium for unlimited access.",
-      403
-    );
-  }
-
-  const category = getPropertyCategory(propertyType);
-  if (category === "residential" && counts.residential >= FREE_PLAN_LIMITS.residential) {
-    throw new AppError(
-      "Free plan limit reached: maximum 10 property listings. Upgrade to Premium for unlimited access.",
-      403
-    );
-  }
-  if (category === "car" && counts.car >= FREE_PLAN_LIMITS.cars) {
-    throw new AppError(
-      "Free plan limit reached: maximum 5 car listings. Upgrade to Premium for unlimited access.",
-      403
-    );
-  }
-  if (category === "appliance" && counts.appliance >= FREE_PLAN_LIMITS.appliances) {
-    throw new AppError(
-      "Free plan limit reached: maximum 5 appliance listings. Upgrade to Premium for unlimited access.",
-      403
-    );
-  }
-}
-
-async function notifyAdminsListingSubmitted(propertyName: string, landlordEmail: string) {
-  const admins = await prisma.user.findMany({
-    where: { role: { in: ["ADMIN", "CEO"] } },
-    select: { id: true },
-  });
-  await Promise.all(
-    admins.map((admin: { id: string }) =>
-      notificationService.create({
-        userId: admin.id,
-        title: "New listing pending review",
-        body: `${landlordEmail} submitted "${propertyName}" for verification.`,
-      })
-    )
-  );
+  await assertLandlordListingLimit(userId, propertyType);
 }
 
 export const GET = withPublicHandler(async (req: NextRequest) => {
@@ -181,10 +141,10 @@ export const GET = withPublicHandler(async (req: NextRequest) => {
   const filters = parsed.success ? parsed.data : propertyFilterSchema.parse({});
 
   const session = await auth();
-  const plan = await getBrowsePlan(session?.user?.id);
+  const plan = await getBrowsePlan(session?.user?.id, session?.user?.role);
 
   if (!isUnlimitedPlan(plan)) {
-    const limited = await fetchLimitedProperties(filters);
+    const limited = await fetchLimitedProperties(filters, plan);
     return apiResponse(limited);
   }
 
@@ -196,15 +156,18 @@ export const POST = withAuth(
   async (req, _ctx, session) => {
     let parsed;
     let images: File[] = [];
-    let video: File | null = null;
+    let agentProfileId: string | undefined;
 
     if (req.headers.get("content-type")?.includes("multipart/form-data")) {
       const formData = await req.formData();
+      agentProfileId = formData.get("agentUserId")?.toString() || undefined;
+      const discountedRaw = formData.get("discountedPrice");
       const payload = {
         name: formData.get("name")?.toString() ?? "",
         propertyType: formData.get("propertyType")?.toString() ?? "",
         monthlyRent: Number(formData.get("monthlyRent") ?? 0),
-        annualRent: Number(formData.get("annualRent") ?? 0),
+        annualRent: parseOptionalFormNumber(formData.get("annualRent")),
+        discountedPrice: parseOptionalFormNumber(discountedRaw),
         location: formData.get("location")?.toString() ?? "",
         latitude: formData.get("latitude") ? Number(formData.get("latitude")) : undefined,
         longitude: formData.get("longitude") ? Number(formData.get("longitude")) : undefined,
@@ -217,17 +180,21 @@ export const POST = withAuth(
       images = formData.getAll("images").filter(
         (value): value is File => value instanceof File && Boolean(value.name)
       );
-      const maybeVideo = formData.get("video");
-      if (maybeVideo instanceof File && maybeVideo.name) {
-        video = maybeVideo;
-      }
     } else {
       const body = await req.json();
+      agentProfileId = body.agentUserId;
       parsed = propertySchema.safeParse(body);
     }
 
     if (!parsed.success) {
-      return apiResponse({ error: parsed.error.flatten() }, 400);
+      return apiResponse(
+        { error: parsed.error.flatten() },
+        400,
+        firstZodIssueMessage(
+          parsed.error,
+          "Please review your listing details and try again."
+        )
+      );
     }
 
     const landlord = await prisma.landlord.findUnique({
@@ -242,10 +209,22 @@ export const POST = withAuth(
       parsed.data.propertyType as PropertyType
     );
 
+    const normalized = normalizePropertyPayload(parsed.data);
+
     const propertyData: Prisma.PropertyCreateInput = {
-      ...parsed.data,
-      monthlyRent: parsed.data.monthlyRent,
-      annualRent: parsed.data.annualRent,
+      name: normalized.name,
+      propertyType: normalized.propertyType,
+      monthlyRent: normalized.monthlyRent,
+      annualRent: normalized.annualRent,
+      discountedPrice: normalized.discountedPrice ?? undefined,
+      location: normalized.location,
+      latitude: normalized.latitude,
+      longitude: normalized.longitude,
+      description: normalized.description,
+      amenities: normalized.amenities ?? [],
+      availableFrom: normalized.availableFrom
+        ? new Date(normalized.availableFrom)
+        : undefined,
       landlord: { connect: { id: landlord.id } },
       status: "PENDING_VERIFICATION",
     };
@@ -262,28 +241,24 @@ export const POST = withAuth(
       };
     }
 
-    if (video) {
-      propertyData.videos = {
-        create: [
-          {
-            url: await saveUploadedFile(video, "videos"),
-            title: video.name,
-          },
-        ],
-      };
-    }
-
     const property = await propertyRepository.create(propertyData);
 
-    await notifyAdminsListingSubmitted(parsed.data.name, session.user.email);
+    if (agentProfileId) {
+      await assignAgentToProperty(property.id, agentProfileId, session.user.id);
+    }
 
-    await notificationService.create({
-      userId: session.user.id,
-      title: "Listing submitted",
-      body: `Your listing "${parsed.data.name}" has been submitted and is pending admin review.`,
-      channel: "EMAIL",
-      sendEmail: true,
-    });
+    const landlordName = await getUserDisplayName(session.user.id);
+
+    await notifyAllAdminsInAppAndEmail(
+      "New listing pending review",
+      `${landlordName} (${session.user.email}) submitted "${parsed.data.name}" for verification.`
+    );
+
+    await notifyUserInAppAndEmail(
+      session.user.id,
+      "Listing submitted",
+      `Your listing "${parsed.data.name}" has been submitted and is pending admin review.`
+    );
 
     return apiResponse(property, 201);
   },

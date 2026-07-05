@@ -3,6 +3,7 @@ import { z } from "zod";
 import { withdrawalService } from "@/lib/services/withdrawal.service";
 import { prisma } from "@/lib/db/prisma";
 import { apiResponse, withAuth } from "@/lib/api/handler";
+import { WITHDRAW_ROLES } from "@/lib/wallet/role-wallet";
 
 const requestSchema = z.object({
   bankAccountId: z.string().cuid(),
@@ -13,12 +14,12 @@ export const GET = withAuth(
   async (_req, _ctx, session) => {
     const requests = await prisma.withdrawalRequest.findMany({
       where: { userId: session.user.id },
-      include: { bankAccount: { select: { bankName: true, accountNumber: true } } },
+      include: { bankAccount: { select: { bankName: true, accountNumber: true, accountType: true } } },
       orderBy: { createdAt: "desc" },
     });
     return apiResponse(requests);
   },
-  { roles: ["LENDER", "LANDLORD"] }
+  { roles: WITHDRAW_ROLES, permission: "wallet:withdraw" }
 );
 
 export const POST = withAuth(
@@ -37,5 +38,5 @@ export const POST = withAuth(
     );
     return apiResponse(withdrawal, 201);
   },
-  { roles: ["LENDER", "LANDLORD"], permission: "wallet:withdraw" }
+  { roles: WITHDRAW_ROLES, permission: "wallet:withdraw" }
 );

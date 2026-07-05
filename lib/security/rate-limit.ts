@@ -14,23 +14,27 @@ export async function rateLimit(
   const resetAt = now + WINDOW_MS;
 
   if (redis) {
-    const multi = redis.multi();
-    multi.incr(key);
-    multi.pttl(key);
-    const results = await multi.exec();
-    const count = (results?.[0]?.[1] as number) ?? 1;
-    let ttl = (results?.[1]?.[1] as number) ?? -1;
+    try {
+      const multi = redis.multi();
+      multi.incr(key);
+      multi.pttl(key);
+      const results = await multi.exec();
+      const count = (results?.[0]?.[1] as number) ?? 1;
+      let ttl = (results?.[1]?.[1] as number) ?? -1;
 
-    if (ttl === -1) {
-      await redis.pexpire(key, WINDOW_MS);
-      ttl = WINDOW_MS;
+      if (ttl === -1) {
+        await redis.pexpire(key, WINDOW_MS);
+        ttl = WINDOW_MS;
+      }
+
+      return {
+        success: count <= maxRequests,
+        remaining: Math.max(0, maxRequests - count),
+        resetAt: now + ttl,
+      };
+    } catch {
+      // Redis unavailable — fall back to in-memory limiter below.
     }
-
-    return {
-      success: count <= maxRequests,
-      remaining: Math.max(0, maxRequests - count),
-      resetAt: now + ttl,
-    };
   }
 
   const entry = memoryStore.get(key);

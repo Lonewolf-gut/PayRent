@@ -5,9 +5,12 @@
   "scripts": {
     "postinstall": "npm run db:generate && npm run copy-prisma-client",
     "copy-prisma-client": "node scripts/copy-prisma-client.js",
-    "dev": "next dev --webpack",
-    "dev:turbo": "next dev --turbopack",
-    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
+    "dev": "node scripts/start-dev.js",
+    "dev:turbo": "node scripts/start-dev.js",
+    "dev:webpack": "node scripts/start-dev-webpack.js",
+    "clean": "node scripts/clean-cache.js",
+    "dev:reset": "node scripts/stop-dev.js && node scripts/remove-dev-cache-link.js && node scripts/clean-cache.js && npm install next@16.2.6 @next/swc-win32-x64-msvc@16.2.6 react@19.2.4 react-dom@19.2.4 --no-save",
+    "dev:fix": "npm run dev:reset",
     "build": "npm run db:generate && npm run copy-prisma-client && next build --webpack",
     "start": "next start",
     "lint": "eslint",
@@ -15,9 +18,14 @@
     "test:watch": "vitest",
     "db:generate": "node scripts/prisma-generate.js",
     "db:push": "prisma db push",
+    "db:sync-docker": "node scripts/db-sync-docker.js",
     "db:migrate": "prisma migrate dev",
     "db:seed": "npx tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "docker:up": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/docker-up.ps1",
+    "docker:down": "docker compose down",
+    "docker:restart": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restart-docker.ps1",
+    "bring-up": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bring-up.ps1"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
@@ -38,8 +46,10 @@
     "framer-motion": "^12.40.0",
     "ioredis": "^5.11.0",
     "jsonwebtoken": "^9.0.3",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.17.0",
-    "next": "16.2.6",
+    "next": "^16.2.6",
     "next-auth": "^5.0.0-beta.31",
     "next-themes": "^0.4.6",
     "nodemailer": "^7.0.13",
@@ -59,6 +69,9 @@
     "vaul": "^1.1.2",
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
+  },
+  "optionalDependencies": {
+    "@next/swc-win32-x64-msvc": "^16.2.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

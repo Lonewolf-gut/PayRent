@@ -39,9 +39,45 @@ export function handleApiError(error: unknown): {
       code: error.code,
     };
   }
+
+  const prismaCode =
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    typeof (error as { code?: string }).code === "string"
+      ? (error as { code: string }).code
+      : null;
+
+  const errorName =
+    error && typeof error === "object" && "name" in error
+      ? String((error as { name?: string }).name)
+      : "";
+
+  if (
+    errorName === "PrismaClientInitializationError" ||
+    prismaCode === "P1001" ||
+    prismaCode === "P1017"
+  ) {
+    return {
+      message:
+        "The database is not available right now. Start Docker Desktop, then run: docker compose up -d postgres redis",
+      statusCode: 503,
+      code: "DATABASE_UNAVAILABLE",
+    };
+  }
+
+  if (prismaCode === "P2022") {
+    return {
+      message:
+        "Your listing could not be saved because the database is missing a required column. Please run database migrations and try again.",
+      statusCode: 503,
+      code: "SCHEMA_MISMATCH",
+    };
+  }
+
   console.error("Unhandled error:", error);
   return {
-    message: "Internal server error",
+    message: "Something went wrong on our end. Please try again in a moment.",
     statusCode: 500,
     code: "INTERNAL_ERROR",
   };

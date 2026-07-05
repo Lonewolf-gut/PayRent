@@ -1,13 +1,26 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { ChartCard } from "@/components/dashboard/chart-card";
 import { Users, Building2, CreditCard, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
+type RevenuePeriod = 3 | 6 | 12;
+
+const PERIOD_OPTIONS: { value: RevenuePeriod; label: string }[] = [
+  { value: 3, label: "3 months" },
+  { value: 6, label: "6 months" },
+  { value: 12, label: "This year" },
+];
 
 export default function AdminDashboardPage() {
+  const [revenuePeriod, setRevenuePeriod] = useState<RevenuePeriod>(6);
+
   const { data } = useQuery({
     queryKey: ["admin-stats"],
     queryFn: async () => {
@@ -17,8 +30,17 @@ export default function AdminDashboardPage() {
     },
   });
 
+  const { data: revenueTrend, isLoading: revenueLoading } = useQuery({
+    queryKey: ["admin-revenue", revenuePeriod],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/stats/revenue?months=${revenuePeriod}`);
+      const json = await res.json();
+      return json.data ?? [];
+    },
+  });
+
   return (
-    <div className="space-y-8">
+    <div className="w-full space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Admin Panel</h1>
         <p className="text-muted-foreground">
@@ -36,28 +58,91 @@ export default function AdminDashboardPage() {
           description="Fraud monitoring"
         />
       </div>
+
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Platform revenue</h2>
+            <p className="text-sm text-muted-foreground">
+              Completed transaction volume over time
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {PERIOD_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                type="button"
+                size="sm"
+                variant={revenuePeriod === option.value ? "default" : "outline"}
+                className={cn(
+                  "rounded-none",
+                  revenuePeriod === option.value && "bg-emerald-600 hover:bg-emerald-700"
+                )}
+                onClick={() => setRevenuePeriod(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+        {revenueLoading ? (
+          <Card className="rounded-none">
+            <CardContent className="py-10 text-sm text-muted-foreground">
+              Loading revenue chart…
+            </CardContent>
+          </Card>
+        ) : (
+          <ChartCard
+            title={`Revenue — last ${revenuePeriod === 12 ? "12 months" : `${revenuePeriod} months`}`}
+            data={revenueTrend ?? []}
+            dataKey="revenue"
+          />
+        )}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {[
+          { href: "/admin/users", label: "Users", desc: "Suspend, unlock, delete" },
+          { href: "/admin/properties", label: "Listings", desc: "Approve, reject, suspend" },
+          { href: "/admin/financing", label: "Financing", desc: "Track rent-to-own requests" },
+          { href: "/admin/settlements", label: "Settlements", desc: "Mark landlord payouts" },
+          { href: "/admin/withdrawals", label: "Withdrawals", desc: "Review payout queue" },
+          { href: "/admin/fraud", label: "Fraud & security", desc: "Login logs & locked accounts" },
+        ].map((item) => (
+          <Card key={item.href} className="rounded-none">
+            <CardHeader><CardTitle className="text-base">{item.label}</CardTitle></CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <p className="text-muted-foreground">{item.desc}</p>
+              <Button asChild variant="outline" size="sm" className="rounded-none">
+                <Link href={item.href}>Open</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+        <Card className="rounded-none">
           <CardHeader>
             <CardTitle className="text-base">Pending approvals</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <p>{data?.pendingProperties ?? 0} properties awaiting verification</p>
             <p>{data?.pendingFinancing ?? 0} financing requests pending</p>
-            <Button asChild variant="outline" size="sm" className="mt-2">
+            <Button asChild variant="outline" size="sm" className="mt-2 rounded-none">
               <Link href="/admin/properties">Review properties</Link>
             </Button>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-none">
           <CardHeader>
-            <CardTitle className="text-base">Platform revenue</CardTitle>
+            <CardTitle className="text-base">This month</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-emerald-600">
               GHS {Number(data?.revenue?.monthlyRevenue ?? 0).toLocaleString()}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">This month</p>
+            <p className="mt-1 text-xs text-muted-foreground">Current month revenue</p>
           </CardContent>
         </Card>
       </div>

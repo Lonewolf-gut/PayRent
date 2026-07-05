@@ -17,20 +17,19 @@ export const GET = withAuth(
 
     return apiResponse({ user, bankAccounts });
   },
-  { roles: ["ADMIN", "CEO"] }
+  { roles: ["ADMIN"] }
 );
 
 export const PATCH = withAuth(
   async (req: NextRequest, _ctx, session) => {
     const body = await req.json();
-    const { email, imageUrl, currentPassword, newPassword } = body ?? {};
+    const { imageUrl, currentPassword, newPassword } = body ?? {};
 
-    if (!email && !imageUrl && !newPassword) {
+    if (imageUrl === undefined && !newPassword) {
       return apiResponse({ error: "No update data provided" }, 400);
     }
 
     const updates: Record<string, unknown> = {};
-    if (email) updates.email = email;
     if (imageUrl !== undefined) updates.image = imageUrl || null;
 
     if (Object.keys(updates).length) {
@@ -52,5 +51,5 @@ export const PATCH = withAuth(
 
     return apiResponse({ updated: true });
   },
-  { roles: ["ADMIN", "CEO"] }
+  { roles: ["ADMIN"] }
 );

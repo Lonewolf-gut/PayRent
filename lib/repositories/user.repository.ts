@@ -44,6 +44,10 @@ export class UserRepository {
   async countByRole(role?: UserRole) {
     return prisma.user.count({ where: role ? { role } : undefined });
   }
+
+  async deleteById(id: string) {
+    return prisma.user.delete({ where: { id } });
+  }
 }
 
 export const userRepository = new UserRepository();

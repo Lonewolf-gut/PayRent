@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { resolveAppSession } from "@/lib/auth/resolve-session";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { handleApiError } from "@/lib/errors";
 import type { UserRole } from "@prisma/client";
@@ -16,6 +16,7 @@ export type AppSession = Session & {
     role: UserRole;
     image?: string | null;
     twoFactorEnabled: boolean;
+    emailVerified: boolean;
   };
 };
 
@@ -26,7 +27,7 @@ export function apiResponse<T>(
 ) {
   return NextResponse.json(
     {
-      success: true,
+      success: status >= 200 && status < 300,
       message,
       data,
       errors: null,
@@ -72,7 +73,7 @@ export function withAuth(
         );
       }
 
-      const session = await auth();
+      const session = await resolveAppSession(req);
       if (!session?.user?.id || !session.user.email) {
         return NextResponse.json(
           { success: false, error: { message: "Unauthorized", code: "UNAUTHORIZED" } },
@@ -99,7 +100,7 @@ export function withAuth(
         );
       }
 
-      return handler(req, context, appSession);
+      return await handler(req, context, appSession);
     } catch (error) {
       return apiError(error);
     }
@@ -120,7 +121,7 @@ export function withPublicHandler(
           { status: 429 }
         );
       }
-      return handler(req, context);
+      return await handler(req, context);
     } catch (error) {
       return apiError(error);
     }

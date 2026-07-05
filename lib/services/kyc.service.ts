@@ -1,46 +1,185 @@
+import { NextRequest } from "next/server";
+import type {
+  BankAccount,
+  EntityType,
+  KycDocument,
+  KycDocumentType,
+  Prisma,
+  UserRole,
+} from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { notificationService } from "@/lib/services/notification.service";
+import {
+  notifyAllAdminsInAppAndEmail,
+  notifyUserInAppAndEmail,
+} from "@/lib/services/verification-notifications";
 import { auditService } from "@/lib/services/audit.service";
 import { AppError } from "@/lib/errors";
-import type { UserRole } from "@prisma/client";
+import { saveKycDocument } from "@/lib/integrations/documents";
 import type {
-  TenantProfileInput,
-  GhanaCardVerifyInput,
+  ProfileInput,
+  IdentityVerifyInput,
+  KybVerifyInput,
+  EmploymentVerifyInput,
+  AddressVerifyInput,
   BankAccountInput,
+  GhanaCardVerifyInput,
 } from "@/lib/validations/kyc";
+import { toIdentityVerifyInput } from "@/lib/validations/kyc";
+import { getProfileDisplayName } from "@/lib/utils/display-name";
+import {
+  getActiveKycProviderName,
+  getKycProvider,
+  toClientVerificationStatus,
+  type BankValidationOutcome,
+  type IdentityVerificationResult,
+} from "@/lib/integrations/kyc";
+import { validateBankAccountWithPaystack } from "@/lib/integrations/kyc/paystack-bank-validation";
+import { isPaystackConfigured } from "@/lib/integrations/paystack/config";
+import { withProfileImageVersion } from "@/lib/utils/profile-image";
+import { requiresEmploymentDocuments } from "@/lib/constants/employment-status";
 
 function maskAccountNumber(accountNumber: string) {
   if (accountNumber.length <= 4) return accountNumber;
   return `${"*".repeat(accountNumber.length - 4)}${accountNumber.slice(-4)}`;
 }
 
-async function notifyAdmins(title: string, body: string) {
-  const admins = await prisma.user.findMany({
-    where: { role: { in: ["ADMIN", "CEO"] } },
-    select: { id: true },
-  });
-  await Promise.all(
-    admins.map((admin: { id: string }) =>
-      notificationService.create({
-        userId: admin.id,
-        title,
-        body,
-        channel: "IN_APP",
-      })
-    )
+type VerificationData = {
+  entityType?: EntityType;
+  documentType?: string;
+  ghanaCardNumber?: string;
+  idNumber?: string;
+  fullName?: string;
+  dateOfBirth?: string;
+  role?: UserRole;
+  companyName?: string;
+  companyRegistrationNumber?: string;
+  companyRegisteredAddress?: string;
+  companyTin?: string;
+  staffId?: string;
+  employerName?: string;
+  occupation?: string;
+  address?: string;
+  billType?: string;
+  employmentStatus?: string;
+  requiresManualReview?: boolean;
+  bankAccountId?: string;
+  bankName?: string;
+  accountName?: string;
+  documentUrls?: Partial<Record<KycDocumentType, string>>;
+  matchDetails?: Record<string, unknown>;
+  rawResponseReference?: string;
+};
+
+function requiresManualReview(data: VerificationData | null | undefined): boolean {
+  if (!data) return true;
+  if (data.requiresManualReview === false) return false;
+  return true;
+}
+
+function toIdentityResult(verification: {
+  id: string;
+  status: import("@prisma/client").VerificationStatus;
+  providerName: string | null;
+  providerReference: string | null;
+  verifiedAt: Date | null;
+  failureReason: string | null;
+  data: unknown;
+}): IdentityVerificationResult {
+  const data = verification.data as VerificationData | null;
+  return {
+    verificationId: verification.id,
+    verificationStatus: toClientVerificationStatus(verification.status),
+    providerName: (verification.providerName ??
+      getActiveKycProviderName()) as IdentityVerificationResult["providerName"],
+    providerReference: verification.providerReference,
+    verifiedAt: verification.verifiedAt?.toISOString() ?? null,
+    failureReason: verification.failureReason,
+    requiresManualReview: requiresManualReview(data),
+  };
+}
+
+async function notifyUser(userId: string, title: string, body: string) {
+  await notifyUserInAppAndEmail(userId, title, body);
+}
+
+async function notifyAdmins(
+  title: string,
+  body: string,
+  metadata?: Record<string, unknown>
+) {
+  await notifyAllAdminsInAppAndEmail(title, body, metadata);
+}
+
+async function saveVerificationDocuments(
+  userId: string,
+  verificationId: string,
+  files: Partial<Record<KycDocumentType, File>>
+) {
+  const entries = Object.entries(files).filter(
+    (entry): entry is [KycDocumentType, File] => entry[1] instanceof File
   );
+
+  const saved = await Promise.all(
+    entries.map(async ([documentType, file]) => {
+      const fileUrl = await saveKycDocument(file);
+      return prisma.kycDocument.create({
+        data: {
+          userId,
+          verificationId,
+          documentType,
+          fileName: file.name,
+          fileUrl,
+        },
+      });
+    })
+  );
+
+  return Object.fromEntries(
+    saved.map((doc: KycDocument) => [doc.documentType, doc.fileUrl])
+  ) as Partial<Record<KycDocumentType, string>>;
 }
 
 export class KycService {
-  async updateProfile(userId: string, role: UserRole, input: TenantProfileInput) {
+  getProviderName() {
+    return getActiveKycProviderName();
+  }
+
+  async updateProfile(userId: string, role: UserRole, input: ProfileInput) {
+    const entityType = input.entityType ?? "INDIVIDUAL";
+    const companyData =
+      entityType === "COMPANY"
+        ? {
+            entityType,
+            companyName: input.companyName,
+            companyRegistrationNumber: input.companyRegistrationNumber,
+            companyRegisteredAddress: input.companyRegisteredAddress,
+            companyTin: input.companyTin,
+            employmentStatus: null,
+            employmentVerified: false,
+          }
+        : { entityType };
+
+    const employmentData =
+      entityType === "INDIVIDUAL" && input.employmentStatus
+        ? {
+            employmentStatus: input.employmentStatus,
+            employmentVerified: requiresEmploymentDocuments(input.employmentStatus)
+              ? false
+              : true,
+          }
+        : {};
+
     if (role === "TENANT") {
       const updated = await prisma.tenant.update({
         where: { userId },
         data: {
           profileStatus: "PROFILE_COMPLETED",
+          ...companyData,
+          ...employmentData,
           ...(input.dateOfBirth ? { dateOfBirth: new Date(input.dateOfBirth) } : {}),
           occupation: input.occupation,
           employerName: input.employerName,
+          staffId: input.staffId,
           monthlyIncome: input.monthlyIncome,
           residentialAddress: input.residentialAddress,
         },
@@ -57,7 +196,17 @@ export class KycService {
     if (role === "LANDLORD") {
       const updated = await prisma.landlord.update({
         where: { userId },
-        data: { profileStatus: "PROFILE_COMPLETED" },
+        data: {
+          profileStatus: "PROFILE_COMPLETED",
+          ...companyData,
+          ...employmentData,
+          ...(input.dateOfBirth ? { dateOfBirth: new Date(input.dateOfBirth) } : {}),
+          occupation: input.occupation,
+          employerName: input.employerName,
+          staffId: input.staffId,
+          monthlyIncome: input.monthlyIncome,
+          residentialAddress: input.residentialAddress,
+        },
       });
       await auditService.log({
         userId,
@@ -71,7 +220,14 @@ export class KycService {
     if (role === "LENDER") {
       const updated = await prisma.lender.update({
         where: { userId },
-        data: { profileStatus: "PROFILE_COMPLETED" },
+        data: {
+          profileStatus: "PROFILE_COMPLETED",
+          ...employmentData,
+          institutionName: input.employerName ?? undefined,
+          lenderType: input.occupation ?? undefined,
+          staffId: input.staffId,
+          residentialAddress: input.residentialAddress,
+        },
       });
       await auditService.log({
         userId,
@@ -87,7 +243,9 @@ export class KycService {
         where: { userId },
         data: {
           profileStatus: "PROFILE_COMPLETED",
+          ...employmentData,
           officeAddress: input.residentialAddress,
+          staffId: input.staffId,
         },
       });
       await auditService.log({
@@ -102,51 +260,380 @@ export class KycService {
     throw new AppError("Unsupported role for profile update");
   }
 
-  async submitGhanaCard(userId: string, role: UserRole, input: GhanaCardVerifyInput) {
+  async submitManualIdentity(
+    userId: string,
+    role: UserRole,
+    input: IdentityVerifyInput,
+    files: {
+      idFront: File;
+      idBack: File;
+      facePhoto: File;
+    }
+  ) {
+    const currentStatus = await this.getVerificationStatus(userId, role);
+    if (currentStatus.identityVerified) {
+      throw new AppError("Identity is already verified");
+    }
+
     const existingPending = await prisma.verification.findFirst({
-      where: { userId, type: "IDENTITY", status: "PENDING" },
+      where: {
+        userId,
+        type: { in: ["IDENTITY", "KYB"] },
+        status: "PENDING",
+      },
     });
     if (existingPending) {
-      throw new AppError("Identity verification already pending review");
+      throw new AppError("Verification already pending review");
     }
+
+    const profileSnapshot = await this.getProfileSnapshot(userId, role);
+    const verificationData: VerificationData = {
+      entityType: "INDIVIDUAL",
+      documentType: input.documentType,
+      idNumber: input.idNumber,
+      ghanaCardNumber:
+        input.documentType === "GHANA_CARD" ? input.idNumber : undefined,
+      fullName: input.fullName,
+      dateOfBirth: input.dateOfBirth,
+      role,
+      requiresManualReview: true,
+      ...profileSnapshot,
+    };
 
     const verification = await prisma.verification.create({
       data: {
         userId,
         type: "IDENTITY",
         status: "PENDING",
+        providerName: "manual",
+        data: verificationData,
+      },
+    });
+
+    const documentUrls = await saveVerificationDocuments(userId, verification.id, {
+      ID_FRONT: files.idFront,
+      ID_BACK: files.idBack,
+      FACE_PHOTO: files.facePhoto,
+    });
+
+    await prisma.verification.update({
+      where: { id: verification.id },
+      data: {
         data: {
-          ghanaCardNumber: input.ghanaCardNumber,
-          fullName: input.fullName,
-          dateOfBirth: input.dateOfBirth,
-          role,
+          ...verificationData,
+          documentUrls,
         },
       },
     });
 
-    await this.setProfilePendingIdentity(userId, role, input.ghanaCardNumber);
+    await this.setProfilePendingIdentity(userId, role, input.idNumber);
 
-    await notificationService.create({
+    await notifyUser(
       userId,
-      title: "Identity submitted for review",
-      body: "Your Ghana Card details have been submitted and are pending admin approval.",
-      channel: "EMAIL",
-      sendEmail: true,
-    });
+      "Identity submitted for review",
+      "Your identity documents have been submitted and are pending administrator approval."
+    );
 
     await notifyAdmins(
-      "New identity verification pending",
-      `${input.fullName} (${role}) submitted Ghana Card details for review.`
+      "New KYC submission",
+      `${input.fullName} (${role}) submitted identity documents for manual review.`,
+      { verificationId: verification.id, userId, role }
     );
 
     await auditService.log({
       userId,
-      action: "GHANA_CARD_SUBMITTED",
+      action: "IDENTITY_SUBMITTED",
+      entity: "Verification",
+      entityId: verification.id,
+      metadata: { entityType: "INDIVIDUAL", documentType: input.documentType },
+    });
+
+    return toIdentityResult(verification);
+  }
+
+  async submitManualKyb(
+    userId: string,
+    role: UserRole,
+    input: KybVerifyInput,
+    files: {
+      companyRegistration: File;
+      companyTin?: File | null;
+    }
+  ) {
+    const currentStatus = await this.getVerificationStatus(userId, role);
+    if (currentStatus.identityVerified) {
+      throw new AppError("Business verification is already complete");
+    }
+
+    const existingPending = await prisma.verification.findFirst({
+      where: {
+        userId,
+        type: { in: ["IDENTITY", "KYB"] },
+        status: "PENDING",
+      },
+    });
+    if (existingPending) {
+      throw new AppError("Verification already pending review");
+    }
+
+    const profileSnapshot = await this.getProfileSnapshot(userId, role);
+    const verificationData: VerificationData = {
+      entityType: "COMPANY",
+      fullName: input.fullName,
+      companyName: input.companyName,
+      companyRegistrationNumber: input.companyRegistrationNumber,
+      companyRegisteredAddress: input.companyRegisteredAddress,
+      companyTin: input.companyTin,
+      role,
+      requiresManualReview: true,
+      ...profileSnapshot,
+    };
+
+    const verification = await prisma.verification.create({
+      data: {
+        userId,
+        type: "KYB",
+        status: "PENDING",
+        providerName: "manual",
+        data: verificationData,
+      },
+    });
+
+    const documentUrls = await saveVerificationDocuments(userId, verification.id, {
+      COMPANY_REGISTRATION: files.companyRegistration,
+      ...(files.companyTin ? { COMPANY_TIN: files.companyTin } : {}),
+    });
+
+    await prisma.verification.update({
+      where: { id: verification.id },
+      data: {
+        data: {
+          ...verificationData,
+          documentUrls,
+        },
+      },
+    });
+
+    if (role === "TENANT") {
+      await prisma.tenant.update({
+        where: { userId },
+        data: {
+          entityType: "COMPANY",
+          companyName: input.companyName,
+          companyRegistrationNumber: input.companyRegistrationNumber,
+          companyRegisteredAddress: input.companyRegisteredAddress,
+          companyTin: input.companyTin,
+          profileStatus: "KYC_PENDING",
+        },
+      });
+    } else if (role === "LANDLORD") {
+      await prisma.landlord.update({
+        where: { userId },
+        data: {
+          entityType: "COMPANY",
+          companyName: input.companyName,
+          companyRegistrationNumber: input.companyRegistrationNumber,
+          companyRegisteredAddress: input.companyRegisteredAddress,
+          companyTin: input.companyTin,
+          profileStatus: "KYC_PENDING",
+        },
+      });
+    }
+
+    await notifyUser(
+      userId,
+      "Business verification submitted",
+      "Your company documents have been submitted and are pending administrator approval."
+    );
+
+    await notifyAdmins(
+      "New KYB submission",
+      `${input.companyName} (${role}) submitted company registration documents for manual review.`,
+      { verificationId: verification.id, userId, role }
+    );
+
+    await auditService.log({
+      userId,
+      action: "KYB_SUBMITTED",
+      entity: "Verification",
+      entityId: verification.id,
+      metadata: { companyName: input.companyName },
+    });
+
+    return toIdentityResult(verification);
+  }
+
+  async submitManualEmployment(
+    userId: string,
+    role: UserRole,
+    input: EmploymentVerifyInput,
+    files: {
+      employmentLetter: File;
+      staffIdDocument: File;
+    }
+  ) {
+    const profile = await this.getRoleProfile(userId, role);
+    if (profile?.employmentVerified) {
+      throw new AppError("Employment is already verified");
+    }
+    if (profile?.employmentStatus !== "EMPLOYED") {
+      throw new AppError(
+        "Employment document verification is only required when your status is Employed."
+      );
+    }
+
+    const existingPending = await prisma.verification.findFirst({
+      where: { userId, type: "EMPLOYMENT", status: "PENDING" },
+    });
+    if (existingPending) {
+      throw new AppError("Employment verification already pending review");
+    }
+
+    const verificationData: VerificationData = {
+      staffId: input.staffId,
+      employerName: input.employerName,
+      occupation: input.occupation,
+      employmentStatus: profile?.employmentStatus ?? "EMPLOYED",
+      role,
+      requiresManualReview: true,
+    };
+
+    const verification = await prisma.verification.create({
+      data: {
+        userId,
+        type: "EMPLOYMENT",
+        status: "PENDING",
+        providerName: "manual",
+        data: verificationData,
+      },
+    });
+
+    const documentUrls = await saveVerificationDocuments(userId, verification.id, {
+      EMPLOYMENT_LETTER: files.employmentLetter,
+      STAFF_ID: files.staffIdDocument,
+    });
+
+    await prisma.verification.update({
+      where: { id: verification.id },
+      data: { data: { ...verificationData, documentUrls } },
+    });
+
+    await this.updateRoleProfile(userId, role, { staffId: input.staffId });
+
+    const displayName = await this.getUserDisplayName(userId, role);
+    await notifyUser(
+      userId,
+      "Employment documents submitted",
+      "Your employment letter and staff ID have been submitted and are pending administrator review."
+    );
+    await notifyAdmins(
+      "New employment verification",
+      `${displayName ?? "A user"} (${role}) submitted employment documents for manual review.`,
+      { verificationId: verification.id, userId, role }
+    );
+
+    await auditService.log({
+      userId,
+      action: "EMPLOYMENT_SUBMITTED",
       entity: "Verification",
       entityId: verification.id,
     });
 
-    return verification;
+    return toIdentityResult(verification);
+  }
+
+  async submitManualAddress(
+    userId: string,
+    role: UserRole,
+    input: AddressVerifyInput,
+    files: { addressProof: File }
+  ) {
+    const profile = await this.getRoleProfile(userId, role);
+    if (profile?.addressVerified) {
+      throw new AppError("Address is already verified");
+    }
+
+    const existingPending = await prisma.verification.findFirst({
+      where: { userId, type: "ADDRESS", status: "PENDING" },
+    });
+    if (existingPending) {
+      throw new AppError("Address verification already pending review");
+    }
+
+    const profileSnapshot = await this.getProfileSnapshot(userId, role);
+    const verificationData: VerificationData = {
+      entityType: input.entityType,
+      address: input.address,
+      billType: input.billType,
+      role,
+      requiresManualReview: true,
+      ...profileSnapshot,
+    };
+
+    const verification = await prisma.verification.create({
+      data: {
+        userId,
+        type: "ADDRESS",
+        status: "PENDING",
+        providerName: "manual",
+        data: verificationData,
+      },
+    });
+
+    const documentUrls = await saveVerificationDocuments(userId, verification.id, {
+      ADDRESS_PROOF: files.addressProof,
+    });
+
+    await prisma.verification.update({
+      where: { id: verification.id },
+      data: { data: { ...verificationData, documentUrls } },
+    });
+
+    if (input.entityType === "COMPANY") {
+      await this.updateRoleProfile(userId, role, {
+        companyRegisteredAddress: input.address,
+      });
+    } else {
+      await this.updateRoleProfile(userId, role, {
+        residentialAddress: input.address,
+      });
+    }
+
+    const displayName = await this.getUserDisplayName(userId, role);
+    await notifyUser(
+      userId,
+      "Address documents submitted",
+      "Your address proof has been submitted and is pending administrator review."
+    );
+    await notifyAdmins(
+      "New address verification",
+      `${displayName ?? "A user"} (${role}) submitted address proof for manual review.`,
+      { verificationId: verification.id, userId, role }
+    );
+
+    await auditService.log({
+      userId,
+      action: "ADDRESS_SUBMITTED",
+      entity: "Verification",
+      entityId: verification.id,
+    });
+
+    return toIdentityResult(verification);
+  }
+
+  async verifyIdentity(
+    userId: string,
+    role: UserRole,
+    input: IdentityVerifyInput
+  ): Promise<IdentityVerificationResult> {
+    throw new AppError(
+      "Please upload identity documents using the verification form.",
+      400
+    );
+  }
+
+  async submitGhanaCard(userId: string, role: UserRole, input: GhanaCardVerifyInput) {
+    return this.verifyIdentity(userId, role, toIdentityVerifyInput(input));
   }
 
   private async setProfilePendingIdentity(
@@ -159,12 +646,12 @@ export class KycService {
     if (role === "TENANT") {
       await prisma.tenant.update({
         where: { userId },
-        data: { nationalId, profileStatus: status },
+        data: { nationalId, profileStatus: status, entityType: "INDIVIDUAL" },
       });
     } else if (role === "LANDLORD") {
       await prisma.landlord.update({
         where: { userId },
-        data: { nationalId, profileStatus: status },
+        data: { nationalId, profileStatus: status, entityType: "INDIVIDUAL" },
       });
     } else if (role === "LENDER") {
       await prisma.lender.update({
@@ -180,6 +667,42 @@ export class KycService {
   }
 
   async addBankAccount(userId: string, input: BankAccountInput) {
+    let validation: BankValidationOutcome;
+    let providerName: string;
+    let verifiedAccountName = input.accountName.trim();
+
+    if (isPaystackConfigured()) {
+      const paystackValidation = await validateBankAccountWithPaystack({
+        accountType: input.accountType,
+        bankCode: input.bankCode,
+        bankName: input.bankName,
+        accountNumber: input.accountNumber,
+        accountName: input.accountName,
+      });
+      validation = paystackValidation;
+      providerName = "paystack";
+      if (paystackValidation.resolvedAccountName?.trim()) {
+        verifiedAccountName = paystackValidation.resolvedAccountName.trim();
+      }
+    } else {
+      const provider = getKycProvider();
+      validation = await provider.validateBankAccount({
+        accountType: input.accountType,
+        bankCode: input.bankCode,
+        bankName: input.bankName,
+        accountNumber: input.accountNumber,
+        accountName: input.accountName,
+      });
+      providerName = provider.name;
+    }
+
+    if (validation.status === "FAILED") {
+      throw new AppError(
+        validation.failureReason ?? "Could not verify this bank or MoMo account.",
+        400
+      );
+    }
+
     if (input.isDefault) {
       await prisma.bankAccount.updateMany({
         where: { userId },
@@ -195,43 +718,117 @@ export class KycService {
         bankName: input.bankName,
         accountNumber: input.accountNumber,
         accountNumberMasked: maskAccountNumber(input.accountNumber),
-        accountName: input.accountName,
+        accountName: verifiedAccountName,
         isDefault: input.isDefault,
-        validationStatus: "PENDING",
+        validationStatus:
+          validation.status === "VALIDATED" ? "VALIDATED" : "PENDING",
+        isVerified: validation.status === "VALIDATED",
       },
     });
+
+    const verificationStatus: import("@prisma/client").VerificationStatus =
+      validation.status === "VALIDATED"
+        ? "APPROVED"
+        : validation.status === "FAILED" && !validation.requiresManualReview
+          ? "REJECTED"
+          : "PENDING";
 
     await prisma.verification.create({
       data: {
         userId,
         type: "BANK",
-        status: "PENDING",
+        status: verificationStatus,
+        providerName,
+        providerReference:
+          validation.status === "VALIDATED" ? validation.providerReference : undefined,
+        failureReason:
+          validation.status === "FAILED" ? validation.failureReason : undefined,
+        verifiedAt: validation.status === "VALIDATED" ? new Date() : undefined,
         data: {
           bankAccountId: account.id,
           bankName: input.bankName,
-          accountName: input.accountName,
+          accountName: verifiedAccountName,
+          requiresManualReview:
+            validation.status === "VALIDATED"
+              ? false
+              : validation.requiresManualReview ?? true,
         },
       },
     });
 
-    await notifyAdmins(
-      "New bank account pending validation",
-      `${input.accountName} submitted bank/MoMo details for review.`
-    );
+    if (validation.status === "VALIDATED") {
+      const accountLabel =
+        input.accountType === "MOMO" ? "Mobile Money account" : "bank account";
+      await notifyUser(
+        userId,
+        `${accountLabel} verified`,
+        `Your ${input.bankName} ${accountLabel} ending in ${input.accountNumber.slice(-4)} was verified and saved successfully.`
+      );
+    } else if (validation.status === "PENDING") {
+      await notifyAdmins(
+        "Bank account validation exception",
+        `${verifiedAccountName} submitted bank/MoMo details for manual review.`
+      );
+    }
 
     await auditService.log({
       userId,
       action: "BANK_ACCOUNT_ADDED",
       entity: "BankAccount",
       entityId: account.id,
+      metadata: {
+        providerName,
+        validationStatus: validation.status,
+      },
     });
 
     return prisma.bankAccount.findUniqueOrThrow({ where: { id: account.id } });
   }
 
+  async deleteBankAccount(userId: string, bankAccountId: string) {
+    const account = await prisma.bankAccount.findFirst({
+      where: { id: bankAccountId, userId },
+    });
+
+    if (!account) {
+      throw new AppError("Bank or MoMo account not found", 404);
+    }
+
+    const pendingWithdrawal = await prisma.withdrawalRequest.findFirst({
+      where: {
+        bankAccountId,
+        userId,
+        status: { in: ["PENDING", "OTP_VERIFIED"] },
+      },
+    });
+
+    if (pendingWithdrawal) {
+      throw new AppError("Cannot remove an account with a withdrawal in progress.");
+    }
+
+    await prisma.bankAccount.delete({ where: { id: bankAccountId } });
+
+    await auditService.log({
+      userId,
+      action: "BANK_ACCOUNT_DELETED",
+      entity: "BankAccount",
+      entityId: bankAccountId,
+      metadata: {
+        bankName: account.bankName,
+        accountType: account.accountType,
+      },
+    });
+
+    return { deleted: true };
+  }
+
   async getVerificationStatus(userId: string, role: UserRole) {
-    const [tenant, landlord, lender, agent, verifications, bankAccounts] =
+    const [user, tenant, landlord, lender, agent, verifications, bankAccounts, kycDocuments] =
       await Promise.all([
+        prisma.user.findUnique({
+          where: { id: userId },
+          select: { email: true, image: true, phone: true, updatedAt: true },
+        }),
         prisma.tenant.findUnique({ where: { userId } }),
         prisma.landlord.findUnique({ where: { userId } }),
         prisma.lender.findUnique({ where: { userId } }),
@@ -239,8 +836,13 @@ export class KycService {
         prisma.verification.findMany({
           where: { userId },
           orderBy: { createdAt: "desc" },
+          include: { documents: true },
         }),
         prisma.bankAccount.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.kycDocument.findMany({
           where: { userId },
           orderBy: { createdAt: "desc" },
         }),
@@ -255,6 +857,13 @@ export class KycService {
             ? lender
             : agent;
 
+    const entityType =
+      role === "TENANT"
+        ? tenant?.entityType ?? "INDIVIDUAL"
+        : role === "LANDLORD"
+          ? landlord?.entityType ?? "INDIVIDUAL"
+          : "INDIVIDUAL";
+
     const identityVerified =
       role === "TENANT"
         ? (tenant?.kycVerified ?? false)
@@ -265,11 +874,136 @@ export class KycService {
             : profile?.profileStatus === "KYC_VERIFIED";
 
     return {
+      email: user?.email ?? null,
+      image: withProfileImageVersion(user?.image, user?.updatedAt),
+      phone: user?.phone ?? null,
+      fullName: getProfileDisplayName({
+        entityType,
+        fullName: profile?.fullName ?? null,
+        companyName:
+          role === "TENANT"
+            ? tenant?.companyName
+            : role === "LANDLORD"
+              ? landlord?.companyName
+              : null,
+      }),
+      contactName: profile?.fullName ?? null,
       profileStatus: profile?.profileStatus ?? "INCOMPLETE",
+      entityType,
+      employmentStatus:
+        role === "TENANT"
+          ? tenant?.employmentStatus ?? null
+          : role === "LANDLORD"
+            ? landlord?.employmentStatus ?? null
+            : role === "LENDER"
+              ? lender?.employmentStatus ?? null
+              : agent?.employmentStatus ?? null,
+      dateOfBirth:
+        role === "TENANT" && tenant?.dateOfBirth
+          ? tenant.dateOfBirth.toISOString().slice(0, 10)
+          : role === "LANDLORD" && landlord?.dateOfBirth
+            ? landlord.dateOfBirth.toISOString().slice(0, 10)
+            : null,
+      occupation:
+        role === "TENANT"
+          ? tenant?.occupation ?? null
+          : role === "LANDLORD"
+            ? landlord?.occupation ?? null
+            : role === "LENDER"
+              ? lender?.lenderType ?? null
+              : null,
+      employerName:
+        role === "TENANT"
+          ? tenant?.employerName ?? null
+          : role === "LANDLORD"
+            ? landlord?.employerName ?? null
+            : role === "LENDER"
+              ? lender?.institutionName ?? null
+              : null,
+      monthlyIncome:
+        role === "TENANT" && tenant?.monthlyIncome != null
+          ? Number(tenant.monthlyIncome)
+          : role === "LANDLORD" && landlord?.monthlyIncome != null
+            ? Number(landlord.monthlyIncome)
+            : null,
+      residentialAddress:
+        role === "TENANT"
+          ? tenant?.residentialAddress ?? null
+          : role === "LANDLORD"
+            ? landlord?.residentialAddress ?? null
+            : role === "AGENT"
+              ? agent?.officeAddress ?? null
+              : null,
+      agencyName: role === "AGENT" ? agent?.agencyName ?? null : null,
+      licenceNumber: role === "AGENT" ? agent?.licenceNumber ?? null : null,
+      region: role === "AGENT" ? agent?.region ?? null : null,
+      institutionName: role === "LENDER" ? lender?.institutionName ?? null : null,
+      lenderType: role === "LENDER" ? lender?.lenderType ?? null : null,
+      licenceReference: role === "LENDER" ? lender?.licenceReference ?? null : null,
+      companyName:
+        role === "TENANT"
+          ? tenant?.companyName
+          : role === "LANDLORD"
+            ? landlord?.companyName
+            : null,
+      companyRegistrationNumber:
+        role === "TENANT"
+          ? tenant?.companyRegistrationNumber
+          : role === "LANDLORD"
+            ? landlord?.companyRegistrationNumber
+            : null,
+      companyRegisteredAddress:
+        role === "TENANT"
+          ? tenant?.companyRegisteredAddress
+          : role === "LANDLORD"
+            ? landlord?.companyRegisteredAddress
+            : null,
+      companyTin:
+        role === "TENANT"
+          ? tenant?.companyTin
+          : role === "LANDLORD"
+            ? landlord?.companyTin
+            : null,
       kycVerified: identityVerified,
       identityVerified,
+      staffId:
+        role === "TENANT"
+          ? tenant?.staffId ?? null
+          : role === "LANDLORD"
+            ? landlord?.staffId ?? null
+            : role === "LENDER"
+              ? lender?.staffId ?? null
+              : agent?.staffId ?? null,
+      employmentVerified:
+        role === "TENANT"
+          ? (tenant?.employmentVerified ?? false)
+          : role === "LANDLORD"
+            ? (landlord?.employmentVerified ?? false)
+            : role === "LENDER"
+              ? (lender?.employmentVerified ?? false)
+              : (agent?.employmentVerified ?? false),
+      addressVerified:
+        role === "TENANT"
+          ? (tenant?.addressVerified ?? false)
+          : role === "LANDLORD"
+            ? (landlord?.addressVerified ?? false)
+            : role === "LENDER"
+              ? (lender?.addressVerified ?? false)
+              : (agent?.addressVerified ?? false),
+      displayName: getProfileDisplayName({
+        entityType,
+        fullName: profile?.fullName ?? null,
+        companyName:
+          role === "TENANT"
+            ? tenant?.companyName
+            : role === "LANDLORD"
+              ? landlord?.companyName
+              : null,
+      }),
+      kycProvider: "manual",
       verifications,
-      bankAccounts: bankAccounts.map((a) => ({
+      kycDocuments,
+      bankAccounts: bankAccounts.map((a: BankAccount) => ({
         ...a,
         accountNumber: a.accountNumberMasked ?? maskAccountNumber(a.accountNumber),
       })),
@@ -296,16 +1030,19 @@ export class KycService {
         type: "BANK",
         status: "PENDING",
       },
-      data: { status: "APPROVED", reviewedBy: adminUserId, reviewedAt: new Date() },
+      data: {
+        status: "APPROVED",
+        reviewedBy: adminUserId,
+        reviewedAt: new Date(),
+        verifiedAt: new Date(),
+      },
     });
 
-    await notificationService.create({
-      userId: account.userId,
-      title: "Bank account validated",
-      body: `Your ${account.bankName} account has been validated.`,
-      channel: "EMAIL",
-      sendEmail: true,
-    });
+    await notifyUser(
+      account.userId,
+      "Bank account validated",
+      `Your ${account.bankName} account has been validated.`
+    );
 
     return updated;
   }
@@ -313,43 +1050,147 @@ export class KycService {
   async approveIdentityVerification(verificationId: string, adminUserId: string) {
     const verification = await prisma.verification.findUnique({
       where: { id: verificationId },
-      include: { user: { select: { id: true, role: true } } },
+      include: {
+        user: { select: { id: true, role: true } },
+        documents: true,
+      },
     });
-    if (!verification || verification.type !== "IDENTITY") {
-      throw new AppError("Identity verification not found", 404);
+    if (
+      !verification ||
+      !["IDENTITY", "KYB", "EMPLOYMENT", "ADDRESS"].includes(verification.type)
+    ) {
+      throw new AppError("Verification not found", 404);
     }
     if (verification.status !== "PENDING") {
       throw new AppError("Verification is not pending");
     }
 
-    const data = verification.data as {
-      ghanaCardNumber?: string;
-      fullName?: string;
-      role?: UserRole;
-    };
+    const data = verification.data as VerificationData;
     const role = data.role ?? verification.user.role;
-    const nationalId = data.ghanaCardNumber;
+    const nationalId = data.idNumber ?? data.ghanaCardNumber;
 
     await prisma.verification.update({
       where: { id: verificationId },
-      data: { status: "APPROVED", reviewedBy: adminUserId, reviewedAt: new Date() },
+      data: {
+        status: "APPROVED",
+        reviewedBy: adminUserId,
+        reviewedAt: new Date(),
+        verifiedAt: new Date(),
+        failureReason: null,
+      },
     });
 
-    await this.markIdentityApproved(verification.userId, role, nationalId);
+    if (verification.type === "IDENTITY" || verification.type === "KYB") {
+      await this.markIdentityApproved(
+        verification.userId,
+        role,
+        nationalId,
+        data.entityType
+      );
+    } else if (verification.type === "EMPLOYMENT") {
+      await this.markEmploymentApproved(verification.userId, role, data.staffId);
+    } else if (verification.type === "ADDRESS") {
+      await this.markAddressApproved(verification.userId, role);
+    }
 
-    await notificationService.create({
-      userId: verification.userId,
-      title: "Identity verified",
-      body: "Your Ghana Card verification has been approved. You can now access verified features.",
-      channel: "EMAIL",
-      sendEmail: true,
-    });
+    const titles: Record<string, { approved: string; body: string }> = {
+      KYB: {
+        approved: "Business verification approved",
+        body: "Your company registration has been approved.",
+      },
+      IDENTITY: {
+        approved: "Identity verified",
+        body: "Your identity verification has been approved.",
+      },
+      EMPLOYMENT: {
+        approved: "Employment verified",
+        body: "Your employment details have been verified.",
+      },
+      ADDRESS: {
+        approved: "Address verified",
+        body: "Your residential address has been verified.",
+      },
+    };
+    const copy = titles[verification.type] ?? titles.IDENTITY;
+
+    await notifyUser(
+      verification.userId,
+      copy.approved,
+      `${copy.body} You can now access verified features.`
+    );
+
+    const approveActions: Record<string, string> = {
+      KYB: "KYB_APPROVED",
+      IDENTITY: "IDENTITY_APPROVED",
+      EMPLOYMENT: "EMPLOYMENT_APPROVED",
+      ADDRESS: "ADDRESS_APPROVED",
+    };
 
     await auditService.log({
       userId: adminUserId,
-      action: "IDENTITY_APPROVED",
+      action: approveActions[verification.type] ?? "VERIFICATION_APPROVED",
       entity: "Verification",
       entityId: verificationId,
+    });
+
+    return verification;
+  }
+
+  async rejectIdentityVerification(
+    verificationId: string,
+    adminUserId: string,
+    reason: string
+  ) {
+    const verification = await prisma.verification.findUnique({
+      where: { id: verificationId },
+      include: { user: { select: { id: true, role: true } } },
+    });
+    if (
+      !verification ||
+      !["IDENTITY", "KYB", "EMPLOYMENT", "ADDRESS"].includes(verification.type)
+    ) {
+      throw new AppError("Verification not found", 404);
+    }
+    if (verification.status !== "PENDING") {
+      throw new AppError("Verification is not pending");
+    }
+
+    await prisma.verification.update({
+      where: { id: verificationId },
+      data: {
+        status: "REJECTED",
+        reviewedBy: adminUserId,
+        reviewedAt: new Date(),
+        failureReason: reason,
+      },
+    });
+
+    const rejectTitles: Record<string, string> = {
+      KYB: "Business verification rejected",
+      IDENTITY: "Identity verification rejected",
+      EMPLOYMENT: "Employment verification rejected",
+      ADDRESS: "Address verification rejected",
+    };
+
+    await notifyUser(
+      verification.userId,
+      rejectTitles[verification.type] ?? "Verification rejected",
+      reason
+    );
+
+    const rejectActions: Record<string, string> = {
+      KYB: "KYB_REJECTED",
+      IDENTITY: "IDENTITY_REJECTED",
+      EMPLOYMENT: "EMPLOYMENT_REJECTED",
+      ADDRESS: "ADDRESS_REJECTED",
+    };
+
+    await auditService.log({
+      userId: adminUserId,
+      action: rejectActions[verification.type] ?? "VERIFICATION_REJECTED",
+      entity: "Verification",
+      entityId: verificationId,
+      metadata: { reason },
     });
 
     return verification;
@@ -358,13 +1199,15 @@ export class KycService {
   private async markIdentityApproved(
     userId: string,
     role: UserRole,
-    nationalId?: string
+    nationalId?: string,
+    entityType: EntityType = "INDIVIDUAL"
   ) {
     if (role === "TENANT") {
       await prisma.tenant.update({
         where: { userId },
         data: {
           nationalId,
+          entityType,
           kycVerified: true,
           profileStatus: "KYC_VERIFIED",
         },
@@ -374,6 +1217,7 @@ export class KycService {
         where: { userId },
         data: {
           nationalId,
+          entityType,
           identityVerified: true,
           profileStatus: "KYC_VERIFIED",
         },
@@ -396,11 +1240,236 @@ export class KycService {
     }
   }
 
+  private async getProfileSnapshot(userId: string, role: UserRole) {
+    const profile = await this.getRoleProfile(userId, role);
+    if (!profile) return {};
+
+    const entityType = "entityType" in profile ? profile.entityType : "INDIVIDUAL";
+    const companyName = "companyName" in profile ? profile.companyName : null;
+
+    return {
+      employmentStatus: profile.employmentStatus ?? undefined,
+      occupation:
+        "occupation" in profile
+          ? profile.occupation ?? undefined
+          : "lenderType" in profile
+            ? profile.lenderType ?? undefined
+            : undefined,
+      employerName:
+        "employerName" in profile
+          ? profile.employerName ?? undefined
+          : "institutionName" in profile
+            ? profile.institutionName ?? undefined
+            : undefined,
+      staffId: profile.staffId ?? undefined,
+      entityType,
+      fullName: profile.fullName,
+      companyName: companyName ?? undefined,
+    } satisfies Partial<VerificationData>;
+  }
+
+  private async getRoleProfile(userId: string, role: UserRole) {
+    if (role === "TENANT") return prisma.tenant.findUnique({ where: { userId } });
+    if (role === "LANDLORD") return prisma.landlord.findUnique({ where: { userId } });
+    if (role === "LENDER") return prisma.lender.findUnique({ where: { userId } });
+    return prisma.agentProfile.findUnique({ where: { userId } });
+  }
+
+  private async getUserDisplayName(userId: string, role: UserRole) {
+    const profile = await this.getRoleProfile(userId, role);
+    if (!profile) return null;
+    const entityType =
+      "entityType" in profile ? profile.entityType : "INDIVIDUAL";
+    const companyName = "companyName" in profile ? profile.companyName : null;
+    return getProfileDisplayName({
+      entityType,
+      fullName: profile.fullName,
+      companyName,
+    });
+  }
+
+  private async updateRoleProfile(
+    userId: string,
+    role: UserRole,
+    data: {
+      staffId?: string;
+      residentialAddress?: string;
+      companyRegisteredAddress?: string;
+    }
+  ) {
+    if (role === "TENANT") {
+      await prisma.tenant.update({ where: { userId }, data });
+    } else if (role === "LANDLORD") {
+      await prisma.landlord.update({ where: { userId }, data });
+    } else if (role === "LENDER") {
+      await prisma.lender.update({
+        where: { userId },
+        data: {
+          staffId: data.staffId,
+          residentialAddress: data.residentialAddress,
+        },
+      });
+    } else if (role === "AGENT") {
+      await prisma.agentProfile.update({
+        where: { userId },
+        data: {
+          staffId: data.staffId,
+          officeAddress: data.residentialAddress ?? data.companyRegisteredAddress,
+        },
+      });
+    }
+  }
+
+  private async markEmploymentApproved(
+    userId: string,
+    role: UserRole,
+    staffId?: string
+  ) {
+    const data = { employmentVerified: true, ...(staffId ? { staffId } : {}) };
+    if (role === "TENANT") {
+      await prisma.tenant.update({ where: { userId }, data });
+    } else if (role === "LANDLORD") {
+      await prisma.landlord.update({ where: { userId }, data });
+    } else if (role === "LENDER") {
+      await prisma.lender.update({ where: { userId }, data });
+    } else if (role === "AGENT") {
+      await prisma.agentProfile.update({ where: { userId }, data });
+    }
+  }
+
+  private async markAddressApproved(userId: string, role: UserRole) {
+    const data = { addressVerified: true };
+    if (role === "TENANT") {
+      await prisma.tenant.update({ where: { userId }, data });
+    } else if (role === "LANDLORD") {
+      await prisma.landlord.update({ where: { userId }, data });
+    } else if (role === "LENDER") {
+      await prisma.lender.update({ where: { userId }, data });
+    } else if (role === "AGENT") {
+      await prisma.agentProfile.update({ where: { userId }, data });
+    }
+  }
+
   async getPendingKycReviews() {
-    return prisma.verification.findMany({
-      where: { status: "PENDING", type: { in: ["KYC", "IDENTITY", "BANK"] } },
-      include: { user: { select: { email: true, role: true } } },
+    type PendingReview = Prisma.VerificationGetPayload<{
+      include: {
+        user: {
+          select: {
+            email: true;
+            role: true;
+            tenant: {
+              select: {
+                fullName: true;
+                companyName: true;
+                entityType: true;
+                employmentStatus: true;
+                occupation: true;
+                employerName: true;
+                staffId: true;
+                residentialAddress: true;
+              };
+            };
+            landlord: {
+              select: {
+                fullName: true;
+                companyName: true;
+                entityType: true;
+                employmentStatus: true;
+                occupation: true;
+                employerName: true;
+                staffId: true;
+                residentialAddress: true;
+              };
+            };
+            lender: {
+              select: {
+                fullName: true;
+                employmentStatus: true;
+                lenderType: true;
+                institutionName: true;
+                staffId: true;
+                residentialAddress: true;
+              };
+            };
+            agentProfile: {
+              select: {
+                fullName: true;
+                employmentStatus: true;
+                officeAddress: true;
+                staffId: true;
+              };
+            };
+          };
+        };
+        documents: true;
+      };
+    }>;
+
+    const pending = (await prisma.verification.findMany({
+      where: {
+        status: "PENDING",
+        type: {
+          in: ["KYC", "IDENTITY", "KYB", "BANK", "EMPLOYMENT", "ADDRESS"],
+        },
+      },
+      include: {
+        user: {
+          select: {
+            email: true,
+            role: true,
+            tenant: {
+              select: {
+                fullName: true,
+                companyName: true,
+                entityType: true,
+                employmentStatus: true,
+                occupation: true,
+                employerName: true,
+                staffId: true,
+                residentialAddress: true,
+              },
+            },
+            landlord: {
+              select: {
+                fullName: true,
+                companyName: true,
+                entityType: true,
+                employmentStatus: true,
+                occupation: true,
+                employerName: true,
+                staffId: true,
+                residentialAddress: true,
+              },
+            },
+            lender: {
+              select: {
+                fullName: true,
+                employmentStatus: true,
+                lenderType: true,
+                institutionName: true,
+                staffId: true,
+                residentialAddress: true,
+              },
+            },
+            agentProfile: {
+              select: {
+                fullName: true,
+                employmentStatus: true,
+                officeAddress: true,
+                staffId: true,
+              },
+            },
+          },
+        },
+        documents: true,
+      },
       orderBy: { createdAt: "desc" },
+    })) as PendingReview[];
+
+    return pending.filter((review: PendingReview) => {
+      const data = review.data as VerificationData | null;
+      if (review.providerName === "manual") return true;
+      return requiresManualReview(data);
     });
   }
 }

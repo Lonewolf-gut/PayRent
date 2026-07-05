@@ -56,6 +56,7 @@ export default function LandlordApplicationsPage() {
           notes?: string;
           property?: { name: string };
           tenant?: { fullName: string; user?: { email: string } };
+          documents?: { id: string; fileName: string; fileUrl: string }[];
         }) => (
           <Card key={app.id}>
             <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -69,6 +70,25 @@ export default function LandlordApplicationsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {app.notes && <p className="text-sm text-muted-foreground">{app.notes}</p>}
+              {app.documents && app.documents.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Supporting documents</p>
+                  <ul className="space-y-1">
+                    {app.documents.map((doc) => (
+                      <li key={doc.id}>
+                        <a
+                          href={doc.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-emerald-700 hover:underline"
+                        >
+                          {doc.fileName}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {["SUBMITTED", "UNDER_REVIEW", "CLARIFICATION_REQUIRED"].includes(app.status) && (
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => reviewMutation.mutate({ id: app.id, decision: "APPROVE" })}>Approve</Button>

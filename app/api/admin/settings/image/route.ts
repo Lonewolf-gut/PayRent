@@ -34,5 +34,5 @@ export const POST = withAuth(
 
     return apiResponse({ imageUrl });
   },
-  { roles: ["ADMIN", "CEO"] }
+  { roles: ["ADMIN"] }
 );

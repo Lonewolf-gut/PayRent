@@ -3,6 +3,7 @@ import path from "path";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { apiResponse, withAuth } from "@/lib/api/handler";
+import { withProfileImageVersion } from "@/lib/utils/profile-image";
 
 export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
   const formData = await req.formData();
@@ -28,11 +29,21 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
 
   await fs.writeFile(filePath, buffer);
 
+  const existingFiles = await fs.readdir(uploadDir);
+  await Promise.all(
+    existingFiles
+      .filter((name) => name.startsWith(`${session.user.id}.`) && name !== fileName)
+      .map((name) => fs.unlink(path.join(uploadDir, name)).catch(() => undefined))
+  );
+
   const imageUrl = `/uploads/profiles/${fileName}`;
-  await prisma.user.update({
+  const user = await prisma.user.update({
     where: { id: session.user.id },
     data: { image: imageUrl },
+    select: { updatedAt: true },
   });
 
-  return apiResponse({ imageUrl });
+  return apiResponse({
+    imageUrl: withProfileImageVersion(imageUrl, user.updatedAt),
+  });
 });

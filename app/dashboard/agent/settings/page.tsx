@@ -1,19 +1,15 @@
 "use client";
 
 import UserSettingsForm from "@/components/dashboard/UserSettingsForm";
-import { SubscriptionPricingCards } from "@/components/dashboard/SubscriptionPricingCards";
-import { SecuritySettings } from "@/components/dashboard/security-settings";
 
 export default function AgentSettingsPage() {
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-bold">Settings</h1>
-      <UserSettingsForm />
-      <SecuritySettings />
+    <div className="mx-auto max-w-3xl space-y-8">
       <div>
-        <h2 className="mb-4 text-lg font-semibold">Subscription</h2>
-        <SubscriptionPricingCards />
+        <h1 className="text-2xl font-bold">Settings</h1>
+        <p className="text-muted-foreground">Manage your profile, payout details, and security.</p>
       </div>
+      <UserSettingsForm />
     </div>
   );
 }

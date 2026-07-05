@@ -1,0 +1,182 @@
+"use client";
+
+import Link from "next/link";
+import { Check } from "lucide-react";
+import {
+  CHECKOUT_PLANS,
+  PLAN_CATALOG,
+  type CheckoutPlanId,
+} from "@/lib/subscription/plans";
+import { getSubscriptionPrice } from "@/lib/subscription/pricing";
+
+type PricingCardsSectionProps = {
+  mode?: "marketing" | "checkout";
+  selectedPlan?: CheckoutPlanId | null;
+  currentPlan?: CheckoutPlanId;
+  onSelectPlan?: (plan: CheckoutPlanId) => void;
+  showHeader?: boolean;
+  compact?: boolean;
+};
+
+function formatMonthlyPrice(planId: CheckoutPlanId) {
+  if (planId === "FREE") return "Free";
+  const amount = getSubscriptionPrice(planId, "MONTHLY");
+  return `GHS ${amount.toFixed(2)}`;
+}
+
+export function PricingCardsSection({
+  mode = "marketing",
+  selectedPlan = null,
+  currentPlan = "FREE",
+  onSelectPlan,
+  showHeader = true,
+  compact = false,
+}: PricingCardsSectionProps) {
+  return (
+    <section
+      id={mode === "marketing" ? "pricing" : undefined}
+      className={`bg-emerald-950 text-white ${compact ? "py-12" : "py-20"}`}
+    >
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        {showHeader ? (
+          <div className="text-center">
+            <h2 className="font-serif text-3xl font-bold tracking-tight sm:text-4xl">
+              Simple, transparent pricing
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-emerald-100/75">
+              Plans for landlords and agents. Tenants and lenders use PayForMe for free.
+            </p>
+          </div>
+        ) : null}
+
+        <div
+          className={`mx-auto grid gap-6 ${
+            compact ? "mt-8 max-w-6xl lg:grid-cols-3" : "mt-12 max-w-6xl lg:grid-cols-3"
+          }`}
+        >
+          {CHECKOUT_PLANS.map((planId) => {
+            const plan = PLAN_CATALOG[planId];
+            const isCurrent = currentPlan === planId;
+            const isSelected = selectedPlan === planId;
+            const monthlyPrice = formatMonthlyPrice(planId);
+
+            return (
+              <div
+                key={planId}
+                className={`relative flex flex-col rounded-xl p-8 ${
+                  isSelected ? "ring-2 ring-emerald-300 ring-offset-2 ring-offset-emerald-950" : ""
+                } ${
+                  plan.highlight
+                    ? "border border-emerald-400 bg-gradient-to-b from-emerald-600 to-emerald-700 shadow-[0_20px_40px_rgba(16,185,129,0.25)]"
+                    : "border border-emerald-800/60 bg-emerald-900/40 backdrop-blur-sm"
+                }`}
+              >
+                <div className="mb-6 flex min-h-[26px] flex-wrap items-center gap-2">
+                  {plan.highlight ? (
+                    <span className="inline-flex rounded-sm bg-emerald-300 px-2.5 py-1 text-[10px] font-bold tracking-[0.15em] text-emerald-950">
+                      MOST POPULAR
+                    </span>
+                  ) : (
+                    <span className="block h-[26px]" aria-hidden />
+                  )}
+                  {isCurrent && mode === "checkout" ? (
+                    <span className="inline-flex rounded-sm border border-emerald-400/40 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] text-emerald-300">
+                      CURRENT PLAN
+                    </span>
+                  ) : null}
+                </div>
+
+                <div>
+                  <h3 className="font-serif text-xl font-bold">{plan.name}</h3>
+                  <p
+                    className={`mt-1 text-sm ${plan.highlight ? "text-emerald-50/90" : "text-emerald-100/60"}`}
+                  >
+                    {plan.tagline}
+                  </p>
+                  <p className="mt-6 font-serif text-4xl font-bold tracking-tight">
+                    {monthlyPrice}
+                    {planId !== "FREE" ? (
+                      <span
+                        className={`text-base font-sans font-normal ${plan.highlight ? "text-emerald-50/80" : "text-emerald-100/50"}`}
+                      >
+                        {" "}
+                        / per month
+                      </span>
+                    ) : null}
+                  </p>
+                </div>
+
+                <div
+                  className={`my-8 border-t ${plan.highlight ? "border-emerald-400/40" : "border-emerald-800/60"}`}
+                />
+
+                {plan.includesLabel ? (
+                  <p
+                    className={`mb-4 text-sm ${plan.highlight ? "text-emerald-50/85" : "text-emerald-100/70"}`}
+                  >
+                    {plan.includesLabel}
+                  </p>
+                ) : null}
+
+                <ul className="flex-1 space-y-3.5">
+                  {plan.features.map((feature) => (
+                    <li
+                      key={feature}
+                      className={`flex items-start gap-3 text-sm ${plan.highlight ? "text-emerald-50" : "text-emerald-100/85"}`}
+                    >
+                      <Check
+                        className={`mt-0.5 h-4 w-4 shrink-0 ${plan.highlight ? "text-emerald-100" : "text-emerald-400"}`}
+                        strokeWidth={1.5}
+                      />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                {mode === "marketing" ? (
+                  <Link
+                    href={
+                      planId === "FREE"
+                        ? "/register"
+                        : `/pricing?plan=${planId}`
+                    }
+                    className={`mt-8 inline-flex w-full items-center justify-center rounded-md px-4 py-2.5 text-sm font-semibold transition ${
+                      plan.highlight
+                        ? "border border-emerald-500/50 bg-emerald-800/40 text-white hover:bg-emerald-800/60"
+                        : "bg-white text-emerald-700 hover:bg-emerald-50"
+                    }`}
+                  >
+                    {planId === "FREE" ? "Get Started" : `Get ${plan.name} plan`}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className={`mt-8 inline-flex w-full items-center justify-center rounded-md px-4 py-2.5 text-sm font-semibold transition ${
+                      plan.highlight
+                        ? "bg-white text-emerald-700 hover:bg-emerald-50"
+                        : "border border-emerald-600/50 text-white hover:border-emerald-500 hover:bg-emerald-800/50"
+                    }`}
+                    onClick={() => onSelectPlan?.(planId)}
+                  >
+                    {planId === "FREE" ? "Use Free plan" : `Get ${plan.name} plan`}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {mode === "marketing" ? (
+          <div className="mx-auto mt-10 max-w-6xl text-center">
+            <Link
+              href="/pricing"
+              className="inline-flex items-center text-sm font-medium text-emerald-400 transition hover:text-emerald-300"
+            >
+              Compare plans and checkout
+            </Link>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}

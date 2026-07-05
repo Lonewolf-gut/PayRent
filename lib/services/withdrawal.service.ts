@@ -3,22 +3,37 @@ import { prisma } from "@/lib/db/prisma";
 import { otpService } from "@/lib/services/otp.service";
 import { walletService } from "@/lib/services/wallet.service";
 import { notificationService } from "@/lib/services/notification.service";
+import { kycService } from "@/lib/services/kyc.service";
+import {
+  disburseToBankAccount,
+  disburseToMobileMoney,
+  isPayoutConfigured,
+} from "@/lib/services/payment/payout.service";
+import { logger } from "@/lib/logger";
 import { AppError } from "@/lib/errors";
-import type { WalletType, UserRole } from "@prisma/client";
-
-const ROLE_WALLET: Partial<Record<UserRole, WalletType>> = {
-  LENDER: "LENDER",
-  LANDLORD: "LANDLORD",
-};
+import type { UserRole } from "@prisma/client";
+import {
+  getWalletTypeForRole,
+  usesPlatformWallet,
+} from "@/lib/wallet/role-wallet";
 
 export class WithdrawalService {
+  private async assertIdentityVerified(userId: string, role: UserRole) {
+    if (usesPlatformWallet(role)) return;
+
+    const status = await kycService.getVerificationStatus(userId, role);
+    if (!status.identityVerified) {
+      throw new AppError("Identity verification required");
+    }
+  }
+
   async requestWithdrawal(
     userId: string,
     role: UserRole,
     bankAccountId: string,
     amount: number
   ) {
-    const walletType = ROLE_WALLET[role];
+    const walletType = getWalletTypeForRole(role);
     if (!walletType) throw new AppError("Role cannot withdraw");
 
     const user = await prisma.user.findUnique({
@@ -30,25 +45,22 @@ export class WithdrawalService {
       throw new AppError("Phone verification required");
     }
     if (!user.bankAccounts.length) {
-      throw new AppError("Verified bank account required");
+      throw new AppError("Verified payout account required");
     }
 
-    const landlord = role === "LANDLORD"
-      ? await prisma.landlord.findUnique({ where: { userId } })
-      : null;
-    const lender = role === "LENDER"
-      ? await prisma.lender.findUnique({ where: { userId } })
-      : null;
+    await this.assertIdentityVerified(userId, role);
 
-    const identityOk =
-      (landlord?.identityVerified ?? false) ||
-      (lender?.identityVerified ?? false);
-    if (!identityOk) throw new AppError("Identity verification required");
+    const balance = usesPlatformWallet(role)
+      ? await walletService.getPlatformBalance()
+      : await walletService.getBalance(userId, walletType);
 
-    const balance = await walletService.getBalance(userId, walletType);
     if (Number(balance.balance) < amount) {
       throw new AppError("Insufficient balance");
     }
+
+    const payoutAccount = user.bankAccounts[0];
+    const payoutLabel =
+      payoutAccount.accountType === "MOMO" ? "MoMo withdrawal" : "Bank withdrawal";
 
     const withdrawal = await prisma.withdrawalRequest.create({
       data: {
@@ -70,7 +82,7 @@ export class WithdrawalService {
       sendSms: true,
     });
 
-    return withdrawal;
+    return { ...withdrawal, payoutLabel };
   }
 
   async verifyOtp(userId: string, withdrawalId: string, code: string) {
@@ -91,24 +103,88 @@ export class WithdrawalService {
 
     const withdrawal = await prisma.withdrawalRequest.findFirst({
       where: { id: withdrawalId, userId, status: "OTP_VERIFIED" },
+      include: { bankAccount: true },
     });
     if (!withdrawal) throw new AppError("Withdrawal not found");
 
-    const walletType = ROLE_WALLET[role]!;
-    const amount = Number(withdrawal.amount);
+    const walletType = getWalletTypeForRole(role);
+    if (!walletType) throw new AppError("Role cannot withdraw");
 
-    await walletService.withdraw(
-      userId,
-      walletType,
-      amount,
-      "Bank withdrawal"
-    );
+    const amount = Number(withdrawal.amount);
+    const payoutLabel =
+      withdrawal.bankAccount.accountType === "MOMO"
+        ? "MoMo withdrawal"
+        : "Bank withdrawal";
+
+    if (usesPlatformWallet(role)) {
+      await walletService.withdrawFromPlatform(amount, payoutLabel);
+    } else {
+      await walletService.withdraw(userId, walletType, amount, payoutLabel);
+    }
+
+    let payoutStatus: "COMPLETED" | "PROCESSING" = "COMPLETED";
+
+    if (isPayoutConfigured()) {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            phone: true,
+            tenant: { select: { fullName: true } },
+            landlord: { select: { fullName: true } },
+            lender: { select: { fullName: true } },
+            agentProfile: { select: { fullName: true } },
+          },
+        });
+
+        const recipientName =
+          user?.tenant?.fullName ??
+          user?.landlord?.fullName ??
+          user?.lender?.fullName ??
+          user?.agentProfile?.fullName ??
+          withdrawal.bankAccount.accountName;
+
+        const payoutReference = `WDR-${withdrawalId.slice(0, 8).toUpperCase()}`;
+
+        if (withdrawal.bankAccount.accountType === "MOMO") {
+          const payoutPhone = withdrawal.bankAccount.accountNumber;
+          const result = await disburseToMobileMoney({
+            amount,
+            phone: payoutPhone,
+            recipientName: withdrawal.bankAccount.accountName || recipientName,
+            bankName: withdrawal.bankAccount.bankName,
+            bankCode: withdrawal.bankAccount.bankCode,
+            description: payoutLabel,
+            reference: payoutReference,
+          });
+          if (result.status === "FAILED") payoutStatus = "PROCESSING";
+        } else {
+          const result = await disburseToBankAccount({
+            amount,
+            accountNumber: withdrawal.bankAccount.accountNumber,
+            accountName: withdrawal.bankAccount.accountName,
+            bankName: withdrawal.bankAccount.bankName,
+            bankCode: withdrawal.bankAccount.bankCode,
+            description: payoutLabel,
+            reference: payoutReference,
+          });
+          if (result.status === "FAILED") payoutStatus = "PROCESSING";
+        }
+      } catch (error) {
+        payoutStatus = "PROCESSING";
+        logger.error("Withdrawal payout failed", {
+          withdrawalId,
+          userId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
 
     const updated = await prisma.withdrawalRequest.update({
       where: { id: withdrawalId },
       data: {
         twoFaVerified: true,
-        status: "COMPLETED",
+        status: payoutStatus,
         processedAt: new Date(),
       },
     });
@@ -116,7 +192,7 @@ export class WithdrawalService {
     await notificationService.create({
       userId,
       title: "Withdrawal Approved",
-      body: `Your withdrawal of GHS ${amount.toLocaleString()} has been processed.`,
+      body: `Your withdrawal of GHS ${amount.toLocaleString()} has been ${payoutStatus === "COMPLETED" ? "processed" : "submitted for processing"}.`,
     });
 
     return updated;

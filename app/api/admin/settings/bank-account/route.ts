@@ -14,5 +14,5 @@ export const POST = withAuth(
     const account = await kycService.addBankAccount(session.user.id, parsed.data);
     return apiResponse(account, 201, "Bank or MoMo details added successfully.");
   },
-  { roles: ["ADMIN", "CEO"] }
+  { roles: ["ADMIN"] }
 );

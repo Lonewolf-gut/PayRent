@@ -8,7 +8,10 @@ export class ApplicationService {
   async create(tenantId: string, userId: string, input: CreateApplicationInput) {
     const property = await prisma.property.findUnique({
       where: { id: input.propertyId },
-      include: { landlord: { include: { user: true } } },
+      include: {
+        landlord: { include: { user: true } },
+        assignedAgent: { include: { user: { select: { id: true } } } },
+      },
     });
 
     if (!property || property.status !== "ACTIVE") {
@@ -48,6 +51,15 @@ export class ApplicationService {
       body: `A tenant applied for ${property.name}.`,
     });
 
+    if (property.assignedAgent?.user.id) {
+      await notificationService.create({
+        userId: property.assignedAgent.user.id,
+        title: "New inquiry on your listing",
+        body: `A tenant applied for ${property.name}, which you represent as agent.`,
+        metadata: { propertyId: property.id, applicationId: application.id },
+      });
+    }
+
     await auditService.log({
       userId,
       action: "APPLICATION_SUBMITTED",
@@ -63,6 +75,7 @@ export class ApplicationService {
       where: { tenantId },
       include: {
         property: { include: { images: { take: 1 }, landlord: true } },
+        documents: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -74,6 +87,7 @@ export class ApplicationService {
       include: {
         property: { include: { images: { take: 1 } } },
         tenant: { include: { user: { select: { email: true, phone: true } } } },
+        documents: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -85,8 +99,26 @@ export class ApplicationService {
       include: {
         property: { include: { images: { take: 1 } } },
         tenant: { include: { user: { select: { email: true, phone: true } } } },
+        documents: true,
       },
       orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async addDocument(
+    applicationId: string,
+    tenantId: string,
+    fileName: string,
+    fileUrl: string,
+    documentType = "SUPPORTING"
+  ) {
+    const application = await prisma.propertyApplication.findFirst({
+      where: { id: applicationId, tenantId },
+    });
+    if (!application) throw new AppError("Application not found", 404);
+
+    return prisma.applicationDocument.create({
+      data: { applicationId, fileName, fileUrl, documentType },
     });
   }
 
@@ -104,6 +136,21 @@ export class ApplicationService {
     });
 
     if (!application) throw new AppError("Application not found", 404);
+
+    const property = application.property;
+    const reviewer = await prisma.user.findUnique({
+      where: { id: reviewerUserId },
+      include: { landlord: true, agentProfile: true },
+    });
+
+    const canReview =
+      (reviewer?.role === "LANDLORD" && reviewer.landlord?.id === property.landlordId) ||
+      (reviewer?.role === "AGENT" && property.agentUserId === reviewer.agentProfile?.id) ||
+      reviewer?.role === "ADMIN";
+
+    if (!canReview) {
+      throw new AppError("You are not authorized to review this application", 403);
+    }
 
     const statusMap = {
       APPROVE: "APPROVED" as const,

@@ -1,5 +1,4 @@
-import { DashboardSidebar } from "@/components/dashboard/sidebar";
-import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
 const navItems = [
   { href: "/dashboard/lender", label: "Overview", icon: "Home" as const },
@@ -14,12 +13,8 @@ const navItems = [
 
 export default function LenderLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
-      <DashboardSidebar items={navItems} title="Lender" />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <DashboardHeader title="Lender Dashboard" />
-        <div className="flex-1 overflow-auto p-6">{children}</div>
-      </div>
-    </>
+    <DashboardShell items={navItems} title="Lender">
+      {children}
+    </DashboardShell>
   );
 }

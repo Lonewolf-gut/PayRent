@@ -1,24 +1,47 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { FINANCING_STATUS_LABELS } from "@/constants/platform";
+import { FINANCING_STATUS_LABELS, MANDATE_STATUS_LABELS } from "@/constants/platform";
 import Link from "next/link";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+
+type BankAccount = {
+  id: string;
+  bankName: string;
+  accountNumberMasked?: string;
+  isVerified: boolean;
+};
 
 export default function TenantFinancingPage() {
   const queryClient = useQueryClient();
+  const [mandateSource, setMandateSource] = useState<"PLATFORM_GENERATED" | "SCANNED_UPLOAD">(
+    "PLATFORM_GENERATED"
+  );
+  const [selectedBankId, setSelectedBankId] = useState<string>("");
 
   const { data: kyc } = useQuery({
     queryKey: ["kyc-status"],
     queryFn: async () => {
       const res = await fetch("/api/kyc");
       const json = await res.json();
-      return json.data;
+      return json.data as { kycVerified?: boolean; bankAccounts?: BankAccount[] };
     },
   });
+
+  const verifiedAccounts = (kyc?.bankAccounts ?? []).filter((a) => a.isVerified);
+  const bankAccountId = selectedBankId || verifiedAccounts[0]?.id;
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ["financing"],
@@ -59,26 +82,28 @@ export default function TenantFinancingPage() {
   const createMandateMutation = useMutation({
     mutationFn: async ({
       financingRequestId,
-      bankAccountId,
+      bankAccountId: accountId,
+      source,
     }: {
       financingRequestId: string;
       bankAccountId: string;
+      source: "PLATFORM_GENERATED" | "SCANNED_UPLOAD";
     }) => {
       const res = await fetch("/api/mandates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           financingRequestId,
-          bankAccountId,
+          bankAccountId: accountId,
           mandateType: "DIRECT_DEBIT",
-          mandateSource: "PLATFORM_GENERATED",
+          mandateSource: source,
         }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
     },
     onSuccess: () => {
-      toast.success("Mandate created — submit it from the Mandates page");
+      toast.success("Mandate created — complete it on the Mandates page");
       queryClient.invalidateQueries({ queryKey: ["financing"] });
       queryClient.invalidateQueries({ queryKey: ["mandates"] });
     },
@@ -128,20 +153,69 @@ export default function TenantFinancingPage() {
                 <p className="text-sm">
                   GHS {Number(req.requestedAmount).toLocaleString()} · {req.durationMonths} months
                 </p>
-                {req.status === "MANDATE_PENDING" && kyc?.bankAccounts?.[0]?.id && (
-                  <Button
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                    disabled={createMandateMutation.isPending}
-                    onClick={() =>
-                      createMandateMutation.mutate({
-                        financingRequestId: req.id,
-                        bankAccountId: kyc.bankAccounts[0].id,
-                      })
-                    }
-                  >
-                    Create repayment mandate
-                  </Button>
+                {req.status === "MANDATE_PENDING" && bankAccountId && (
+                  <div className="space-y-3 rounded-lg border p-4">
+                    <div>
+                      <Label>Mandate type</Label>
+                      <Select
+                        value={mandateSource}
+                        onValueChange={(v) =>
+                          setMandateSource(v as "PLATFORM_GENERATED" | "SCANNED_UPLOAD")
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PLATFORM_GENERATED">
+                            Platform-generated (electronic)
+                          </SelectItem>
+                          <SelectItem value="SCANNED_UPLOAD">
+                            Scanned upload (signed bank form)
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {verifiedAccounts.length > 1 && (
+                      <div>
+                        <Label>Bank account</Label>
+                        <Select
+                          value={bankAccountId}
+                          onValueChange={(value) => setSelectedBankId(value ?? "")}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {verifiedAccounts.map((account) => (
+                              <SelectItem key={account.id} value={account.id}>
+                                {account.bankName} · {account.accountNumberMasked}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                      disabled={createMandateMutation.isPending}
+                      onClick={() =>
+                        createMandateMutation.mutate({
+                          financingRequestId: req.id,
+                          bankAccountId,
+                          source: mandateSource,
+                        })
+                      }
+                    >
+                      Create repayment mandate
+                    </Button>
+                  </div>
+                )}
+                {req.status === "MANDATE_PENDING" && !bankAccountId && (
+                  <p className="text-sm text-amber-700">
+                    Add and validate a bank account in Wallet before creating a mandate.
+                  </p>
                 )}
                 {req.status === "MANDATE_PENDING" && (
                   <Button asChild size="sm" variant="outline">

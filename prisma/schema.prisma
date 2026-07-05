@@ -13,7 +13,6 @@ enum UserRole {
   AGENT
   LENDER
   ADMIN
-  CEO
 }
 
 enum ApplicationStatus {
@@ -106,7 +105,10 @@ enum VerificationType {
   EMAIL
   PHONE
   KYC
+  KYB
   IDENTITY
+  EMPLOYMENT
+  ADDRESS
   PROPERTY
   BANK
 }
@@ -134,6 +136,7 @@ enum PropertyStatus {
   ACTIVE
   RENTED
   INACTIVE
+  TRIAL_SUSPENDED
 }
 
 enum EmploymentStatus {
@@ -142,6 +145,36 @@ enum EmploymentStatus {
   UNEMPLOYED
   STUDENT
   RETIRED
+}
+
+enum EntityType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum KycDocumentType {
+  ID_FRONT
+  ID_BACK
+  FACE_PHOTO
+  COMPANY_REGISTRATION
+  COMPANY_TIN
+  EMPLOYMENT_LETTER
+  STAFF_ID
+  ADDRESS_PROOF
+}
+
+enum TenantFinancingDocType {
+  PAYSLIP
+  EMPLOYMENT_LETTER
+  STAFF_ID
+  NATIONAL_ID
+  BANK_STATEMENT
+}
+
+enum FinancingDocReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum FinancingStatus {
@@ -204,6 +237,8 @@ enum TransactionStatus {
 
 enum SubscriptionPlan {
   FREE
+  PRO
+  MAX
   PREMIUM
 }
 
@@ -257,6 +292,7 @@ model User {
   failedLoginCount  Int       @default(0)
   lockedUntil       DateTime?
   refreshTokenHash  String?
+  trialEndsAt       DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -271,6 +307,7 @@ model User {
   auditLogs         AuditLog[]
   loginLogs         LoginLog[]
   verifications     Verification[]
+  kycDocuments      KycDocument[]
   bankAccounts      BankAccount[]
   withdrawalRequests WithdrawalRequest[]
   savedProperties   SavedProperty[]
@@ -317,37 +354,60 @@ model VerificationToken {
 }
 
 model Tenant {
-  id                 String           @id @default(cuid())
-  userId             String           @unique
-  fullName           String
-  nationalId         String?          @unique
-  dateOfBirth        DateTime?
-  occupation         String?
-  employerName       String?
-  residentialAddress String?
-  employmentStatus   EmploymentStatus?
-  monthlyIncome      Decimal?         @db.Decimal(12, 2)
-  creditScore        Int?
-  kycVerified        Boolean          @default(false)
-  profileStatus      String           @default("INCOMPLETE")
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  id                        String           @id @default(cuid())
+  userId                    String           @unique
+  entityType                EntityType       @default(INDIVIDUAL)
+  fullName                  String
+  companyName               String?
+  companyRegistrationNumber String?
+  companyRegisteredAddress  String?
+  companyTin                String?
+  nationalId                String?          @unique
+  dateOfBirth               DateTime?
+  occupation                String?
+  employerName              String?
+  residentialAddress        String?
+  staffId                   String?
+  employmentStatus          EmploymentStatus?
+  employmentVerified        Boolean          @default(false)
+  addressVerified           Boolean          @default(false)
+  monthlyIncome             Decimal?         @db.Decimal(12, 2)
+  creditScore               Int?
+  kycVerified               Boolean          @default(false)
+  profileStatus             String           @default("INCOMPLETE")
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
 
   user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   financingRequests  FinancingRequest[]
   applications       PropertyApplication[]
   mandates           Mandate[]
+  financingDocuments TenantFinancingDocument[]
 }
 
 model Landlord {
-  id                 String   @id @default(cuid())
-  userId             String   @unique
-  fullName           String
-  nationalId         String?  @unique
-  identityVerified   Boolean  @default(false)
-  profileStatus      String   @default("INCOMPLETE")
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                        String     @id @default(cuid())
+  userId                    String     @unique
+  entityType                EntityType @default(INDIVIDUAL)
+  fullName                  String
+  companyName               String?
+  companyRegistrationNumber String?
+  companyRegisteredAddress  String?
+  companyTin                String?
+  nationalId                String?    @unique
+  dateOfBirth               DateTime?
+  occupation                String?
+  employerName              String?
+  residentialAddress        String?
+  monthlyIncome             Decimal?   @db.Decimal(12, 2)
+  staffId                   String?
+  employmentStatus          EmploymentStatus?
+  employmentVerified        Boolean    @default(false)
+  addressVerified           Boolean    @default(false)
+  identityVerified          Boolean    @default(false)
+  profileStatus             String     @default("INCOMPLETE")
+  createdAt                 DateTime   @default(now())
+  updatedAt                 DateTime   @updatedAt
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   properties Property[]
@@ -362,6 +422,11 @@ model Lender {
   lenderType       String?
   licenceReference String?
   approvalLimit    Decimal? @db.Decimal(14, 2)
+  residentialAddress String?
+  staffId          String?
+  employmentStatus EmploymentStatus?
+  employmentVerified Boolean @default(false)
+  addressVerified  Boolean @default(false)
   kycVerified      Boolean  @default(false)
   identityVerified Boolean  @default(false)
   profileStatus    String   @default("INCOMPLETE")
@@ -380,6 +445,10 @@ model AgentProfile {
   licenceNumber  String?
   region         String?
   officeAddress  String?
+  staffId        String?
+  employmentStatus EmploymentStatus?
+  employmentVerified Boolean @default(false)
+  addressVerified Boolean @default(false)
   profileStatus  String   @default("INCOMPLETE")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -399,6 +468,7 @@ model Property {
   area            String?
   monthlyRent     Decimal        @db.Decimal(12, 2)
   annualRent      Decimal        @db.Decimal(12, 2)
+  discountedPrice Decimal?       @db.Decimal(12, 2)
   location        String
   latitude        Float?
   longitude       Float?
@@ -549,10 +619,24 @@ model PropertyApplication {
 
   property          Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  documents         ApplicationDocument[]
   financingRequests FinancingRequest[]
 
   @@index([tenantId, status])
   @@index([propertyId, status])
+}
+
+model ApplicationDocument {
+  id            String   @id @default(cuid())
+  applicationId String
+  fileName      String
+  fileUrl       String
+  documentType  String   @default("SUPPORTING")
+  uploadedAt    DateTime @default(now())
+
+  application PropertyApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
 }
 
 model FinancingRequest {
@@ -696,19 +780,42 @@ model BankAccount {
 }
 
 model Verification {
-  id        String             @id @default(cuid())
-  userId    String
-  type      VerificationType
-  status    VerificationStatus @default(PENDING)
-  data      Json?
-  reviewedBy String?
-  reviewedAt DateTime?
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  id                String             @id @default(cuid())
+  userId            String
+  type              VerificationType
+  status            VerificationStatus @default(PENDING)
+  providerName      String?
+  providerReference String?
+  failureReason     String?
+  verifiedAt        DateTime?
+  data              Json?
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents KycDocument[]
 
   @@index([userId, type])
+  @@index([providerReference])
+  @@index([status, type])
+}
+
+model KycDocument {
+  id             String          @id @default(cuid())
+  userId         String
+  verificationId String?
+  documentType   KycDocumentType
+  fileName       String
+  fileUrl        String
+  createdAt      DateTime        @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verification Verification? @relation(fields: [verificationId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([verificationId])
 }
 
 model Conversation {
@@ -895,6 +1002,26 @@ model ReconciliationException {
 
   @@index([status])
   @@index([relatedRecordType, relatedRecordId])
+}
+
+model TenantFinancingDocument {
+  id           String                   @id @default(cuid())
+  tenantId     String
+  documentType TenantFinancingDocType
+  fileName     String
+  fileUrl      String
+  status       FinancingDocReviewStatus @default(PENDING)
+  reviewNotes  String?
+  reviewedAt   DateTime?
+  reviewedBy   String?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, documentType])
+  @@index([tenantId])
+  @@index([status])
 }
 
 model AdminReviewRecord {

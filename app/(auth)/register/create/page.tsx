@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { registerSchema, type RegisterInput } from "@/lib/validations/auth";
 import { RentVestLogo } from "@/components/rentvest/logo";
+import { AuthBackLink, AuthSplitLayout, registerStep2Url } from "@/components/rentvest/auth-split-layout";
+import { RegisterStepIndicator } from "@/components/auth/register-flow";
+import { PasswordRequirementsChecklist } from "@/components/auth/password-requirements-checklist";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { signIn } from "next-auth/react";
+import { readApiJson, stripSensitiveQueryParams } from "@/lib/utils/api-message";
+import {
+  getPostRegisterSignInErrorMessage,
+  getRegisterErrorMessage,
+} from "@/lib/utils/auth-toast-messages";
 import { toast } from "sonner";
 
 const roleImages: Record<"TENANT" | "LANDLORD" | "AGENT" | "LENDER", string> = {
@@ -28,7 +37,14 @@ const roleLabels: Record<string, string> = {
   TENANT: "tenant",
   LANDLORD: "landlord",
   AGENT: "agent",
-  LENDER: "lender",
+  LENDER: "investor",
+};
+
+const roleDisplayNames: Record<string, string> = {
+  TENANT: "Tenant",
+  LANDLORD: "Landlord",
+  AGENT: "Agent",
+  LENDER: "Investor",
 };
 
 export default function RegisterCreatePage() {
@@ -40,103 +56,190 @@ export default function RegisterCreatePage() {
     | "AGENT"
     | "LENDER";
   const role = ["TENANT", "LANDLORD", "AGENT", "LENDER"].includes(initialRole) ? initialRole : "TENANT";
+  const initialEntity = searchParams.get("entityType");
+  const entityType: "INDIVIDUAL" | "COMPANY" =
+    initialEntity === "COMPANY" ? "COMPANY" : "INDIVIDUAL";
   const [loading, setLoading] = useState(false);
+  const showEntityType = role === "TENANT" || role === "LANDLORD";
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
     defaultValues: { role },
   });
 
+  const passwordValue = watch("password") ?? "";
+
+  useEffect(() => {
+    stripSensitiveQueryParams();
+  }, []);
+
+  useEffect(() => {
+    if (!searchParams.get("role")) {
+      router.replace("/register");
+    }
+  }, [router, searchParams]);
+
   const onSubmit = async (data: RegisterInput) => {
     setLoading(true);
+    const toastId = toast.loading("Creating your account…");
+
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, role }),
+        body: JSON.stringify({
+          ...data,
+          role,
+          entityType: showEntityType ? entityType : undefined,
+        }),
       });
-      const json = await res.json();
+      const json = await readApiJson(res);
       if (!json.success) {
-        toast.error(json.error?.message ?? "Registration failed");
+        toast.error(getRegisterErrorMessage(json, res.status), { id: toastId });
         return;
       }
-      toast.success("Account created! Please sign in.");
-      router.push("/login/access");
+
+      toast.loading("Signing you in…", { id: toastId });
+
+      const signInResult = await signIn("credentials", {
+        email: data.email.trim().toLowerCase(),
+        password: data.password,
+        redirect: false,
+      });
+
+      if (signInResult?.error) {
+        toast.error(
+          getPostRegisterSignInErrorMessage(signInResult.error, signInResult.code),
+          { id: toastId }
+        );
+        router.push(`/login/access?role=${role}`);
+        return;
+      }
+
+      toast.success("Welcome! Your account is ready — verify your email to continue.", {
+        id: toastId,
+      });
+      router.push("/verify-email");
+      router.refresh();
     } catch {
-      toast.error("Something went wrong");
+      toast.error("Something went wrong while creating your account. Please try again.", {
+        id: toastId,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="grid min-h-screen bg-white lg:grid-cols-2">
-      <div
-        className="hidden bg-cover bg-center p-12 text-white lg:flex lg:flex-col lg:justify-end"
-        style={{ backgroundImage: `url('${roleImages[role]}')` }}
-      >
-        <div className="rounded-xl bg-black/45 p-6">
-          <h2 className="text-3xl font-semibold">Register as {roleLabels[role]}.</h2>
-          <p className="mt-2 text-emerald-50">Secure onboarding with role-based dashboards and payment workflows.</p>
+    <AuthSplitLayout
+      hero={
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url('${roleImages[role]}')` }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/60 via-emerald-900/20 to-transparent" />
         </div>
-      </div>
-      <div className="flex items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-md bg-white text-slate-900">
-          <CardHeader className="text-center">
-            <div className="mb-4 flex justify-center">
-              <RentVestLogo />
+      }
+    >
+      <div className="relative w-full max-w-md">
+        <div className="absolute left-0 top-0">
+          <AuthBackLink href={registerStep2Url(entityType)} />
+        </div>
+
+        <div className="mb-6 flex justify-center">
+          <RentVestLogo showIcon={false} />
+        </div>
+
+        <RegisterStepIndicator step={3} />
+
+        <div className="text-center">
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Badge variant="secondary" className="rounded-full">
+              {entityType === "COMPANY" ? "Business" : "Individual"}
+            </Badge>
+            <Badge className="rounded-full bg-emerald-600 hover:bg-emerald-600">
+              {roleDisplayNames[role]}
+            </Badge>
+          </div>
+          <h1 className="mt-4 text-2xl font-semibold text-slate-900">Create your account</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Enter your details to finish signing up as a {roleLabels[role]}.
+          </p>
+        </div>
+
+        <form method="post" onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5" autoComplete="on">
+          {showEntityType && entityType === "COMPANY" ? (
+            <div className="space-y-2.5">
+              <Label htmlFor="companyName" className="text-sm font-medium text-slate-700">
+                Company name <span className="text-emerald-600">*</span>
+              </Label>
+              <Input id="companyName" className="h-11" {...register("companyName")} />
+              <p className="text-xs text-muted-foreground">
+                This business name will appear on your profile after registration.
+              </p>
             </div>
-            <CardTitle>Create account</CardTitle>
-            <CardDescription>Join RentForMe as a {role.toLowerCase()}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <Label htmlFor="fullName">Full name</Label>
-                <Input id="fullName" {...register("fullName")} />
-                {errors.fullName && (
-                  <p className="mt-1 text-xs text-destructive">{errors.fullName.message}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" {...register("email")} />
-                {errors.email && (
-                  <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" {...register("phone")} />
-              </div>
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" {...register("password")} />
-                {errors.password && (
-                  <p className="mt-1 text-xs text-destructive">{errors.password.message}</p>
-                )}
-              </div>
-              <Button
-                type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700"
-                disabled={loading}
-              >
-                {loading ? "Creating account..." : "Create account"}
-              </Button>
-            </form>
-            <p className="mt-4 text-center text-sm text-slate-600">
-              Want a different role?{" "}
-              <Link href="/register" className="text-emerald-600 hover:underline">
-                Change role
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
+          ) : null}
+          <div className="space-y-2.5">
+            <Label htmlFor="fullName" className="text-sm font-medium text-slate-700">
+              {entityType === "COMPANY" && showEntityType ? "Contact person name" : "Full name"}{" "}
+              <span className="text-emerald-600">*</span>
+            </Label>
+            <Input id="fullName" className="h-11" {...register("fullName")} />
+            {errors.fullName ? (
+              <p className="text-xs text-destructive">{errors.fullName.message}</p>
+            ) : null}
+          </div>
+          <div className="space-y-2.5">
+            <Label htmlFor="email" className="text-sm font-medium text-slate-700">
+              Email address <span className="text-emerald-600">*</span>
+            </Label>
+            <Input id="email" type="email" className="h-11" {...register("email")} />
+            {errors.email ? (
+              <p className="text-xs text-destructive">{errors.email.message}</p>
+            ) : null}
+          </div>
+          <div className="space-y-2.5">
+            <Label htmlFor="phone" className="text-sm font-medium text-slate-700">
+              Phone number
+            </Label>
+            <Input id="phone" className="h-11" {...register("phone")} />
+          </div>
+          <div className="space-y-2.5">
+            <Label htmlFor="password" className="text-sm font-medium text-slate-700">
+              Password <span className="text-emerald-600">*</span>
+            </Label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              className="h-11"
+              {...register("password")}
+            />
+            <PasswordRequirementsChecklist password={passwordValue} />
+            {errors.password ? (
+              <p className="text-xs text-destructive">{errors.password.message}</p>
+            ) : null}
+          </div>
+          <Button
+            type="submit"
+            className="h-11 w-full rounded-full bg-emerald-600 text-base font-semibold hover:bg-emerald-700"
+            disabled={loading}
+          >
+            {loading ? "Creating account..." : "Create account"}
+          </Button>
+        </form>
+        <p className="mt-6 text-center text-sm text-slate-600">
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-emerald-600 hover:underline">
+            Sign in
+          </Link>
+        </p>
       </div>
-    </div>
+    </AuthSplitLayout>
   );
 }

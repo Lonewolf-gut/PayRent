@@ -12,7 +12,10 @@ export const GET = withAuth(
     if (!tenant) return apiResponse([]);
 
     const requests = await prisma.financingRequest.findMany({
-      where: { tenantId: tenant.id, status: "FUNDED" },
+      where: {
+        tenantId: tenant.id,
+        status: { in: ["DISBURSED", "REPAYMENT_ACTIVE", "FUNDED"] },
+      },
       include: {
         property: { select: { name: true } },
         repaymentPlan: {

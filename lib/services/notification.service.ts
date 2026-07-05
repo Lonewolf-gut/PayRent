@@ -75,16 +75,17 @@ export class NotificationService {
 
   async deliverEmail(userId: string, subject: string, body: string) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user?.email) return;
+    if (!user?.email) return null;
 
     try {
-      await sendEmail({
+      return await sendEmail({
         to: user.email,
-        subject: `[RentForMe] ${subject}`,
+        subject: `[PayForMe] ${subject}`,
         html: buildEmailTemplate(subject, body),
       });
     } catch (error) {
       logger.error("Email delivery failed", { userId, error: String(error) });
+      return null;
     }
   }
 
@@ -109,19 +110,31 @@ export class NotificationService {
     });
   }
 
-  async getAll(userId: string, limit = 50) {
+  async getAll(userId: string, limit = 100) {
     return prisma.notification.findMany({
-      where: { userId },
+      where: { userId, channel: "IN_APP" },
       orderBy: { createdAt: "desc" },
       take: limit,
     });
   }
 
-  async getUnread(userId: string) {
+  async getUnreadCount(userId: string) {
+    return prisma.notification.count({
+      where: { userId, read: false, channel: "IN_APP" },
+    });
+  }
+
+  async getUnread(userId: string, limit = 100) {
     return prisma.notification.findMany({
-      where: { userId, read: false },
+      where: { userId, read: false, channel: "IN_APP" },
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take: limit,
+    });
+  }
+
+  async clearAll(userId: string) {
+    return prisma.notification.deleteMany({
+      where: { userId },
     });
   }
 }

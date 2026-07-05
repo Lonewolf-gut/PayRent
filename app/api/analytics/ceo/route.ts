@@ -6,5 +6,5 @@ export const GET = withAuth(
     const data = await analyticsService.getCeoDashboard();
     return apiResponse(data);
   },
-  { roles: ["ADMIN"], permission: "ceo:analytics" }
+  { roles: ["ADMIN"], permission: "admin:analytics" }
 );

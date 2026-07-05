@@ -1,8 +1,11 @@
 import type { UserRole } from "@prisma/client";
 
-export const PLATFORM_NAME = "PayForme";
+export const PLATFORM_NAME = "PayForMe";
 export const PLATFORM_TAGLINE =
-  "A subscription-first marketplace for properties, vehicles, and appliances.";
+  "Ghana's marketplace for properties, vehicles, and appliances — with rental financing built in.";
+export const SUPPORT_EMAIL = "support@payforme.com";
+export const SUPPORT_PHONE = "+233 30 000 0000";
+export const SUPPORT_ADDRESS = "Accra, Ghana";
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   TENANT: "Tenant",
@@ -10,7 +13,6 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   AGENT: "Agent",
   LENDER: "Lender",
   ADMIN: "Administrator",
-  CEO: "CEO",
 };
 
 export const ROLE_DESCRIPTIONS: Record<string, string> = {

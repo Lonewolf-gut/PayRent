@@ -4,10 +4,10 @@ Ghana's rental finance and property collaboration platform connecting **Tenants*
 
 ## Tech Stack
 
-- **Frontend:** Next.js 16 App Router, TypeScript, Tailwind CSS, ShadCN UI, Framer Motion, React Hook Form, Zod, Zustand, TanStack Query
+- **Frontend:** Next.js 16 App Router, TypeScript, Tailwind CSS, ShadCN UI, Framer Motion, React Hook Form, Zod, TanStack Query
 - **Backend:** Next.js API Routes, Prisma ORM, PostgreSQL, Redis
-- **Auth:** Auth.js (NextAuth v5), JWT, OTP, 2FA-ready
-- **Infra:** Docker, Vercel-ready
+- **Auth:** Auth.js (NextAuth v5), JWT (API clients), OTP, 2FA (TOTP)
+- **Infra:** Docker, Vercel-ready with scheduled cron jobs
 
 ## Core Modules
 
@@ -17,6 +17,8 @@ Ghana's rental finance and property collaboration platform connecting **Tenants*
 - Pay for Rent financing, mandate lifecycle, and lender decisioning
 - Repayment schedules, deductions, settlements, and reconciliation
 - Notifications, audit logs, and admin review queues
+- Wallet deposits/withdrawals via saved MoMo and bank accounts (Hubtel)
+- Subscriptions (Free, Premium) with listing limits
 
 ## Quick Start
 
@@ -26,12 +28,12 @@ Ghana's rental finance and property collaboration platform connecting **Tenants*
 cp .env.example .env
 ```
 
-Update `DATABASE_URL`, `AUTH_SECRET`, `JWT_*`, and `ENCRYPTION_KEY`.
+Update `DATABASE_URL`, `AUTH_SECRET`, `JWT_*`, `ENCRYPTION_KEY`, and `CRON_SECRET`.
 
 Generate secrets:
 
 ```bash
-openssl rand -base64 32   # AUTH_SECRET
+openssl rand -base64 32   # AUTH_SECRET, CRON_SECRET
 openssl rand -hex 32     # ENCRYPTION_KEY
 ```
 
@@ -62,12 +64,11 @@ Open [http://localhost:3000](http://localhost:3000)
 
 | Role     | Email                 | Password        |
 |----------|-----------------------|-----------------|
-| CEO      | ceo@rentvest.com      | Password123!    |
 | Admin    | admin@rentvest.com    | Password123!    |
 | Tenant   | tenant@rentvest.com   | Password123!    |
 | Landlord | landlord@rentvest.com | Password123!    |
 | Agent    | agent@rentvest.com    | Password123!    |
-| Lender   | lender@rentvest.com | Password123!    |
+| Lender   | lender@rentvest.com   | Password123!    |
 
 ## Project Structure
 
@@ -77,7 +78,6 @@ app/
   (auth)/          # Login, register
   dashboard/       # Tenant, landlord, agent, lender dashboards
   admin/           # Super admin panel
-  ceo/             # CEO analytics
   api/             # REST API routes
 lib/
   auth/            # NextAuth, JWT, permissions
@@ -92,34 +92,56 @@ prisma/
 
 ## Features
 
-- Multi-role auth (Tenant, Landlord, Agent, Lender, Admin, CEO)
+- Multi-role auth (Tenant, Landlord, Agent, Lender, Admin)
 - Property applications before Pay for Rent financing
 - Ghana Card KYC and bank account validation workflows
 - Mandate management and admin review queues
 - Settlement tracking and reconciliation exceptions
 - Wallet system with commission/fees
-- Subscription plans (Free, Standard, Premium)
-- OTP, audit logs, rate limiting
-- CEO analytics dashboard
+- Subscription plans (Free, Premium)
+- OTP, 2FA (Settings), audit logs, rate limiting
+- Landlord agent assignment per listing
+- Admin analytics dashboard
 - Docker deployment
+- Scheduled cron: repayments (daily 06:00 UTC), subscription expiry (daily 00:00 UTC)
 
 ## API Overview
+
+See **[docs/API.md](docs/API.md)** for the full reference.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/auth/register` | POST | Register user |
+| `/api/auth/refresh` | POST | JWT access/refresh tokens |
+| `/api/auth/2fa` | GET/POST | 2FA status, enable, verify, disable |
 | `/api/properties` | GET/POST | Browse / create properties |
 | `/api/financing` | GET/POST | Financing requests |
-| `/api/financing/approve` | POST | Lender approve |
-| `/api/wallet` | GET/POST | Balance & deposits |
-| `/api/analytics/ceo` | GET | CEO dashboard data |
+| `/api/payments/deposit` | POST | Wallet deposit via saved account |
+| `/api/wallet` | GET | Balance & transaction history |
+| `/api/withdrawals` | GET/POST | Withdrawal request + OTP + 2FA confirm |
+| `/api/kyc` | GET/POST | Profile, identity, bank accounts |
+| `/api/settings` | GET/PATCH | User settings |
+| `/api/landlord/agents` | GET/PATCH | Assign agents to listings |
+| `/api/analytics/ceo` | GET | Admin analytics data |
+
+Authenticated browser requests use **session cookies**. API/mobile clients may send `Authorization: Bearer <access_token>` from `/api/auth/refresh`.
 
 ## Deployment
 
-- **Frontend:** Vercel — connect repo, set env vars
+- **Frontend:** Vercel — connect repo, set env vars (including `CRON_SECRET` for cron routes)
 - **Database:** Railway, Supabase, or AWS RDS (PostgreSQL)
 - **Redis:** Upstash or Railway Redis
 - **Full stack:** `docker compose up` for local/staging
+
+## Integration notes (configure separately)
+
+These require external credentials and are not fully live without them:
+
+- **Hubtel payments** — `PAYMENT_PROVIDER=hubtel` + Hubtel keys + public webhook URL
+- **Hubtel SMS** — `SMS_PROVIDER=hubtel`
+- **Dojah KYC** — `KYC_PROVIDER=dojah` + Dojah keys (default is manual admin review)
+- **Bank mandates / direct debit** — `BANK_API_KEY` + `BANK_API_URL` for GhIPSS or sponsor bank
+- **Subscription billing** — Premium upgrades are recorded in-app; payment collection for renewals is not yet integrated
 
 ## Scripts
 
@@ -136,8 +158,8 @@ npm run db:studio    # Prisma Studio
 
 - Rate limiting (Redis or in-memory fallback)
 - CSRF via Auth.js, XSS headers in middleware
-- Encrypted sensitive fields (AES-256-GCM)
-- Transaction PINs, OTP verification
+- Encrypted 2FA secrets (AES-256-GCM)
+- OTP verification for withdrawals; 2FA required on confirm
 - Audit & login logs
 
 ## License

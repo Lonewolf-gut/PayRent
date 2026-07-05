@@ -1,0 +1,23 @@
+﻿npx : C:\Users\USER\Desktop\PayRent\node_modules\typescript\lib\_tsc.js:123168
+At C:\Users\USER\AppData\Local\Temp\ps-script-98f53cc4-b191-4d67-92e5-b5a8acd8b46b.ps1:105 char:37
++ ... s\USER\Desktop\PayRent"; npx tsc --noEmit --pretty false 2>&1 | Out-F ...
++                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\USER\D...\_tsc.js:123168:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+      throw e;
+      ^
+
+RangeError: Maximum call stack size exceeded
+    at getReducedApparentType (C:\Users\USER\Desktop\PayRent\node_modules\typescript\lib\_tsc.js:59001:34)
+    at getPropertiesOfType (C:\Users\USER\Desktop\PayRent\node_modules\typescript\lib\_tsc.js:58655:12)
+    at getUnmatchedProperties (C:\Users\USER\Desktop\PayRent\node_modules\typescript\lib\_tsc.js:68357:24)
+    at getUnmatchedProperties.next (<anonymous>)
+    at firstOrUndefinedIterator (C:\Users\USER\Desktop\PayRent\node_modules\typescript\lib\_tsc.js:592:16)
+    at getUnmatchedProperty (C:\Users\USER\Desktop\PayRent\node_modules\typescript\lib\_tsc.js:68379:12)
+    at propertiesRelatedTo (C:\Users\USER\Desktop\PayRent\node_modules\typescript\lib\_tsc.js:66766:33)
+    at structuredTypeRelatedToWorker (C:\Users\USER\Desktop\PayRent\node_modules\typescript\lib\_tsc.js:66343:21)
+    at structuredTypeRelatedTo (C:\Users\USER\Desktop\PayRent\node_modules\typescript\lib\_tsc.js:65769:21)
+    at recursiveTypeRelatedTo (C:\Users\USER\Desktop\PayRent\node_modules\typescript\lib\_tsc.js:65720:19)
+
+Node.js v20.19.5

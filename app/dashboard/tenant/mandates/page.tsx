@@ -1,21 +1,36 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { MANDATE_STATUS_LABELS } from "@/constants/platform";
 import { toast } from "sonner";
+import { ExternalLink, RefreshCw } from "lucide-react";
+
+type Mandate = {
+  id: string;
+  status: string;
+  mandateType: string;
+  mandateSource: string;
+  documentUrl?: string | null;
+  financingRequest?: { property?: { name: string } };
+  bankAccount?: { bankName: string; accountNumberMasked?: string };
+};
 
 export default function TenantMandatesPage() {
   const queryClient = useQueryClient();
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const { data: mandates, isLoading } = useQuery({
     queryKey: ["mandates"],
     queryFn: async () => {
       const res = await fetch("/api/mandates");
       const json = await res.json();
-      return json.data ?? [];
+      return (json.data ?? []) as Mandate[];
     },
   });
 
@@ -36,12 +51,47 @@ export default function TenantMandatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const syncMutation = useMutation({
+    mutationFn: async (mandateId: string) => {
+      const res = await fetch(`/api/mandates/${mandateId}/status`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
+      return json.data as Mandate;
+    },
+    onSuccess: (data) => {
+      toast.success(`Status: ${MANDATE_STATUS_LABELS[data.status] ?? data.status}`);
+      queryClient.invalidateQueries({ queryKey: ["mandates"] });
+      queryClient.invalidateQueries({ queryKey: ["financing"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const handleUpload = async (mandateId: string, file: File) => {
+    setUploadingId(mandateId);
+    try {
+      const formData = new FormData();
+      formData.append("document", file);
+      const res = await fetch(`/api/mandates/${mandateId}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
+      toast.success("Document uploaded");
+      queryClient.invalidateQueries({ queryKey: ["mandates"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Repayment mandates</h1>
         <p className="text-muted-foreground">
-          Manage direct debit mandates required for Pay for Rent financing.
+          Upload scanned mandate forms or track platform-generated mandates through bank activation.
         </p>
       </div>
 
@@ -54,14 +104,7 @@ export default function TenantMandatesPage() {
           </CardContent>
         </Card>
       ) : (
-        mandates.map((mandate: {
-          id: string;
-          status: string;
-          mandateType: string;
-          mandateSource: string;
-          financingRequest?: { property?: { name: string } };
-          bankAccount?: { bankName: string; accountNumberMasked?: string };
-        }) => (
+        mandates.map((mandate) => (
           <Card key={mandate.id}>
             <CardHeader className="flex flex-row items-start justify-between gap-4">
               <div>
@@ -69,25 +112,73 @@ export default function TenantMandatesPage() {
                   {mandate.financingRequest?.property?.name ?? "Financing mandate"}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  {mandate.mandateType.replace("_", " ")} · {mandate.bankAccount?.bankName}
+                  {mandate.mandateType.replace("_", " ")} ·{" "}
+                  {mandate.mandateSource.replace("_", " ")} · {mandate.bankAccount?.bankName}
                 </p>
               </div>
               <StatusBadge status={mandate.status} label={MANDATE_STATUS_LABELS[mandate.status]} />
             </CardHeader>
-            <CardContent className="flex flex-wrap items-center justify-between gap-3">
+            <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Account {mandate.bankAccount?.accountNumberMasked ?? "—"}
               </p>
-              {["PENDING_SUBMISSION", "DRAFT"].includes(mandate.status) && (
-                <Button
-                  size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                  disabled={submitMutation.isPending}
-                  onClick={() => submitMutation.mutate(mandate.id)}
-                >
-                  Submit mandate
+
+              {mandate.documentUrl && (
+                <Button asChild size="sm" variant="outline">
+                  <a href={mandate.documentUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    View mandate document
+                  </a>
                 </Button>
               )}
+
+              {mandate.mandateSource === "SCANNED_UPLOAD" &&
+                ["PENDING_SUBMISSION", "DRAFT", "REJECTED"].includes(mandate.status) && (
+                  <div className="space-y-2 rounded-lg border p-4">
+                    <Label htmlFor={`upload-${mandate.id}`}>Scanned mandate form (PDF or image)</Label>
+                    <Input
+                      id={`upload-${mandate.id}`}
+                      type="file"
+                      accept=".pdf,image/*"
+                      disabled={uploadingId === mandate.id}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUpload(mandate.id, file);
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Upload your signed bank mandate form, then submit for admin review.
+                    </p>
+                  </div>
+                )}
+
+              <div className="flex flex-wrap gap-2">
+                {["PENDING_SUBMISSION", "DRAFT"].includes(mandate.status) && (
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    disabled={
+                      submitMutation.isPending ||
+                      (mandate.mandateSource === "SCANNED_UPLOAD" && !mandate.documentUrl)
+                    }
+                    onClick={() => submitMutation.mutate(mandate.id)}
+                  >
+                    Submit for review
+                  </Button>
+                )}
+
+                {["BANK_PROCESSING", "PENDING_MANUAL_RESOLUTION"].includes(mandate.status) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={syncMutation.isPending}
+                    onClick={() => syncMutation.mutate(mandate.id)}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Refresh bank status
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
         ))

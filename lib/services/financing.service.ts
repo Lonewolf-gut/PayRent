@@ -1,22 +1,17 @@
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db/prisma";
+import { prisma, runTransaction } from "@/lib/db/prisma";
 import { walletService } from "@/lib/services/wallet.service";
 import { notificationService } from "@/lib/services/notification.service";
+import { settlementService } from "@/lib/services/settlement.service";
 import { AppError } from "@/lib/errors";
 import type { ApproveFinancingInput } from "@/lib/validations/financing";
+import { tenantFinancingDocService } from "@/lib/services/tenant-financing-doc.service";
 
 export class FinancingService {
-  async createRequest(
-    tenantId: string,
-    propertyId: string,
-    requestedAmount: number,
-    durationMonths: number,
-    notes?: string,
-    applicationId?: string
-  ) {
+  private async assertEligibility(tenantId: string) {
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant?.kycVerified) {
-      throw new AppError("Complete Ghana Card verification before requesting financing", 400);
+      throw new AppError("Complete identity verification before requesting financing", 400);
     }
 
     const verifiedBank = await prisma.bankAccount.findFirst({
@@ -26,13 +21,29 @@ export class FinancingService {
       throw new AppError("Add and validate a bank account before requesting financing", 400);
     }
 
-    if (applicationId) {
-      const application = await prisma.propertyApplication.findFirst({
-        where: { id: applicationId, tenantId, status: "APPROVED" },
-      });
-      if (!application) {
-        throw new AppError("An approved property application is required", 400);
-      }
+    return tenant;
+  }
+
+  async createRequest(
+    tenantId: string,
+    propertyId: string,
+    requestedAmount: number,
+    durationMonths: number,
+    notes?: string,
+    applicationId?: string
+  ) {
+    await this.assertEligibility(tenantId);
+    await tenantFinancingDocService.assertFinancingDocsApproved(tenantId);
+
+    if (!applicationId) {
+      throw new AppError("An approved property application is required", 400);
+    }
+
+    const application = await prisma.propertyApplication.findFirst({
+      where: { id: applicationId, tenantId, status: "APPROVED" },
+    });
+    if (!application) {
+      throw new AppError("An approved property application is required", 400);
     }
 
     const property = await prisma.property.findUnique({
@@ -56,20 +67,25 @@ export class FinancingService {
     });
   }
 
-  async approveRequest(
-    lenderId: string,
-    input: ApproveFinancingInput
-  ) {
+  async approveRequest(lenderId: string, input: ApproveFinancingInput) {
     const request = await prisma.financingRequest.findUnique({
       where: { id: input.financingRequestId },
       include: {
         tenant: { include: { user: true } },
-        property: true,
+        property: { include: { landlord: { include: { user: true } } } },
+        mandate: true,
       },
     });
 
-    if (!request || !["PENDING", "UNDER_REVIEW", "READY_FOR_LENDER_REVIEW"].includes(request.status)) {
+    if (
+      !request ||
+      !["PENDING", "UNDER_REVIEW", "READY_FOR_LENDER_REVIEW"].includes(request.status)
+    ) {
       throw new AppError("Financing request not found or already processed");
+    }
+
+    if (!request.mandate || request.mandate.status !== "ACTIVE") {
+      throw new AppError("An active repayment mandate is required before approval", 400);
     }
 
     const lender = await prisma.lender.findUnique({
@@ -78,36 +94,31 @@ export class FinancingService {
     });
     if (!lender?.user) throw new AppError("Lender not found");
 
-    const lenderBalance = await walletService.getBalance(
-      lender.userId,
-      "LENDER"
-    );
+    const lenderBalance = await walletService.getBalance(lender.userId, "LENDER");
     if (Number(lenderBalance.balance) < input.amount) {
       throw new AppError("Insufficient lender wallet balance");
     }
 
-    const totalWithInterest =
-      input.amount * (1 + input.interestRate / 100);
-    const monthlyPayment =
-      input.planType === "MONTHLY"
-        ? totalWithInterest / request.durationMonths
-        : totalWithInterest / request.durationMonths;
+    const totalWithInterest = input.amount * (1 + input.interestRate / 100);
+    const monthlyPayment = totalWithInterest / request.durationMonths;
 
     const startDate = new Date();
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + request.durationMonths);
 
+    const landlordUserId = request.property.landlord.userId;
+
     await walletService.transfer(
       lender.userId,
       "LENDER",
-      request.tenant.userId,
-      "TENANT",
+      landlordUserId,
+      "LANDLORD",
       input.amount,
-      `Financing for ${request.property.name}`
+      `Financing disbursement for ${request.property.name}`
     );
 
-    const result = await prisma.$transaction(async (tx) => {
-      const investment = await tx.investment.create({
+    const result = await runTransaction(async (db) => {
+      const investment = await db.investment.create({
         data: {
           lenderId,
           financingRequestId: request.id,
@@ -116,7 +127,7 @@ export class FinancingService {
         },
       });
 
-      const repaymentPlan = await tx.repaymentPlan.create({
+      const repaymentPlan = await db.repaymentPlan.create({
         data: {
           financingId: request.id,
           planType: input.planType,
@@ -135,19 +146,20 @@ export class FinancingService {
           return { amount: monthlyPayment, dueDate: dueDate.toISOString() };
         });
 
-      await tx.installment.createMany({
-        data: installments.map((inst) => ({
+      await db.installment.createMany({
+        data: installments.map((inst, index) => ({
           repaymentPlanId: repaymentPlan.id,
+          instalmentNumber: index + 1,
           amount: new Prisma.Decimal(inst.amount),
           dueDate: new Date(inst.dueDate),
           status: "PENDING",
         })),
       });
 
-      await tx.financingRequest.update({
+      await db.financingRequest.update({
         where: { id: request.id },
         data: {
-          status: "DISBURSED",
+          status: "REPAYMENT_ACTIVE",
           approvedAmount: new Prisma.Decimal(input.amount),
           approvedAt: new Date(),
           disbursedAt: new Date(),
@@ -157,10 +169,18 @@ export class FinancingService {
       return { investment, repaymentPlan };
     });
 
+    await settlementService.createFromFinancing(request.id, lender.userId);
+
     await notificationService.create({
       userId: request.tenant.userId,
-      title: "Financing Approved",
-      body: `Your financing request for ${request.property.name} has been approved.`,
+      title: "Financing approved",
+      body: `Your financing request for ${request.property.name} has been approved. Repayments are now active.`,
+    });
+
+    await notificationService.create({
+      userId: landlordUserId,
+      title: "Financing disbursed",
+      body: `Rent financing for ${request.property.name} has been disbursed to your wallet.`,
     });
 
     return result;
@@ -178,7 +198,7 @@ export class FinancingService {
 
     await notificationService.create({
       userId: request.tenant.userId,
-      title: "Financing Declined",
+      title: "Financing declined",
       body: `Your financing request for ${request.property.name} was not approved.`,
     });
 
@@ -195,6 +215,7 @@ export class FinancingService {
               include: {
                 investment: { include: { lender: { include: { user: true } } } },
                 tenant: true,
+                mandate: true,
               },
             },
           },
@@ -206,10 +227,22 @@ export class FinancingService {
       throw new AppError("Installment not found or already paid");
     }
 
-    const amount = Number(installment.amount);
-    const lenderUserId =
-      installment.repaymentPlan.financing.investment?.lender?.user?.id;
+    const financing = installment.repaymentPlan.financing;
+    if (financing.mandate?.status === "ACTIVE") {
+      const { mandateExecutionService } = await import(
+        "@/lib/services/mandate-execution.service"
+      );
+      const result = await mandateExecutionService.executeDeduction(
+        installmentId,
+        financing.mandate.id
+      );
+      if (result.status === "SUCCESSFUL") {
+        return prisma.installment.findUniqueOrThrow({ where: { id: installmentId } });
+      }
+    }
 
+    const amount = Number(installment.amount);
+    const lenderUserId = financing.investment?.lender?.user?.id;
     if (!lenderUserId) throw new AppError("Lender not found");
 
     await walletService.transfer(
@@ -223,18 +256,19 @@ export class FinancingService {
 
     return prisma.installment.update({
       where: { id: installmentId },
-      data: { status: "PAID", paidAt: new Date() },
+      data: { status: "PAID", paidAt: new Date(), amountPaid: installment.amount },
     });
   }
 
   async getLenderPortfolio(lenderId: string) {
     return prisma.financingRequest.findMany({
       where: {
-        status: { in: ["DISBURSED", "REPAYMENT_ACTIVE", "FUNDED"] },
+        status: { in: ["DISBURSED", "REPAYMENT_ACTIVE", "FUNDED", "CLOSED"] },
         investment: { lenderId },
       },
       include: {
         property: true,
+        mandate: true,
         investment: true,
         repaymentPlan: { include: { installments: true } },
       },
@@ -248,6 +282,8 @@ export class FinancingService {
       include: {
         tenant: { include: { user: { select: { email: true, image: true } } } },
         property: { include: { images: { take: 1 } } },
+        mandate: true,
+        application: true,
       },
       orderBy: { createdAt: "desc" },
     });

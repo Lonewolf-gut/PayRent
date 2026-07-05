@@ -15,14 +15,14 @@ export const GET = withAuth(
       return apiResponse(mandates, 200, "Mandates retrieved.");
     }
 
-    if (["ADMIN", "CEO"].includes(session.user.role)) {
+    if (session.user.role === "ADMIN") {
       const mandates = await mandateService.listPendingReview();
       return apiResponse(mandates, 200, "Pending mandates retrieved.");
     }
 
     return apiResponse([]);
   },
-  { roles: ["TENANT", "ADMIN", "CEO"] }
+  { roles: ["TENANT", "ADMIN"] }
 );
 
 export const POST = withAuth(

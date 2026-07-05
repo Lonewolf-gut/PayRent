@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 
 export class AnalyticsService {
@@ -39,7 +40,7 @@ export class AnalyticsService {
     });
 
     const userGrowth = await this.getMonthlyGrowth("user");
-    const revenueTrend = await this.getMonthlyRevenue();
+    const revenueTrend = await this.getRevenueTrend(6);
     const investmentGrowth = await this.getMonthlyInvestments();
 
     return {
@@ -67,7 +68,18 @@ export class AnalyticsService {
   }
 
   async getLenderDashboard(lenderId: string) {
-    const investments = await prisma.investment.findMany({
+    type LenderInvestment = Prisma.InvestmentGetPayload<{
+      include: {
+        financingRequest: {
+          include: {
+            repaymentPlan: { include: { installments: true } };
+            property: true;
+          };
+        };
+      };
+    }>;
+
+    const investments = (await prisma.investment.findMany({
       where: { lenderId: lenderId },
       include: {
         financingRequest: {
@@ -79,7 +91,7 @@ export class AnalyticsService {
           },
         },
       },
-    });
+    })) as LenderInvestment[];
 
     const totalInvested = investments.reduce(
       (sum, inv) => sum + Number(inv.amount),
@@ -97,10 +109,16 @@ export class AnalyticsService {
       const installments =
         inv.financingRequest.repaymentPlan?.installments ?? [];
       totalInstallments += installments.length;
-      paidInstallments += installments.filter((i) => i.status === "PAID").length;
+      paidInstallments += installments.filter(
+        (i: { status: string }) => i.status === "PAID"
+      ).length;
       interestEarned += installments
-        .filter((i) => i.status === "PAID")
-        .reduce((s, i) => s + Number(i.amount) * (Number(inv.interestRate) / 100), 0);
+        .filter((i: { status: string; amount: unknown }) => i.status === "PAID")
+        .reduce(
+          (s: number, i: { amount: unknown }) =>
+            s + Number(i.amount) * (Number(inv.interestRate) / 100),
+          0
+        );
     }
 
     const roi =
@@ -143,10 +161,10 @@ export class AnalyticsService {
     return data;
   }
 
-  private async getMonthlyRevenue() {
-    const months = 6;
+  async getRevenueTrend(months = 6) {
+    const safeMonths = Math.min(Math.max(months, 1), 12);
     const data = [];
-    for (let i = months - 1; i >= 0; i--) {
+    for (let i = safeMonths - 1; i >= 0; i--) {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
       const start = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -160,8 +178,11 @@ export class AnalyticsService {
         _sum: { amount: true },
       });
 
+      const yearSuffix =
+        safeMonths > 6 ? ` '${String(start.getFullYear()).slice(-2)}` : "";
+
       data.push({
-        month: start.toLocaleString("default", { month: "short" }),
+        month: `${start.toLocaleString("default", { month: "short" })}${yearSuffix}`,
         revenue: Number(result._sum.amount ?? 0),
       });
     }

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
-import type { Prisma, PropertyStatus } from "@prisma/client";
+import type { Prisma, PropertyStatus, PropertyType } from "@prisma/client";
 import type { PropertyFilterInput } from "@/lib/validations/property";
+import { RESIDENTIAL_TYPES } from "@/lib/subscription-limits";
 
 export class PropertyRepository {
   async findById(id: string) {
@@ -10,24 +11,44 @@ export class PropertyRepository {
         images: { orderBy: { order: "asc" } },
         videos: true,
         agent: true,
+        assignedAgent: {
+          include: {
+            user: { select: { id: true, email: true, phone: true, image: true } },
+          },
+        },
         landlord: { include: { user: { select: { email: true, image: true } } } },
       },
     });
   }
 
   async findMany(filters: PropertyFilterInput) {
-    const { search, propertyType, minRent, maxRent, location, page, limit } =
+    const { search, propertyType, category, minRent, maxRent, location, page, limit } =
       filters;
     const searchType = search?.trim().toUpperCase();
+    const knownTypes = [
+      ...RESIDENTIAL_TYPES,
+      "CAR",
+      "APPLIANCE",
+    ] as PropertyType[];
     const searchPropertyType =
-      searchType &&
-      ["APARTMENT", "HOUSE", "CONDO", "TOWNHOUSE", "STUDIO", "COMMERCIAL"].includes(searchType)
-        ? searchType
+      searchType && knownTypes.includes(searchType as PropertyType)
+        ? (searchType as PropertyType)
         : undefined;
+
+    const categoryFilter =
+      propertyType
+        ? { propertyType: propertyType as PropertyType }
+        : category === "car"
+          ? { propertyType: "CAR" as PropertyType }
+          : category === "appliance"
+            ? { propertyType: "APPLIANCE" as PropertyType }
+            : category === "residential"
+              ? { propertyType: { in: RESIDENTIAL_TYPES } }
+              : {};
 
     const where: Prisma.PropertyWhereInput = {
       status: "ACTIVE",
-      ...(propertyType && { propertyType: propertyType as Prisma.EnumPropertyTypeFilter }),
+      ...categoryFilter,
       ...(minRent && { monthlyRent: { gte: minRent } }),
       ...(maxRent && { monthlyRent: { lte: maxRent } }),
       ...(location && {

@@ -1,0 +1,122 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import type { TenantFinancingDocType } from "@prisma/client";
+import { FINANCING_DOC_LABELS } from "@/lib/constants/financing-docs";
+
+export function FinancingDocumentsForm() {
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["tenant-financing-docs"],
+    queryFn: async () => {
+      const res = await fetch("/api/tenant/financing-documents");
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message ?? "Failed to load documents");
+      return json.data as {
+        documents: Array<{
+          id: string;
+          documentType: TenantFinancingDocType;
+          fileName: string;
+          status: string;
+        }>;
+        allApproved: boolean;
+        requiredTypes: TenantFinancingDocType[];
+      };
+    },
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async ({
+      documentType,
+      file,
+    }: {
+      documentType: TenantFinancingDocType;
+      file: File;
+    }) => {
+      const formData = new FormData();
+      formData.append("documentType", documentType);
+      formData.append("document", file);
+      const res = await fetch("/api/tenant/financing-documents", {
+        method: "POST",
+        body: formData,
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message ?? json.error ?? "Upload failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant-financing-docs"] });
+      toast.success("Document uploaded for admin review");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Loading document requirements...</p>;
+  }
+
+  const docsByType = new Map(
+    (data?.documents ?? []).map((doc) => [doc.documentType, doc])
+  );
+
+  return (
+    <div className="space-y-4">
+      {data?.allApproved ? (
+        <Badge className="bg-emerald-600">All financing documents approved</Badge>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Upload the documents below for admin review. If you are employed by an organization,
+          include your staff ID and employment letter. An admin must approve each document before
+          you can request financing.
+        </p>
+      )}
+      {(data?.requiredTypes ?? []).map((type) => {
+        const existing = docsByType.get(type);
+        return (
+          <div key={type} className="space-y-2 rounded-lg border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor={`doc-${type}`}>{FINANCING_DOC_LABELS[type]}</Label>
+              {existing ? (
+                <Badge
+                  variant={
+                    existing.status === "APPROVED"
+                      ? "default"
+                      : existing.status === "REJECTED"
+                        ? "destructive"
+                        : "secondary"
+                  }
+                >
+                  {existing.status.toLowerCase()}
+                </Badge>
+              ) : null}
+            </div>
+            <Input
+              id={`doc-${type}`}
+              type="file"
+              accept=".pdf,image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) uploadMutation.mutate({ documentType: type, file });
+                e.target.value = "";
+              }}
+              disabled={uploadMutation.isPending}
+            />
+            {existing ? (
+              <p className="text-xs text-muted-foreground">Uploaded: {existing.fileName}</p>
+            ) : null}
+          </div>
+        );
+      })}
+      {!data?.allApproved ? (
+        <Button variant="outline" className="w-full" asChild>
+          <a href="/dashboard/tenant/kyc">Complete identity verification</a>
+        </Button>
+      ) : null}
+    </div>
+  );
+}

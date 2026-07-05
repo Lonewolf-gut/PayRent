@@ -2,73 +2,77 @@
 
 import Link from "next/link";
 import { RentVestLogo } from "@/components/rentvest/logo";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserRound, Building2, HandCoins, Shield } from "lucide-react";
+import { AuthSplitLayout } from "@/components/rentvest/auth-split-layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserRound, Building2, HandCoins, UserCog } from "lucide-react";
+import { ROLE_DESCRIPTIONS } from "@/constants/platform";
 
 const roles = [
   {
     key: "TENANT",
     title: "Tenant",
     icon: UserRound,
-    description: "Access financing requests and saved properties.",
+    description: ROLE_DESCRIPTIONS.TENANT,
   },
   {
     key: "LANDLORD",
     title: "Landlord",
     icon: Building2,
-    description: "Manage listings, applicants, and rental activity.",
+    description: ROLE_DESCRIPTIONS.LANDLORD,
+  },
+  {
+    key: "AGENT",
+    title: "Agent",
+    icon: UserCog,
+    description: ROLE_DESCRIPTIONS.AGENT,
   },
   {
     key: "LENDER",
     title: "Lender",
     icon: HandCoins,
-    description: "Track portfolio performance and funding approvals.",
+    description: ROLE_DESCRIPTIONS.LENDER,
   },
 ];
 
 export default function LoginPage() {
   return (
-    <div className="grid min-h-screen bg-white lg:grid-cols-2">
-      <div className="hidden bg-[url('https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=1400&q=80')] bg-cover bg-center p-12 text-white lg:flex lg:flex-col lg:justify-end">
-        <div className="rounded-xl bg-black/45 p-6">
-          <h2 className="text-3xl font-semibold">Welcome back to RentForMe.</h2>
-          <p className="mt-2 text-emerald-50">Select your role for a focused sign-in experience.</p>
+    <AuthSplitLayout
+      hero={
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=1400&q=80')] bg-cover bg-center" />
+      }
+    >
+      <div className="w-full max-w-3xl">
+        <div className="mb-6 flex justify-center">
+          <RentVestLogo showIcon={false} />
         </div>
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold text-slate-900">I am a...</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Select your role to continue to sign in.
+          </p>
+        </div>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          {roles.map((role) => (
+            <Link key={role.key} href={`/login/access?role=${role.key}`}>
+              <Card className="h-full border border-slate-200 bg-white text-slate-900 shadow-sm ring-0 transition hover:border-emerald-500 hover:shadow-md">
+                <CardHeader>
+                  <role.icon className="h-8 w-8 text-emerald-600" />
+                  <CardTitle className="text-base text-emerald-950">{role.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-slate-600">{role.description}</p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+        <p className="mt-6 text-center text-sm text-slate-600">
+          New here?{" "}
+          <Link href="/register" className="font-medium text-emerald-600 hover:underline">
+            Create account
+          </Link>
+        </p>
       </div>
-      <div className="flex items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-2xl bg-white text-slate-900">
-          <CardHeader className="text-center">
-            <div className="mb-4 flex justify-center">
-              <RentVestLogo />
-            </div>
-            <CardTitle>I am a...</CardTitle>
-            <CardDescription>Select your role to continue to sign in.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              {roles.map((role) => (
-                <Link key={role.key} href={`/login/access?role=${role.key}`}>
-                  <Card className="h-full border hover:border-emerald-500 hover:shadow-md">
-                    <CardHeader>
-                      <role.icon className="h-8 w-8 text-emerald-600" />
-                      <CardTitle className="text-base">{role.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-slate-600">{role.description}</p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-            <p className="mt-6 text-center text-sm text-slate-600">
-              New here?{" "}
-              <Link href="/register" className="text-emerald-600 hover:underline">
-                Create account
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    </AuthSplitLayout>
   );
 }

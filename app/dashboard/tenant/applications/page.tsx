@@ -47,6 +47,7 @@ export default function TenantApplicationsPage() {
             requestedMoveInDate?: string;
             property?: { name: string; location: string };
             decisionReason?: string;
+            documents?: { id: string; fileName: string }[];
           }) => (
             <Card key={app.id}>
               <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -57,11 +58,16 @@ export default function TenantApplicationsPage() {
                 <StatusBadge status={app.status} label={APPLICATION_STATUS_LABELS[app.status]} />
               </CardHeader>
               <CardContent className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm text-muted-foreground">
-                  {app.requestedMoveInDate
-                    ? `Move-in: ${new Date(app.requestedMoveInDate).toLocaleDateString()}`
-                    : "Move-in date not specified"}
-                </p>
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    {app.requestedMoveInDate
+                      ? `Move-in: ${new Date(app.requestedMoveInDate).toLocaleDateString()}`
+                      : "Move-in date not specified"}
+                  </p>
+                  {app.documents && app.documents.length > 0 && (
+                    <p>{app.documents.length} supporting document(s) attached</p>
+                  )}
+                </div>
                 {app.status === "APPROVED" && (
                   <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
                     <Link href="/dashboard/tenant/financing">Request Pay for Rent financing</Link>

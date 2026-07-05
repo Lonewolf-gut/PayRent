@@ -19,7 +19,7 @@ export function MessagesPanel() {
       const json = await res.json();
       return json.data ?? [];
     },
-    refetchInterval: 8000,
+    refetchInterval: 15000,
   });
 
   const { data: messages } = useQuery({
@@ -31,7 +31,7 @@ export function MessagesPanel() {
       return json.data ?? [];
     },
     enabled: !!activeId,
-    refetchInterval: 3000,
+    refetchInterval: 10000,
   });
 
   const sendMutation = useMutation({

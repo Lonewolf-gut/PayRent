@@ -11,5 +11,9 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
   }
 
   const account = await kycService.addBankAccount(session.user.id, parsed.data);
-  return apiResponse(account, 201, "Bank or MoMo details added successfully.");
+  const message =
+    account.isVerified
+      ? "Bank or MoMo account verified and saved successfully."
+      : "Bank or MoMo details added successfully.";
+  return apiResponse(account, 201, message);
 });

@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -13,25 +15,53 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { StatusBadge } from "@/components/dashboard/status-badge";
 import { toast } from "sonner";
+import type { UserRole } from "@prisma/client";
 
 type BankAccount = {
   id: string;
+  accountType?: string;
   bankName: string;
   accountNumberMasked?: string | null;
   accountNumber?: string;
   isVerified: boolean;
 };
 
+const SETTINGS_PATH: Partial<Record<UserRole, string>> = {
+  TENANT: "/dashboard/tenant/settings",
+  LANDLORD: "/dashboard/landlord/settings",
+  LENDER: "/dashboard/lender/settings",
+  AGENT: "/dashboard/agent/settings",
+  ADMIN: "/admin/settings",
+};
+
 export function WalletPanel({
   title = "Wallet",
+  showDeposit = true,
   showWithdraw = false,
+  settingsApiPath = "/api/settings",
+  walletApiPath = "/api/wallet",
 }: {
   title?: string;
+  showDeposit?: boolean;
   showWithdraw?: boolean;
+  settingsApiPath?: string;
+  walletApiPath?: string;
 }) {
-  const [amount, setAmount] = useState("");
-  const [phone, setPhone] = useState("");
+  const { data: session } = useSession();
+  const settingsHref = session?.user?.role
+    ? SETTINGS_PATH[session.user.role as UserRole]
+    : undefined;
+
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositAccountId, setDepositAccountId] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [bankAccountId, setBankAccountId] = useState("");
   const [withdrawalId, setWithdrawalId] = useState<string | null>(null);
@@ -40,58 +70,54 @@ export function WalletPanel({
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["wallet"],
+    queryKey: ["wallet", walletApiPath],
     queryFn: async () => {
-      const res = await fetch("/api/wallet");
+      const res = await fetch(walletApiPath);
       const json = await res.json();
       return json.data;
     },
   });
 
   const { data: bankAccounts = [] } = useQuery({
-    queryKey: ["settings-bank-accounts"],
+    queryKey: ["settings-bank-accounts", settingsApiPath],
     queryFn: async () => {
-      const res = await fetch("/api/settings");
+      const res = await fetch(settingsApiPath);
       const json = await res.json();
       return (json.data?.bankAccounts ?? []) as BankAccount[];
     },
-    enabled: showWithdraw,
   });
 
   const verifiedAccounts = bankAccounts.filter((a) => a.isVerified);
+  const transactionCount = data?.transactions?.length ?? 0;
 
   const depositMutation = useMutation({
-    mutationFn: async (amt: number) => {
-      const res = await fetch("/api/wallet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "deposit", amount: amt, description: "Wallet deposit" }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error?.message);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["wallet"] });
-      toast.success("Deposit successful");
-      setAmount("");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const momoMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/payments/momo", {
+      const res = await fetch("/api/payments/deposit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: parseFloat(amount), phone }),
+        body: JSON.stringify({
+          amount: parseFloat(depositAmount),
+          bankAccountId: depositAccountId,
+        }),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error?.message);
+      if (!json.success) throw new Error(json.message ?? json.error?.message ?? "Deposit failed");
+      return json.data as {
+        payment?: { checkoutUrl?: string; method?: string; reference?: string };
+        message?: string;
+      };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["wallet"] });
-      toast.success("MoMo payment initiated");
-      setAmount("");
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["wallet", walletApiPath] });
+      if (data.payment?.checkoutUrl) {
+        window.location.href = data.payment.checkoutUrl;
+        toast.success("Redirecting to Hubtel checkout…");
+      } else {
+        toast.success(
+          data.message ?? "Payment initiated — approve the prompt on your phone."
+        );
+      }
+      setDepositAmount("");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -142,7 +168,7 @@ export function WalletPanel({
       if (!json.success) throw new Error(json.message ?? "Withdrawal confirmation failed");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet", walletApiPath] });
       toast.success("Withdrawal completed");
       setWithdrawAmount("");
       setWithdrawalId(null);
@@ -152,93 +178,78 @@ export function WalletPanel({
     onError: (e: Error) => toast.error(e.message),
   });
 
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{title}</h1>
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">{title}</h1>
+        <p className="text-sm text-muted-foreground">
+          {showDeposit
+            ? "Deposit and withdraw using verified bank or MoMo accounts in "
+            : "Withdraw to your verified bank or MoMo account in "}
+          {settingsHref ? (
+            <Link href={settingsHref} className="font-medium text-emerald-700 hover:underline">
+              Settings
+            </Link>
+          ) : (
+            "Settings"
+          )}
+          .
+        </p>
+      </div>
+
       <Card>
-        <CardHeader>
-          <CardTitle>Balance</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
+          <p className="text-sm text-muted-foreground">Available balance</p>
           <p className="text-3xl font-bold text-emerald-600">
             GHS {Number(data?.balance ?? 0).toLocaleString()}
           </p>
         </CardContent>
       </Card>
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Direct deposit</CardTitle>
-          </CardHeader>
-          <CardContent className="flex gap-2">
-            <Input
-              type="number"
-              placeholder="Amount (GHS)"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-            <Button
-              className="bg-emerald-600 hover:bg-emerald-700 shrink-0"
-              disabled={!amount || depositMutation.isPending}
-              onClick={() => depositMutation.mutate(parseFloat(amount))}
-            >
-              Deposit
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>MoMo payment</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Input
-              type="number"
-              placeholder="Amount (GHS)"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-            <Input
-              placeholder="Phone (+233...)"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-            <Button
-              variant="outline"
-              className="w-full"
-              disabled={!amount || !phone || momoMutation.isPending}
-              onClick={() => momoMutation.mutate()}
-            >
-              Pay with MoMo
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
 
-      {showWithdraw ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Withdraw funds</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+      <Accordion type="single" collapsible defaultValue={showDeposit ? "deposit" : showWithdraw ? "withdraw" : "history"} className="border-y">
+        {showDeposit ? (
+        <AccordionItem value="deposit" className="border-0">
+          <AccordionTrigger className="rounded-none border-0 px-0 py-5 hover:no-underline">
+            <div className="flex flex-1 items-center justify-between gap-4 pr-2 text-left">
+              <div>
+                <p className="text-base font-medium">Deposit funds</p>
+                <p className="text-sm font-normal text-muted-foreground">
+                  Top up via bank transfer or Mobile Money.
+                </p>
+              </div>
+              <StatusBadge status="ACTIVE" label="Top up" />
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-0 pb-6 space-y-4">
             <p className="text-sm text-muted-foreground">
-              Withdrawals require OTP verification and an active 2FA token.
+              Choose a verified account from Settings, then complete payment on the secure
+              checkout page (card, bank, or Mobile Money).
             </p>
+
+            {!verifiedAccounts.length && settingsHref ? (
+              <Button asChild variant="outline" size="sm">
+                <Link href={settingsHref}>Add bank or MoMo account in Settings</Link>
+              </Button>
+            ) : null}
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label>Amount (GHS)</Label>
                 <Input
                   type="number"
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
-                  disabled={!!withdrawalId}
+                  placeholder="Amount (GHS)"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  disabled={!verifiedAccounts.length}
                 />
               </div>
               <div>
-                <Label>Payout account</Label>
+                <Label>Deposit from</Label>
                 <Select
-                  value={bankAccountId}
-                  onValueChange={(value) => setBankAccountId(value ?? "")}
-                  disabled={!!withdrawalId}
+                  value={depositAccountId}
+                  onValueChange={(value) => setDepositAccountId(value ?? "")}
+                  disabled={!verifiedAccounts.length}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select verified account" />
@@ -246,6 +257,7 @@ export function WalletPanel({
                   <SelectContent>
                     {verifiedAccounts.map((account) => (
                       <SelectItem key={account.id} value={account.id}>
+                        {account.accountType === "MOMO" ? "MoMo" : "Bank"} ·{" "}
                         {account.bankName} ·{" "}
                         {account.accountNumberMasked ?? account.accountNumber}
                       </SelectItem>
@@ -255,90 +267,179 @@ export function WalletPanel({
               </div>
             </div>
 
-            {!withdrawalId ? (
-              <Button
-                className="bg-emerald-600 hover:bg-emerald-700"
-                disabled={
-                  !withdrawAmount ||
-                  !bankAccountId ||
-                  withdrawRequestMutation.isPending
-                }
-                onClick={() => withdrawRequestMutation.mutate()}
-              >
-                Request withdrawal
-              </Button>
-            ) : (
-              <div className="space-y-4 rounded-lg border p-4">
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto"
+              disabled={
+                !depositAmount ||
+                !depositAccountId ||
+                !verifiedAccounts.length ||
+                depositMutation.isPending
+              }
+              onClick={() => depositMutation.mutate()}
+            >
+              Deposit funds
+            </Button>
+          </AccordionContent>
+        </AccordionItem>
+        ) : null}
+
+        {showWithdraw ? (
+          <AccordionItem value="withdraw" className="border-0">
+            <AccordionTrigger className="rounded-none border-0 px-0 py-5 hover:no-underline">
+              <div className="flex flex-1 items-center justify-between gap-4 pr-2 text-left">
                 <div>
-                  <Label>OTP code</Label>
-                  <Input
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    placeholder="Enter OTP from email/SMS"
-                  />
+                  <p className="text-base font-medium">Withdraw funds</p>
+                  <p className="text-sm font-normal text-muted-foreground">
+                    Transfer to a verified bank or MoMo account.
+                  </p>
                 </div>
-                <Button
-                  variant="outline"
-                  disabled={!otpCode || verifyOtpMutation.isPending}
-                  onClick={() => verifyOtpMutation.mutate()}
-                >
-                  Verify OTP
+                <StatusBadge
+                  status={verifiedAccounts.length ? "APPROVED" : "PENDING"}
+                  label={verifiedAccounts.length ? "Ready" : "Needs account"}
+                />
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-0 pb-6 space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Withdrawals require OTP verification and an active 2FA token. Payout accounts
+                are managed in Settings.
+              </p>
+
+              {!verifiedAccounts.length && settingsHref ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={settingsHref}>Add payout account in Settings</Link>
                 </Button>
+              ) : null}
+
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <Label>2FA token</Label>
+                  <Label>Amount (GHS)</Label>
                   <Input
-                    value={twoFaToken}
-                    onChange={(e) => setTwoFaToken(e.target.value)}
-                    maxLength={6}
-                    placeholder="6-digit authenticator code"
+                    type="number"
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    disabled={!!withdrawalId}
                   />
                 </div>
+                <div>
+                  <Label>Payout to</Label>
+                  <Select
+                    value={bankAccountId}
+                    onValueChange={(value) => setBankAccountId(value ?? "")}
+                    disabled={!!withdrawalId || !verifiedAccounts.length}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select verified account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {verifiedAccounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.accountType === "MOMO" ? "MoMo" : "Bank"} ·{" "}
+                          {account.bankName} ·{" "}
+                          {account.accountNumberMasked ?? account.accountNumber}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {!withdrawalId ? (
                 <Button
                   className="bg-emerald-600 hover:bg-emerald-700"
-                  disabled={!twoFaToken || confirmWithdrawMutation.isPending}
-                  onClick={() => confirmWithdrawMutation.mutate()}
+                  disabled={
+                    !withdrawAmount ||
+                    !bankAccountId ||
+                    withdrawRequestMutation.isPending
+                  }
+                  onClick={() => withdrawRequestMutation.mutate()}
                 >
-                  Confirm withdrawal
+                  Request withdrawal
                 </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Transaction history</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading...</p>
-          ) : !data?.transactions?.length ? (
-            <p className="text-sm text-muted-foreground">No transactions yet</p>
-          ) : (
-            <ul className="space-y-2">
-              {data.transactions.map(
-                (tx: {
-                  id: string;
-                  type: string;
-                  amount: number;
-                  status: string;
-                  reference: string;
-                }) => (
-                  <li key={tx.id} className="flex justify-between border-b py-2 text-sm">
-                    <span>
-                      {tx.type} · {tx.reference}
-                    </span>
-                    <span>
-                      GHS {Number(tx.amount).toLocaleString()} · {tx.status}
-                    </span>
-                  </li>
-                )
+              ) : (
+                <div className="space-y-4 rounded-lg border p-4">
+                  <div>
+                    <Label>OTP code</Label>
+                    <Input
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value)}
+                      placeholder="Enter OTP from email/SMS"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    disabled={!otpCode || verifyOtpMutation.isPending}
+                    onClick={() => verifyOtpMutation.mutate()}
+                  >
+                    Verify OTP
+                  </Button>
+                  <div>
+                    <Label>2FA token</Label>
+                    <Input
+                      value={twoFaToken}
+                      onChange={(e) => setTwoFaToken(e.target.value)}
+                      maxLength={6}
+                      placeholder="6-digit authenticator code"
+                    />
+                  </div>
+                  <Button
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    disabled={!twoFaToken || confirmWithdrawMutation.isPending}
+                    onClick={() => confirmWithdrawMutation.mutate()}
+                  >
+                    Confirm withdrawal
+                  </Button>
+                </div>
               )}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+            </AccordionContent>
+          </AccordionItem>
+        ) : null}
+
+        <AccordionItem value="history" className="border-0">
+          <AccordionTrigger className="rounded-none border-0 px-0 py-5 hover:no-underline">
+            <div className="flex flex-1 items-center justify-between gap-4 pr-2 text-left">
+              <div>
+                <p className="text-base font-medium">Transaction history</p>
+                <p className="text-sm font-normal text-muted-foreground">
+                  Recent deposits, withdrawals, and transfers.
+                </p>
+              </div>
+              <StatusBadge
+                status={transactionCount ? "ACTIVE" : "DRAFT"}
+                label={transactionCount ? `${transactionCount} records` : "Empty"}
+              />
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-0 pb-6">
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : !data?.transactions?.length ? (
+              <p className="text-sm text-muted-foreground">No transactions yet.</p>
+            ) : (
+              <ul className="divide-y">
+                {data.transactions.map(
+                  (tx: {
+                    id: string;
+                    type: string;
+                    amount: number;
+                    status: string;
+                    reference: string;
+                  }) => (
+                    <li key={tx.id} className="flex justify-between gap-4 py-3 text-sm">
+                      <span className="text-muted-foreground">
+                        {tx.type} · {tx.reference}
+                      </span>
+                      <span className="shrink-0 font-medium">
+                        GHS {Number(tx.amount).toLocaleString()} · {tx.status}
+                      </span>
+                    </li>
+                  )
+                )}
+              </ul>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }

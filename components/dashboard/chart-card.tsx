@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import {
   Area,
   AreaChart,
@@ -16,14 +17,16 @@ export function ChartCard({
   data,
   dataKey,
   color = "#059669",
+  className,
 }: {
   title: string;
   data: Record<string, string | number>[];
   dataKey: string;
   color?: string;
+  className?: string;
 }) {
   return (
-    <Card>
+    <Card className={cn(className, "rounded-none")}>
       <CardHeader>
         <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { registerSchema } from "@/lib/validations/auth";
+import { registerSchema, firstZodIssueMessage } from "@/lib/validations/auth";
 import { authService } from "@/lib/services/auth.service";
 import { apiResponse, apiError, withPublicHandler } from "@/lib/api/handler";
 import { AppError } from "@/lib/errors";
@@ -9,7 +9,13 @@ export const POST = withPublicHandler(async (req: NextRequest) => {
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) {
     return apiError(
-      new AppError(parsed.error.issues[0]?.message ?? "Validation failed", 400)
+      new AppError(
+        firstZodIssueMessage(
+          parsed.error,
+          "Please review your registration details and try again."
+        ),
+        400
+      )
     );
   }
 

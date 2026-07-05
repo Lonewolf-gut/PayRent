@@ -87,6 +87,7 @@ export default function LenderOpportunitiesPage() {
             durationMonths: number;
             property?: { name: string; location: string; monthlyRent: number };
             tenant?: { fullName: string; monthlyIncome: number; user?: { email: string } };
+            mandate?: { status: string; mandateSource: string };
           }) => (
             <Card key={req.id}>
               <CardHeader className="flex flex-row items-start justify-between">
@@ -103,7 +104,22 @@ export default function LenderOpportunitiesPage() {
                   <p>Requested: GHS {Number(req.requestedAmount).toLocaleString()}</p>
                   <p>Duration: {req.durationMonths} months</p>
                   <p>Rent: GHS {Number(req.property?.monthlyRent ?? 0).toLocaleString()}/mo</p>
+                  <p>
+                    Mandate:{" "}
+                    {req.mandate ? (
+                      <Badge variant={req.mandate.status === "ACTIVE" ? "default" : "secondary"}>
+                        {req.mandate.status.replace("_", " ")}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">Not set up</span>
+                    )}
+                  </p>
                 </div>
+                {req.mandate && req.mandate.status !== "ACTIVE" && (
+                  <p className="text-sm text-amber-700">
+                    Repayment mandate must be active before you can approve funding.
+                  </p>
+                )}
                 {selectedId === req.id ? (
                   <div className="flex flex-wrap gap-4 rounded-lg border p-4">
                     <div>
@@ -146,6 +162,7 @@ export default function LenderOpportunitiesPage() {
                     <Button
                       className="bg-emerald-600 hover:bg-emerald-700"
                       onClick={() => setSelectedId(req.id)}
+                      disabled={!req.mandate || req.mandate.status !== "ACTIVE"}
                     >
                       Review & Approve
                     </Button>

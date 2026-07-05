@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { withdrawalService } from "@/lib/services/withdrawal.service";
 import { apiResponse, withAuth } from "@/lib/api/handler";
+import { WITHDRAW_ROLES } from "@/lib/wallet/role-wallet";
 
 const verifySchema = z.object({
   withdrawalId: z.string().cuid(),
@@ -23,5 +24,5 @@ export const POST = withAuth(
     );
     return apiResponse(withdrawal, 200, "OTP verified. Complete with 2FA.");
   },
-  { roles: ["LENDER", "LANDLORD"], permission: "wallet:withdraw" }
+  { roles: WITHDRAW_ROLES, permission: "wallet:withdraw" }
 );

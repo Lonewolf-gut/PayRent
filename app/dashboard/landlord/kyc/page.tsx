@@ -1,5 +1,5 @@
 import { UserKycForm } from "@/components/dashboard/UserKycForm";
 
 export default function LandlordKycPage() {
-  return <UserKycForm roleLabel="Landlord" />;
+  return <UserKycForm roleLabel="Landlord" supportsEntityType />;
 }

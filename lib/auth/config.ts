@@ -1,9 +1,19 @@
-import type { NextAuthConfig } from "next-auth";
+import type { NextAuthConfig, Session } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/db/prisma";
+import { prisma, ensureDbConnection } from "@/lib/db/prisma";
 import type { UserRole } from "@prisma/client";
+import {
+  AccountLockedError,
+  AccountSuspendedError,
+  EmailNotFoundError,
+  InvalidPasswordError,
+  InvalidTwoFactorError,
+  MissingCredentialsError,
+  TwoFactorRequiredError,
+  DatabaseUnavailableError,
+} from "@/lib/auth/sign-in-errors";
 
 declare module "next-auth" {
   interface Session {
@@ -13,12 +23,14 @@ declare module "next-auth" {
       role: UserRole;
       image?: string | null;
       twoFactorEnabled: boolean;
+      emailVerified: boolean;
     };
   }
 
   interface User {
     role: UserRole;
     twoFactorEnabled: boolean;
+    emailVerified: boolean;
   }
 }
 
@@ -27,6 +39,8 @@ declare module "@auth/core/jwt" {
     id: string;
     role: UserRole;
     twoFactorEnabled: boolean;
+    emailVerified: boolean;
+    picture?: string | null;
   }
 }
 
@@ -46,16 +60,36 @@ export const authConfig: NextAuthConfig = {
         otp: { label: "OTP", type: "text" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.email || !credentials?.password) {
+          throw new MissingCredentialsError();
+        }
 
-        const email = credentials.email as string;
+        const email = (credentials.email as string).trim().toLowerCase();
         const password = credentials.password as string;
 
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !user.isActive) return null;
+        try {
+          await ensureDbConnection();
+        } catch {
+          throw new DatabaseUnavailableError();
+        }
+
+        let user;
+        try {
+          user = await prisma.user.findUnique({ where: { email } });
+        } catch {
+          throw new DatabaseUnavailableError();
+        }
+
+        if (!user) {
+          throw new EmailNotFoundError();
+        }
+
+        if (!user.isActive) {
+          throw new AccountSuspendedError();
+        }
 
         if (user.lockedUntil && user.lockedUntil > new Date()) {
-          return null;
+          throw new AccountLockedError();
         }
 
         const valid = await bcrypt.compare(password, user.passwordHash);
@@ -71,26 +105,23 @@ export const authConfig: NextAuthConfig = {
                   : undefined,
             },
           });
-          return null;
+          if (failedCount >= 5) {
+            throw new AccountLockedError();
+          }
+          throw new InvalidPasswordError();
         }
 
         if (user.twoFactorEnabled) {
-          if (!credentials.otp) return null;
-          const otp = await prisma.otpCode.findFirst({
-            where: {
-              userId: user.id,
-              purpose: "2FA_LOGIN",
-              code: credentials.otp as string,
-              used: false,
-              expiresAt: { gt: new Date() },
-            },
-            orderBy: { createdAt: "desc" },
-          });
-          if (!otp) return null;
-          await prisma.otpCode.update({
-            where: { id: otp.id },
-            data: { used: true },
-          });
+          if (!credentials.otp) {
+            throw new TwoFactorRequiredError();
+          }
+
+          const { twoFactorService } = await import("@/lib/services/two-factor.service");
+          try {
+            await twoFactorService.validateToken(user.id, String(credentials.otp));
+          } catch {
+            throw new InvalidTwoFactorError();
+          }
         }
 
         await prisma.user.update({
@@ -104,17 +135,50 @@ export const authConfig: NextAuthConfig = {
           role: user.role,
           image: user.image,
           twoFactorEnabled: user.twoFactorEnabled,
+          emailVerified: Boolean(user.emailVerified),
         };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id!;
         token.role = user.role;
         token.twoFactorEnabled = user.twoFactorEnabled;
+        token.emailVerified = Boolean(user.emailVerified);
+        token.picture = user.image ?? null;
+
+        void import("@/lib/services/verification-reminder.service")
+          .then(({ verificationReminderService }) =>
+            verificationReminderService.notifyIfUnverified(user.id!, user.role)
+          )
+          .catch(() => undefined);
       }
+
+      if (trigger === "update") {
+        if (session?.user && "image" in session.user) {
+          token.picture = session.user.image ?? null;
+        }
+        if (token.id) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: {
+              image: true,
+              email: true,
+              emailVerified: true,
+              twoFactorEnabled: true,
+            },
+          });
+          if (dbUser) {
+            token.picture = dbUser.image;
+            token.email = dbUser.email;
+            token.emailVerified = Boolean(dbUser.emailVerified);
+            token.twoFactorEnabled = dbUser.twoFactorEnabled;
+          }
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -122,6 +186,8 @@ export const authConfig: NextAuthConfig = {
         session.user.id = token.id as string;
         session.user.role = token.role as UserRole;
         session.user.twoFactorEnabled = token.twoFactorEnabled as boolean;
+        session.user.image = (token.picture as string | null | undefined) ?? null;
+        (session.user as Session["user"]).emailVerified = Boolean(token.emailVerified);
       }
       return session;
     },

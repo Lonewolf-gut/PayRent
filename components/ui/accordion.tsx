@@ -3,11 +3,37 @@ import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion"
 import { cn } from "@/lib/utils"
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
-function Accordion({ className, ...props }: AccordionPrimitive.Root.Props) {
+type AccordionRootProps = AccordionPrimitive.Root.Props<string>
+
+type AccordionProps = Omit<AccordionRootProps, "value" | "defaultValue" | "multiple"> & {
+  type?: "single" | "multiple"
+  collapsible?: boolean
+  multiple?: boolean
+  value?: string | string[]
+  defaultValue?: string | string[]
+}
+
+function normalizeAccordionValue(value: string | string[] | undefined) {
+  if (value === undefined) return undefined
+  return Array.isArray(value) ? value : [value]
+}
+
+function Accordion({
+  className,
+  type = "single",
+  collapsible: _collapsible,
+  value,
+  defaultValue,
+  multiple,
+  ...props
+}: AccordionProps) {
   return (
     <AccordionPrimitive.Root
       data-slot="accordion"
       className={cn("flex w-full flex-col", className)}
+      multiple={multiple ?? type === "multiple"}
+      value={normalizeAccordionValue(value)}
+      defaultValue={normalizeAccordionValue(defaultValue)}
       {...props}
     />
   )
@@ -59,7 +85,7 @@ function AccordionContent({
     >
       <div
         className={cn(
-          "h-(--accordion-panel-height) pt-0 pb-4 data-ending-style:h-0 data-starting-style:h-0 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
+          "accordion-content-body h-(--accordion-panel-height) pt-0 pb-4 data-ending-style:h-0 data-starting-style:h-0 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground",
           className
         )}
       >

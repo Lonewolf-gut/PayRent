@@ -12,6 +12,12 @@ export const GET = withAuth(
       return apiResponse(reviews, 200, "KYC review queue retrieved.");
     }
 
+    if (type === "mandate") {
+      const { mandateService } = await import("@/lib/services/mandate.service");
+      const mandates = await mandateService.listPendingReview();
+      return apiResponse(mandates, 200, "Mandate review queue retrieved.");
+    }
+
     if (type === "reconciliation") {
       const exceptions = await settlementService.listReconciliationExceptions();
       return apiResponse(exceptions, 200, "Reconciliation exceptions retrieved.");
@@ -19,13 +25,23 @@ export const GET = withAuth(
 
     return apiResponse([], 200, "Review queue retrieved.");
   },
-  { roles: ["ADMIN", "CEO"] }
+  { roles: ["ADMIN"] }
 );
 
 export const PATCH = withAuth(
   async (req: NextRequest, _ctx, session) => {
     const body = await req.json();
-    const { bankAccountId, verificationId, exceptionId, resolutionNote } = body;
+    const { bankAccountId, verificationId, exceptionId, resolutionNote, rejectReason } =
+      body;
+
+    if (verificationId && rejectReason) {
+      const verification = await kycService.rejectIdentityVerification(
+        verificationId,
+        session.user.id,
+        String(rejectReason)
+      );
+      return apiResponse(verification, 200, "Identity verification rejected.");
+    }
 
     if (verificationId) {
       const verification = await kycService.approveIdentityVerification(
@@ -54,5 +70,5 @@ export const PATCH = withAuth(
 
     return apiResponse(null, 400, "Invalid review action.");
   },
-  { roles: ["ADMIN", "CEO"] }
+  { roles: ["ADMIN"] }
 );

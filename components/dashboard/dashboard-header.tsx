@@ -1,48 +1,251 @@
 "use client";
 
-import { signOut, useSession } from "next-auth/react";
-import { Button } from "@/components/ui/button";
-import { Bell } from "lucide-react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
+import { signOut, useSession } from "next-auth/react";
+import { LogOut, Menu } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { NotificationsPopover } from "@/components/dashboard/notifications-popover";
+import { AccountVerificationBadge } from "@/components/dashboard/account-verification-badge";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { getTimeGreeting } from "@/lib/utils/greeting";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  SidebarNavContent,
+  type NavItem,
+} from "@/components/dashboard/sidebar";
+import { RentVestLogo } from "@/components/rentvest/logo";
 
-export function DashboardHeader({ title }: { title?: string }) {
+function getInitials(name?: string | null, email?: string | null) {
+  if (name) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  }
+  if (!email) return "U";
+  return email.slice(0, 2).toUpperCase();
+}
+
+type DashboardHeaderProps = {
+  navItems?: NavItem[];
+  sidebarTitle?: string;
+};
+
+export function DashboardHeader({
+  navItems,
+  sidebarTitle = "Dashboard",
+}: DashboardHeaderProps) {
   const { data: session } = useSession();
-  const { data: notifications } = useQuery({
-    queryKey: ["notifications"],
+  const greeting = getTimeGreeting();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const { data: profile } = useQuery({
+    queryKey: ["dashboard-profile"],
     queryFn: async () => {
-      const res = await fetch("/api/notifications");
+      const res = await fetch("/api/settings");
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message ?? "Unable to load notifications");
-      return json.data ?? [];
+      return json.data?.user as {
+        fullName?: string | null;
+        email?: string;
+        image?: string | null;
+      } | null;
     },
-    refetchInterval: 30000,
     enabled: !!session?.user?.id,
   });
 
-  const unread = notifications?.length ?? 0;
+  const email = session?.user?.email ?? profile?.email ?? "";
+  const fullName = profile?.fullName?.trim();
+  const displayName = fullName || email.split("@")[0] || "there";
+  const avatarImage = profile?.image ?? session?.user?.image ?? null;
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-card px-6">
-      <p className="font-medium">{title ?? "Dashboard"}</p>
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" className="relative" asChild>
-          <Link href="/dashboard/notifications" aria-label="Notifications">
-            <Bell className="h-4 w-4" />
-            {unread > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600 text-[10px] text-white">
-                {unread}
+    <div className="border-b bg-card">
+      <header className="flex min-h-14 items-center justify-between gap-2 px-4 py-2 sm:gap-3 sm:px-6 sm:py-3 lg:min-h-[4.5rem]">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {navItems?.length ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                className="shrink-0 lg:hidden"
+                aria-label="Open menu"
+                onClick={() => setMenuOpen(true)}
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+              <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+                <SheetContent side="left" className="w-[min(100vw-2rem,18rem)] p-0">
+                  <SheetTitle className="sr-only">{sidebarTitle} navigation</SheetTitle>
+                  <SidebarNavContent
+                    items={navItems}
+                    title={sidebarTitle}
+                    showLogo
+                    onNavigate={() => setMenuOpen(false)}
+                  />
+                </SheetContent>
+              </Sheet>
+            </>
+          ) : null}
+
+          <div className="hidden min-w-0 md:block">
+            <p className="truncate text-lg font-semibold text-foreground lg:text-xl">
+              {greeting}, {displayName}
+            </p>
+            {email ? (
+              <p className="truncate text-sm text-muted-foreground">{email}</p>
+            ) : null}
+          </div>
+
+          <div className="min-w-0 md:hidden">
+            <p className="truncate text-sm font-semibold text-foreground">
+              {displayName}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">{greeting}</p>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <ThemeToggle />
+          <NotificationsPopover />
+          <div className="flex min-w-0 items-center gap-2.5 rounded-full border border-border/60 bg-muted/30 py-1 pl-1 pr-3">
+            <Avatar size="lg" className="size-11">
+              {avatarImage ? (
+                <AvatarImage
+                  key={avatarImage}
+                  src={avatarImage}
+                  alt="Profile photo"
+                />
+              ) : null}
+              <AvatarFallback className="text-sm">{getInitials(fullName, email)}</AvatarFallback>
+            </Avatar>
+            <span className="hidden sm:inline">
+              <AccountVerificationBadge />
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden sm:inline-flex"
+            onClick={() => signOut({ callbackUrl: "/" })}
+          >
+            Sign out
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="sm:hidden"
+            aria-label="Sign out"
+            onClick={() => signOut({ callbackUrl: "/" })}
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
+      </header>
+    </div>
+  );
+}
+
+export function AdminDashboardHeader({
+  navItems,
+  sidebarTitle = "Admin",
+}: DashboardHeaderProps) {
+  const { data: session } = useSession();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const { data: profile } = useQuery({
+    queryKey: ["admin-profile"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/settings");
+      const json = await res.json();
+      return json.data?.user as { email?: string; image?: string | null } | null;
+    },
+    enabled: !!session?.user?.id,
+  });
+
+  const email = session?.user?.email ?? profile?.email ?? "";
+  const image = session?.user?.image ?? profile?.image ?? null;
+  const initials = email ? email.slice(0, 2).toUpperCase() : "AD";
+
+  return (
+    <div className="border-b bg-card">
+      <header className="flex min-h-14 items-center justify-between gap-2 px-4 py-2 sm:px-6 sm:py-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {navItems?.length ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                className="shrink-0 rounded-none lg:hidden"
+                aria-label="Open menu"
+                onClick={() => setMenuOpen(true)}
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+              <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+                <SheetContent side="left" className="w-[min(100vw-2rem,18rem)] p-0">
+                  <SheetTitle className="sr-only">{sidebarTitle} navigation</SheetTitle>
+                  <SidebarNavContent
+                    items={navItems}
+                    title={sidebarTitle}
+                    showLogo
+                    onNavigate={() => setMenuOpen(false)}
+                  />
+                </SheetContent>
+              </Sheet>
+            </>
+          ) : null}
+          <RentVestLogo showIcon={false} href="/admin" className="shrink-0 lg:hidden" />
+          <p className="hidden truncate text-base font-semibold text-foreground lg:block">
+            {sidebarTitle}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <ThemeToggle />
+          <NotificationsPopover viewAllHref="/admin/notifications" />
+          <div className="flex min-w-0 items-center gap-2.5 rounded-none border border-border/60 bg-muted/30 py-1 pl-1 pr-3">
+            <Avatar size="lg" className="size-11 rounded-none">
+              {image ? (
+                <AvatarImage key={image} src={image} alt="Admin profile photo" />
+              ) : null}
+              <AvatarFallback className="rounded-none bg-emerald-100 text-sm text-emerald-800">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            {email ? (
+              <span className="hidden max-w-[12rem] truncate text-sm text-muted-foreground sm:inline">
+                {email}
               </span>
-            )}
-          </Link>
-        </Button>
-        <span className="text-sm text-muted-foreground hidden sm:inline">
-          {session?.user?.email}
-        </span>
-        <Button variant="outline" size="sm" onClick={() => signOut({ callbackUrl: "/" })}>
-          Sign out
-        </Button>
-      </div>
-    </header>
+            ) : null}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden rounded-none sm:inline-flex"
+            onClick={() => signOut({ callbackUrl: "/" })}
+          >
+            Sign out
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="rounded-none sm:hidden"
+            aria-label="Sign out"
+            onClick={() => signOut({ callbackUrl: "/" })}
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
+      </header>
+    </div>
   );
 }

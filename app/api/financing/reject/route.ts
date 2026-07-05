@@ -3,7 +3,6 @@ import { z } from "zod";
 import { financingService } from "@/lib/services/financing.service";
 import { prisma } from "@/lib/db/prisma";
 import { apiResponse, withAuth } from "@/lib/api/handler";
-
 export const POST = withAuth(
   async (req: NextRequest, _ctx, session) => {
     const { financingRequestId } = z

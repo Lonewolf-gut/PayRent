@@ -2,8 +2,9 @@ import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger";
 import { notificationService } from "@/lib/services/notification.service";
 import { auditService } from "@/lib/services/audit.service";
+import { reconciliationService } from "@/lib/services/reconciliation.service";
 import { Decimal } from "@prisma/client/runtime/library";
-import type { DeductionStatus, MandateStatus } from "@prisma/client";
+import type { DeductionStatus, InstallmentStatus, MandateStatus } from "@prisma/client";
 
 /**
  * Bank mandate execution service
@@ -17,7 +18,7 @@ import type { DeductionStatus, MandateStatus } from "@prisma/client";
 
 export interface BankDebitRequest {
   mandateId: string;
-  amount: Decimal;
+  amount: InstanceType<typeof Decimal>;
   description: string;
   deductionEventId: string;
 }
@@ -194,7 +195,7 @@ export class MandateExecutionService {
             amountPaid: installment.amountPaid.plus(amountDue),
             status: installment.amountPaid.plus(amountDue).gte(installment.amount)
               ? "PAID"
-              : "PARTIALLY_PAID",
+              : "PARTIAL",
             paidAt: new Date(),
           },
         });
@@ -239,6 +240,14 @@ export class MandateExecutionService {
           amount: amountDue.toString(),
         });
       } else if (deductionStatus === "FAILED") {
+        await reconciliationService.recordDeductionFailure({
+          deductionEventId: deductionEvent.id,
+          expectedAmount: Number(amountDue),
+          actualAmount: 0,
+          providerReference: bankResponse.bankReference,
+          reason: bankResponse.failureReason ?? "DEDUCTION_FAILED",
+        });
+
         // Send failure notification
         await notificationService.send({
           userId: financingRequest.tenant.userId,
@@ -400,18 +409,21 @@ export class MandateExecutionService {
     if (!financing || !financing.repaymentPlan) return;
 
     const allInstallmentsPaid = financing.repaymentPlan.installments.every(
-      (installment) =>
-        installment.status === "PAID" || installment.status === "PARTIALLY_PAID"
+      (installment: { status: InstallmentStatus }) => installment.status === "PAID"
     );
 
     if (allInstallmentsPaid) {
       await prisma.financingRequest.update({
         where: { id: financingRequestId },
-        data: { status: "REPAYMENT_COMPLETED" },
+        data: { status: "CLOSED" },
       });
 
-      // Trigger settlement payout
-      // This would call settlementService.processSettlement()
+      const { settlementService } = await import("@/lib/services/settlement.service");
+      try {
+        await settlementService.createFromFinancing(financingRequestId);
+      } catch {
+        // settlements may already exist
+      }
 
       await notificationService.send({
         userId: tenantId,

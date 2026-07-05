@@ -3,6 +3,7 @@ import { z } from "zod";
 import { withdrawalService } from "@/lib/services/withdrawal.service";
 import { twoFactorService } from "@/lib/services/two-factor.service";
 import { apiResponse, withAuth } from "@/lib/api/handler";
+import { WITHDRAW_ROLES } from "@/lib/wallet/role-wallet";
 
 const confirmSchema = z.object({
   withdrawalId: z.string().cuid(),
@@ -27,5 +28,5 @@ export const POST = withAuth(
     );
     return apiResponse(withdrawal, 200, "Withdrawal completed.");
   },
-  { roles: ["LENDER", "LANDLORD"], permission: "wallet:withdraw" }
+  { roles: WITHDRAW_ROLES, permission: "wallet:withdraw" }
 );

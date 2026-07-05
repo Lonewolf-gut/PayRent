@@ -7,11 +7,11 @@ export const createMandateSchema = z.object({
   mandateSource: z
     .enum(["SCANNED_UPLOAD", "PLATFORM_GENERATED"])
     .default("PLATFORM_GENERATED"),
-  documentUrl: z.string().url().optional(),
+  documentUrl: z.string().min(1).optional(),
 });
 
 export const submitMandateSchema = z.object({
-  documentUrl: z.string().url().optional(),
+  documentUrl: z.string().min(1).optional(),
 });
 
 export const reviewMandateSchema = z.object({
