@@ -345,8 +345,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="relative overflow-hidden bg-slate-50 py-24">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.9),transparent_70%)]" />
+      <section className="relative overflow-hidden bg-slate-100 py-24">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(226,232,240,0.7),transparent_70%)]" />
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">

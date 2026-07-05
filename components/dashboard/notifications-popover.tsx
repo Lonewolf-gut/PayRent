@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, Bell, CheckCheck, Sparkles, Trash2 } from "lucide-react";
+import { Bell, CheckCheck, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -40,13 +39,12 @@ function formatBadgeCount(count: number) {
   return count > 9 ? "9+" : String(count);
 }
 
-export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" }: { viewAllHref?: string }) {
+export function NotificationsPopover() {
   const { data: session } = useSession();
   const dashboardTheme = useDashboardTheme();
   const isDark = dashboardTheme?.theme === "dark";
   const queryClient = useQueryClient();
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
 
   const { data: unreadNotifications = [] } = useQuery({
     queryKey: ["notifications", "unread"],
@@ -99,10 +97,6 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
           unreadCount: Math.max(0, current.unreadCount - 1),
         };
       });
-
-      setSelectedNotification((current) =>
-        current?.id === id ? { ...current, read: true } : current
-      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications", "unread"] });
@@ -124,7 +118,6 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
         items: [],
         unreadCount: 0,
       });
-      setSelectedNotification(null);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications", "unread"] });
@@ -140,26 +133,14 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
     await Promise.all(unread.map((item) => markRead.mutateAsync(item.id)));
   };
 
-  const openNotification = (notification: NotificationItem) => {
-    setSelectedNotification(notification);
+  const handleNotificationClick = (notification: NotificationItem) => {
     if (!notification.read) {
       markRead.mutate(notification.id);
     }
   };
 
-  const closeDetail = () => {
-    setSelectedNotification(null);
-  };
-
-  const handlePopoverOpenChange = (open: boolean) => {
-    setPopoverOpen(open);
-    if (!open) {
-      setSelectedNotification(null);
-    }
-  };
-
   return (
-    <Popover open={popoverOpen} onOpenChange={handlePopoverOpenChange}>
+    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
       <PopoverTrigger
         render={
           <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
@@ -176,7 +157,7 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
         align="end"
         sideOffset={8}
         className={cn(
-          "w-[min(100vw-2rem,24rem)] overflow-hidden border-border bg-popover p-0 text-popover-foreground",
+          "w-[min(100vw-2rem,28rem)] overflow-hidden border-border bg-popover p-0 text-popover-foreground",
           isDark && "dark"
         )}
       >
@@ -189,70 +170,32 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
           )}
         >
           <PopoverHeader className="gap-1">
-            {selectedNotification ? (
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <PopoverTitle className="flex items-center gap-2 text-base text-white">
+                <Sparkles className="h-4 w-4" />
+                Notifications
+              </PopoverTitle>
+              {unreadCount > 0 ? (
                 <Button
                   type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 shrink-0 text-white hover:bg-white/15"
-                  onClick={closeDetail}
-                  aria-label="Back to notifications"
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 bg-white/15 text-white hover:bg-white/25"
+                  onClick={() => void markAllRead()}
                 >
-                  <ArrowLeft className="h-4 w-4" />
+                  <CheckCheck className="mr-1 h-3.5 w-3.5" />
+                  Mark all read
                 </Button>
-                <PopoverTitle className="line-clamp-1 text-base text-white">
-                  {selectedNotification.title}
-                </PopoverTitle>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-3">
-                <PopoverTitle className="flex items-center gap-2 text-base text-white">
-                  <Sparkles className="h-4 w-4" />
-                  Notifications
-                </PopoverTitle>
-                {unreadCount > 0 ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    className="h-7 bg-white/15 text-white hover:bg-white/25"
-                    onClick={() => void markAllRead()}
-                  >
-                    <CheckCheck className="mr-1 h-3.5 w-3.5" />
-                    Mark all read
-                  </Button>
-                ) : null}
-              </div>
-            )}
+              ) : null}
+            </div>
             <p className={cn("text-xs", isDark ? "text-emerald-200/80" : "text-emerald-50/90")}>
-              {selectedNotification
-                ? new Date(selectedNotification.createdAt).toLocaleString()
-                : formatUnreadLabel(unreadCount)}
+              {formatUnreadLabel(unreadCount)}
             </p>
           </PopoverHeader>
         </div>
 
-        <div className="max-h-[min(24rem,60vh)] overflow-y-auto overscroll-contain bg-popover">
-          {selectedNotification ? (
-            <div className="space-y-4 px-4 py-4">
-              <p className="text-sm leading-7 text-foreground">{selectedNotification.body}</p>
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  size="sm"
-                  className={cn(
-                    isDark
-                      ? "bg-emerald-700 hover:bg-emerald-600"
-                      : "bg-emerald-600 hover:bg-emerald-700"
-                  )}
-                  onClick={closeDetail}
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          ) : isLoading ? (
+        <div className="bg-popover">
+          {isLoading ? (
             <p className="px-4 py-8 text-center text-sm text-muted-foreground">
               Loading notifications...
             </p>
@@ -277,7 +220,7 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
                 <li key={notification.id} className="border-b border-border last:border-b-0">
                   <button
                     type="button"
-                    onClick={() => openNotification(notification)}
+                    onClick={() => handleNotificationClick(notification)}
                     className={cn(
                       "w-full px-4 py-3 text-left transition hover:bg-muted/60",
                       !notification.read &&
@@ -306,7 +249,7 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
                     </div>
                     <p
                       className={cn(
-                        "mt-1 line-clamp-2 text-sm leading-relaxed",
+                        "mt-1 text-sm leading-relaxed whitespace-pre-wrap",
                         notification.read ? "text-muted-foreground/80" : "text-muted-foreground"
                       )}
                     >
@@ -322,35 +265,19 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
           )}
         </div>
 
-        {!selectedNotification ? (
+        {hasNotifications ? (
           <div className="border-t border-border bg-popover p-2">
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className={cn(
-                "h-8 w-full",
-                isDark
-                  ? "text-emerald-400 hover:bg-emerald-950/50 hover:text-emerald-300"
-                  : "text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
-              )}
-              render={<Link href={viewAllHref} />}
+              className="h-8 w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+              disabled={clearAll.isPending}
+              onClick={() => clearAll.mutate()}
             >
-              View all notifications
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              Clear all notifications
             </Button>
-            {hasNotifications ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mt-1 h-8 w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-                disabled={clearAll.isPending}
-                onClick={() => clearAll.mutate()}
-              >
-                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                Clear all notifications
-              </Button>
-            ) : null}
           </div>
         ) : null}
       </PopoverContent>

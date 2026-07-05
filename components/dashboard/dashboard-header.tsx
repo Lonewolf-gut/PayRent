@@ -211,7 +211,7 @@ export function AdminDashboardHeader({
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
-          <NotificationsPopover viewAllHref="/admin/notifications" />
+          <NotificationsPopover />
           <div className="flex min-w-0 items-center gap-2.5 rounded-none border border-border/60 bg-muted/30 py-1 pl-1 pr-3">
             <Avatar size="lg" className="size-11 rounded-none">
               {image ? (

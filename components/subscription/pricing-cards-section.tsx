@@ -32,10 +32,16 @@ export function PricingCardsSection({
   showHeader = true,
   compact = false,
 }: PricingCardsSectionProps) {
+  const isCheckout = mode === "checkout";
+
   return (
     <section
       id={mode === "marketing" ? "pricing" : undefined}
-      className={`bg-emerald-950 text-white ${compact ? "py-12" : "py-20"}`}
+      className={
+        isCheckout
+          ? `bg-slate-100 text-slate-900 ${compact ? "py-12" : "py-20"}`
+          : `bg-emerald-950 text-white ${compact ? "py-12" : "py-20"}`
+      }
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         {showHeader ? (
@@ -43,7 +49,11 @@ export function PricingCardsSection({
             <h2 className="font-serif text-3xl font-bold tracking-tight sm:text-4xl">
               Simple, transparent pricing
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-emerald-100/75">
+            <p
+              className={`mx-auto mt-4 max-w-2xl ${
+                isCheckout ? "text-slate-600" : "text-emerald-100/75"
+              }`}
+            >
               Plans for landlords and agents. Tenants and lenders use PayForMe for free.
             </p>
           </div>
@@ -64,23 +74,43 @@ export function PricingCardsSection({
               <div
                 key={planId}
                 className={`relative flex flex-col rounded-xl p-8 ${
-                  isSelected ? "ring-2 ring-emerald-300 ring-offset-2 ring-offset-emerald-950" : ""
+                  isSelected
+                    ? isCheckout
+                      ? "ring-2 ring-emerald-500 ring-offset-2 ring-offset-slate-100"
+                      : "ring-2 ring-emerald-300 ring-offset-2 ring-offset-emerald-950"
+                    : ""
                 } ${
-                  plan.highlight
-                    ? "border border-emerald-400 bg-gradient-to-b from-emerald-600 to-emerald-700 shadow-[0_20px_40px_rgba(16,185,129,0.25)]"
-                    : "border border-emerald-800/60 bg-emerald-900/40 backdrop-blur-sm"
+                  isCheckout
+                    ? plan.highlight
+                      ? "border border-emerald-300 bg-white shadow-md"
+                      : "border border-slate-200 bg-white shadow-sm"
+                    : plan.highlight
+                      ? "border border-emerald-400 bg-gradient-to-b from-emerald-600 to-emerald-700 shadow-[0_20px_40px_rgba(16,185,129,0.25)]"
+                      : "border border-emerald-800/60 bg-emerald-900/40 backdrop-blur-sm"
                 }`}
               >
                 <div className="mb-6 flex min-h-[26px] flex-wrap items-center gap-2">
                   {plan.highlight ? (
-                    <span className="inline-flex rounded-sm bg-emerald-300 px-2.5 py-1 text-[10px] font-bold tracking-[0.15em] text-emerald-950">
+                    <span
+                      className={`inline-flex rounded-sm px-2.5 py-1 text-[10px] font-bold tracking-[0.15em] ${
+                        isCheckout
+                          ? "bg-emerald-600 text-white"
+                          : "bg-emerald-300 text-emerald-950"
+                      }`}
+                    >
                       MOST POPULAR
                     </span>
                   ) : (
                     <span className="block h-[26px]" aria-hidden />
                   )}
                   {isCurrent && mode === "checkout" ? (
-                    <span className="inline-flex rounded-sm border border-emerald-400/40 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] text-emerald-300">
+                    <span
+                      className={`inline-flex rounded-sm border px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] ${
+                        isCheckout
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
+                      }`}
+                    >
                       CURRENT PLAN
                     </span>
                   ) : null}
@@ -89,7 +119,13 @@ export function PricingCardsSection({
                 <div>
                   <h3 className="font-serif text-xl font-bold">{plan.name}</h3>
                   <p
-                    className={`mt-1 text-sm ${plan.highlight ? "text-emerald-50/90" : "text-emerald-100/60"}`}
+                    className={`mt-1 text-sm ${
+                      isCheckout
+                        ? "text-slate-600"
+                        : plan.highlight
+                          ? "text-emerald-50/90"
+                          : "text-emerald-100/60"
+                    }`}
                   >
                     {plan.tagline}
                   </p>
@@ -97,7 +133,13 @@ export function PricingCardsSection({
                     {monthlyPrice}
                     {planId !== "FREE" ? (
                       <span
-                        className={`text-base font-sans font-normal ${plan.highlight ? "text-emerald-50/80" : "text-emerald-100/50"}`}
+                        className={`text-base font-sans font-normal ${
+                          isCheckout
+                            ? "text-slate-500"
+                            : plan.highlight
+                              ? "text-emerald-50/80"
+                              : "text-emerald-100/50"
+                        }`}
                       >
                         {" "}
                         / per month
@@ -107,12 +149,24 @@ export function PricingCardsSection({
                 </div>
 
                 <div
-                  className={`my-8 border-t ${plan.highlight ? "border-emerald-400/40" : "border-emerald-800/60"}`}
+                  className={`my-8 border-t ${
+                    isCheckout
+                      ? "border-slate-200"
+                      : plan.highlight
+                        ? "border-emerald-400/40"
+                        : "border-emerald-800/60"
+                  }`}
                 />
 
                 {plan.includesLabel ? (
                   <p
-                    className={`mb-4 text-sm ${plan.highlight ? "text-emerald-50/85" : "text-emerald-100/70"}`}
+                    className={`mb-4 text-sm ${
+                      isCheckout
+                        ? "text-slate-600"
+                        : plan.highlight
+                          ? "text-emerald-50/85"
+                          : "text-emerald-100/70"
+                    }`}
                   >
                     {plan.includesLabel}
                   </p>
@@ -122,10 +176,22 @@ export function PricingCardsSection({
                   {plan.features.map((feature) => (
                     <li
                       key={feature}
-                      className={`flex items-start gap-3 text-sm ${plan.highlight ? "text-emerald-50" : "text-emerald-100/85"}`}
+                      className={`flex items-start gap-3 text-sm ${
+                        isCheckout
+                          ? "text-slate-700"
+                          : plan.highlight
+                            ? "text-emerald-50"
+                            : "text-emerald-100/85"
+                      }`}
                     >
                       <Check
-                        className={`mt-0.5 h-4 w-4 shrink-0 ${plan.highlight ? "text-emerald-100" : "text-emerald-400"}`}
+                        className={`mt-0.5 h-4 w-4 shrink-0 ${
+                          isCheckout
+                            ? "text-emerald-600"
+                            : plan.highlight
+                              ? "text-emerald-100"
+                              : "text-emerald-400"
+                        }`}
                         strokeWidth={1.5}
                       />
                       {feature}
@@ -152,9 +218,13 @@ export function PricingCardsSection({
                   <button
                     type="button"
                     className={`mt-8 inline-flex w-full items-center justify-center rounded-md px-4 py-2.5 text-sm font-semibold transition ${
-                      plan.highlight
-                        ? "bg-white text-emerald-700 hover:bg-emerald-50"
-                        : "border border-emerald-600/50 text-white hover:border-emerald-500 hover:bg-emerald-800/50"
+                      isCheckout
+                        ? plan.highlight
+                          ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                          : "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
+                        : plan.highlight
+                          ? "bg-white text-emerald-700 hover:bg-emerald-50"
+                          : "border border-emerald-600/50 text-white hover:border-emerald-500 hover:bg-emerald-800/50"
                     }`}
                     onClick={() => onSelectPlan?.(planId)}
                   >

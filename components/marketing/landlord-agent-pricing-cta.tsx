@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 export function LandlordAgentPricingCta() {
   return (
-    <section id="pricing" className="border-y border-slate-100 bg-white py-20">
+    <section id="pricing" className="border-y border-slate-200 bg-slate-100 py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
