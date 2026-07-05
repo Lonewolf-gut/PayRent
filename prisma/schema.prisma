@@ -418,6 +418,7 @@ model Lender {
   userId           String   @unique
   fullName         String
   nationalId       String?  @unique
+  dateOfBirth      DateTime?
   institutionName  String?
   lenderType       String?
   licenceReference String?
@@ -441,6 +442,7 @@ model AgentProfile {
   id             String   @id @default(cuid())
   userId         String   @unique
   fullName       String
+  dateOfBirth    DateTime?
   agencyName     String?
   licenceNumber  String?
   region         String?

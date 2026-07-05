@@ -13,7 +13,6 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
-  Quote,
   Shield,
   Star,
   Users,
@@ -21,7 +20,7 @@ import {
 } from "lucide-react";
 import { PLATFORM_NAME, PLATFORM_TAGLINE } from "@/constants/platform";
 import { ROLE_HOW_IT_WORKS } from "@/constants/roles";
-import { PricingCardsSection } from "@/components/subscription/pricing-cards-section";
+import { LandlordAgentPricingCta } from "@/components/marketing/landlord-agent-pricing-cta";
 import { StatsBar } from "@/components/marketing/stats-bar";
 
 const whoItsFor = [
@@ -288,7 +287,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <PricingCardsSection mode="marketing" />
+      <LandlordAgentPricingCta />
 
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -345,57 +344,52 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="bg-gradient-to-b from-emerald-50 via-emerald-100/40 to-emerald-50 py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+      <section className="relative overflow-hidden bg-emerald-950 py-24 text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.12),transparent_70%)]" />
+
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-700">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-400">
               What our users say
             </p>
-            <h2 className="mt-4 text-3xl font-bold text-emerald-950">
+            <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
               Trusted across Ghana
             </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-emerald-800/70">
+            <p className="mx-auto mt-3 max-w-2xl text-emerald-100/70">
               Hear from tenants, landlords, agents, and lenders using {PLATFORM_NAME} every day.
             </p>
           </div>
 
-          <div className="relative mx-auto mt-12 max-w-3xl">
+          <div className="relative mx-auto mt-14 max-w-4xl">
             <button
               type="button"
               onClick={() => goToTestimonial(currentTestimonial - 1)}
               aria-label="Previous testimonial"
-              className="absolute -left-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-700 shadow-md transition hover:border-emerald-400 hover:bg-emerald-50 sm:-left-14"
+              className="absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white backdrop-blur-sm transition hover:border-emerald-400/50 hover:bg-white/10 sm:-left-16"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
 
-            <div className="overflow-hidden">
+            <div className="overflow-hidden px-2 sm:px-12">
               <div
                 className="flex transition-transform duration-500 ease-in-out"
                 style={{ transform: `translateX(-${currentTestimonial * 100}%)` }}
               >
                 {testimonials.map((item) => (
-                  <div key={item.name} className="w-full flex-shrink-0 px-1">
-                    <div className="border border-emerald-700/25 bg-gradient-to-br from-emerald-900 via-emerald-950 to-emerald-900 p-8 shadow-[0_24px_48px_rgba(6,78,59,0.25)]">
-                      <div className="mb-6 flex items-center justify-between">
-                        <Quote className="h-7 w-7 text-emerald-300" />
-                        <div className="flex items-center gap-1 text-emerald-300">
-                          {[...Array(5)].map((_, index) => (
-                            <Star key={index} className="h-4 w-4 fill-current" />
-                          ))}
-                        </div>
+                  <div key={item.name} className="w-full flex-shrink-0 px-2">
+                    <div className="flex flex-col items-center px-4 py-6 text-center sm:px-10 sm:py-8">
+                      <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-emerald-400/40 bg-emerald-900/60 text-xl font-semibold text-emerald-100">
+                        {testimonialInitials(item.name)}
                       </div>
-                      <p className="text-lg leading-8 text-emerald-50">
+                      <p className="mt-6 text-lg font-semibold text-white">{item.name}</p>
+                      <p className="mt-1 text-sm text-emerald-300/80">{item.role}</p>
+                      <p className="mt-8 max-w-2xl text-lg leading-8 text-emerald-50/90 sm:text-xl sm:leading-9">
                         &ldquo;{item.quote}&rdquo;
                       </p>
-                      <div className="mt-8 flex items-center gap-4">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-emerald-400/30 bg-emerald-800 text-sm font-semibold text-emerald-100">
-                          {testimonialInitials(item.name)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-white">{item.name}</p>
-                          <p className="text-sm text-emerald-300/80">{item.role}</p>
-                        </div>
+                      <div className="mt-8 flex items-center gap-1 text-emerald-400">
+                        {[...Array(5)].map((_, index) => (
+                          <Star key={index} className="h-4 w-4 fill-current" />
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -407,12 +401,12 @@ export default function HomePage() {
               type="button"
               onClick={() => goToTestimonial(currentTestimonial + 1)}
               aria-label="Next testimonial"
-              className="absolute -right-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-700 shadow-md transition hover:border-emerald-400 hover:bg-emerald-50 sm:-right-14"
+              className="absolute right-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white backdrop-blur-sm transition hover:border-emerald-400/50 hover:bg-white/10 sm:-right-16"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
 
-            <div className="mt-8 flex items-center justify-center gap-2">
+            <div className="mt-10 flex items-center justify-center gap-2">
               {testimonials.map((item, index) => (
                 <button
                   key={item.name}
@@ -421,8 +415,8 @@ export default function HomePage() {
                   aria-label={`Go to testimonial ${index + 1}`}
                   className={`h-2.5 rounded-full transition-all ${
                     index === currentTestimonial
-                      ? "w-8 bg-emerald-600"
-                      : "w-2.5 bg-emerald-300 hover:bg-emerald-400"
+                      ? "w-8 bg-white"
+                      : "w-2.5 bg-white/30 hover:bg-white/50"
                   }`}
                 />
               ))}

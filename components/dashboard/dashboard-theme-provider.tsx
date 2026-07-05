@@ -41,6 +41,21 @@ export function DashboardThemeProvider({
     setMounted(true);
   }, []);
 
+  // Portaled UI (popovers, dialogs) renders on document.body outside the provider
+  // wrapper, so sync the theme class to <html> for correct dark-mode tokens.
+  useEffect(() => {
+    if (!mounted) return;
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    return () => {
+      root.classList.remove("dark");
+    };
+  }, [theme, mounted]);
+
   const setTheme = useCallback((next: DashboardTheme) => {
     setThemeState(next);
     localStorage.setItem(STORAGE_KEY, next);

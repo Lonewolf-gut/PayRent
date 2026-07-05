@@ -223,6 +223,7 @@ export class KycService {
         data: {
           profileStatus: "PROFILE_COMPLETED",
           ...employmentData,
+          ...(input.dateOfBirth ? { dateOfBirth: new Date(input.dateOfBirth) } : {}),
           institutionName: input.employerName ?? undefined,
           lenderType: input.occupation ?? undefined,
           staffId: input.staffId,
@@ -244,6 +245,7 @@ export class KycService {
         data: {
           profileStatus: "PROFILE_COMPLETED",
           ...employmentData,
+          ...(input.dateOfBirth ? { dateOfBirth: new Date(input.dateOfBirth) } : {}),
           officeAddress: input.residentialAddress,
           staffId: input.staffId,
         },
@@ -903,7 +905,11 @@ export class KycService {
           ? tenant.dateOfBirth.toISOString().slice(0, 10)
           : role === "LANDLORD" && landlord?.dateOfBirth
             ? landlord.dateOfBirth.toISOString().slice(0, 10)
-            : null,
+            : role === "LENDER" && lender?.dateOfBirth
+              ? lender.dateOfBirth.toISOString().slice(0, 10)
+              : role === "AGENT" && agent?.dateOfBirth
+                ? agent.dateOfBirth.toISOString().slice(0, 10)
+                : null,
       occupation:
         role === "TENANT"
           ? tenant?.occupation ?? null

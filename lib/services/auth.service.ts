@@ -41,6 +41,11 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(input.password, 12);
 
+    const dateOfBirth =
+      input.entityType !== "COMPANY" && input.dateOfBirth
+        ? new Date(input.dateOfBirth)
+        : undefined;
+
     const user = await runTransaction(async (db) => {
       const created = await db.user.create({
         data: {
@@ -60,6 +65,7 @@ export class AuthService {
             userId: created.id,
             fullName: input.fullName,
             entityType: input.entityType ?? "INDIVIDUAL",
+            ...(dateOfBirth ? { dateOfBirth } : {}),
             ...(input.entityType === "COMPANY" && input.companyName
               ? { companyName: input.companyName }
               : {}),
@@ -71,6 +77,7 @@ export class AuthService {
             userId: created.id,
             fullName: input.fullName,
             entityType: input.entityType ?? "INDIVIDUAL",
+            ...(dateOfBirth ? { dateOfBirth } : {}),
             ...(input.entityType === "COMPANY" && input.companyName
               ? { companyName: input.companyName }
               : {}),
@@ -78,11 +85,19 @@ export class AuthService {
         });
       } else if (input.role === "LENDER") {
         await db.lender.create({
-          data: { userId: created.id, fullName: input.fullName },
+          data: {
+            userId: created.id,
+            fullName: input.fullName,
+            ...(dateOfBirth ? { dateOfBirth } : {}),
+          },
         });
       } else if (input.role === "AGENT") {
         await db.agentProfile.create({
-          data: { userId: created.id, fullName: input.fullName },
+          data: {
+            userId: created.id,
+            fullName: input.fullName,
+            ...(dateOfBirth ? { dateOfBirth } : {}),
+          },
         });
       }
 

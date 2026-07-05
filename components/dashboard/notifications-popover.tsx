@@ -14,6 +14,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useDashboardTheme } from "@/components/dashboard/dashboard-theme-provider";
 
 type NotificationItem = {
   id: string;
@@ -41,6 +42,8 @@ function formatBadgeCount(count: number) {
 
 export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" }: { viewAllHref?: string }) {
   const { data: session } = useSession();
+  const dashboardTheme = useDashboardTheme();
+  const isDark = dashboardTheme?.theme === "dark";
   const queryClient = useQueryClient();
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
@@ -172,9 +175,19 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-[min(100vw-2rem,24rem)] overflow-hidden border-border bg-popover p-0 text-popover-foreground"
+        className={cn(
+          "w-[min(100vw-2rem,24rem)] overflow-hidden border-border bg-popover p-0 text-popover-foreground",
+          isDark && "dark"
+        )}
       >
-        <div className="border-b border-emerald-700/30 bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3 text-white dark:from-emerald-700 dark:to-teal-800">
+        <div
+          className={cn(
+            "border-b px-4 py-3 text-white",
+            isDark
+              ? "border-emerald-800/40 bg-gradient-to-r from-emerald-900 to-emerald-950"
+              : "border-emerald-700/30 bg-gradient-to-r from-emerald-600 to-teal-600"
+          )}
+        >
           <PopoverHeader className="gap-1">
             {selectedNotification ? (
               <div className="flex items-center gap-2">
@@ -212,7 +225,7 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
                 ) : null}
               </div>
             )}
-            <p className="text-xs text-emerald-50/90">
+            <p className={cn("text-xs", isDark ? "text-emerald-200/80" : "text-emerald-50/90")}>
               {selectedNotification
                 ? new Date(selectedNotification.createdAt).toLocaleString()
                 : formatUnreadLabel(unreadCount)}
@@ -228,7 +241,11 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
                 <Button
                   type="button"
                   size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  className={cn(
+                    isDark
+                      ? "bg-emerald-700 hover:bg-emerald-600"
+                      : "bg-emerald-600 hover:bg-emerald-700"
+                  )}
                   onClick={closeDetail}
                 >
                   Close
@@ -241,8 +258,13 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
             </p>
           ) : !allNotifications.length ? (
             <div className="flex flex-col items-center px-4 py-10 text-center">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/60">
-                <Bell className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <div
+                className={cn(
+                  "mb-3 flex h-12 w-12 items-center justify-center rounded-full",
+                  isDark ? "bg-emerald-950/60" : "bg-emerald-100"
+                )}
+              >
+                <Bell className={cn("h-5 w-5", isDark ? "text-emerald-400" : "text-emerald-600")} />
               </div>
               <p className="text-sm font-medium text-foreground">No notifications yet</p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -258,7 +280,8 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
                     onClick={() => openNotification(notification)}
                     className={cn(
                       "w-full px-4 py-3 text-left transition hover:bg-muted/60",
-                      !notification.read && "bg-emerald-50/70 dark:bg-emerald-950/40"
+                      !notification.read &&
+                        (isDark ? "bg-emerald-950/40" : "bg-emerald-50/70")
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -273,7 +296,12 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
                         {notification.title}
                       </p>
                       {!notification.read ? (
-                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+                        <span
+                          className={cn(
+                            "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+                            isDark ? "bg-emerald-400" : "bg-emerald-500"
+                          )}
+                        />
                       ) : null}
                     </div>
                     <p
@@ -300,7 +328,12 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
               type="button"
               variant="ghost"
               size="sm"
-              className="h-8 w-full text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-300"
+              className={cn(
+                "h-8 w-full",
+                isDark
+                  ? "text-emerald-400 hover:bg-emerald-950/50 hover:text-emerald-300"
+                  : "text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+              )}
               render={<Link href={viewAllHref} />}
             >
               View all notifications
