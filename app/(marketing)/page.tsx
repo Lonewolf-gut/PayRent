@@ -344,18 +344,18 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="relative overflow-hidden bg-emerald-950 py-24 text-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.12),transparent_70%)]" />
+      <section className="relative overflow-hidden bg-slate-900 py-24 text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(148,163,184,0.08),transparent_70%)]" />
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-400">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">
               What our users say
             </p>
             <h2 className="mt-4 text-3xl font-bold text-white sm:text-4xl">
               Trusted across Ghana
             </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-emerald-100/70">
+            <p className="mx-auto mt-3 max-w-2xl text-slate-400">
               Hear from tenants, landlords, agents, and lenders using {PLATFORM_NAME} every day.
             </p>
           </div>
@@ -365,7 +365,7 @@ export default function HomePage() {
               type="button"
               onClick={() => goToTestimonial(currentTestimonial - 1)}
               aria-label="Previous testimonial"
-              className="absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white backdrop-blur-sm transition hover:border-emerald-400/50 hover:bg-white/10 sm:-left-16"
+              className="absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white backdrop-blur-sm transition hover:border-white/30 hover:bg-white/10 sm:-left-16"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -378,15 +378,15 @@ export default function HomePage() {
                 {testimonials.map((item) => (
                   <div key={item.name} className="w-full flex-shrink-0 px-2">
                     <div className="flex flex-col items-center px-4 py-6 text-center sm:px-10 sm:py-8">
-                      <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-emerald-400/40 bg-emerald-900/60 text-xl font-semibold text-emerald-100">
+                      <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-slate-600/50 bg-slate-800 text-xl font-semibold text-slate-200">
                         {testimonialInitials(item.name)}
                       </div>
                       <p className="mt-6 text-lg font-semibold text-white">{item.name}</p>
-                      <p className="mt-1 text-sm text-emerald-300/80">{item.role}</p>
-                      <p className="mt-8 max-w-2xl text-lg leading-8 text-emerald-50/90 sm:text-xl sm:leading-9">
+                      <p className="mt-1 text-sm text-slate-400">{item.role}</p>
+                      <p className="mt-8 max-w-2xl text-lg leading-8 text-slate-300 sm:text-xl sm:leading-9">
                         &ldquo;{item.quote}&rdquo;
                       </p>
-                      <div className="mt-8 flex items-center gap-1 text-emerald-400">
+                      <div className="mt-8 flex items-center gap-1 text-emerald-500/80">
                         {[...Array(5)].map((_, index) => (
                           <Star key={index} className="h-4 w-4 fill-current" />
                         ))}
@@ -401,7 +401,7 @@ export default function HomePage() {
               type="button"
               onClick={() => goToTestimonial(currentTestimonial + 1)}
               aria-label="Next testimonial"
-              className="absolute right-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white backdrop-blur-sm transition hover:border-emerald-400/50 hover:bg-white/10 sm:-right-16"
+              className="absolute right-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white backdrop-blur-sm transition hover:border-white/30 hover:bg-white/10 sm:-right-16"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
