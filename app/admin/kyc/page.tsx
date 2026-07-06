@@ -189,13 +189,13 @@ function DocumentPreview({ doc }: { doc: KycDocument }) {
         <img
           src={doc.fileUrl}
           alt={label}
-          className="max-h-40 rounded-md border object-contain"
+          className="max-h-40 border object-contain"
         />
       ) : isPdf ? (
         <iframe
           src={doc.fileUrl}
           title={label}
-          className="h-40 w-full rounded-md border bg-muted/20"
+          className="h-40 w-full border bg-muted/20"
         />
       ) : null}
       <div className="flex flex-wrap gap-3">
@@ -454,7 +454,7 @@ export default function AdminKycPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="gap-0 rounded-none py-0 shadow-xs">
           <CardContent className="divide-y p-0">
             {groupedReviews.map((group) => (
               <button
@@ -493,10 +493,7 @@ export default function AdminKycPage() {
           if (!open) setSelectedUserId(null);
         }}
       >
-        <SheetContent
-          side="right"
-          className="w-[calc(100vw-1rem)] max-w-none gap-0 rounded-none p-0 sm:max-w-none lg:w-[calc(100vw-16rem)]"
-        >
+        <SheetContent side="right" variant="wide" className="gap-0 p-0">
           {selectedGroup ? (
             <>
               <SheetHeader className="border-b px-6 py-5 pr-14">
