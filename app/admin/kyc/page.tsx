@@ -304,7 +304,7 @@ function ReviewDetail({
       ) : null}
 
       {review.documents?.length ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {review.documents.map((doc) => (
             <DocumentPreview key={doc.id} doc={doc} />
           ))}
@@ -493,7 +493,10 @@ export default function AdminKycPage() {
           if (!open) setSelectedUserId(null);
         }}
       >
-        <SheetContent side="right" className="w-full gap-0 p-0 sm:max-w-2xl">
+        <SheetContent
+          side="right"
+          className="w-[calc(100vw-1rem)] max-w-none gap-0 p-0 sm:max-w-none lg:w-[calc(100vw-16rem)]"
+        >
           {selectedGroup ? (
             <>
               <SheetHeader className="border-b px-6 py-5 pr-14">
