@@ -38,13 +38,6 @@ export default function LoginForm({ adminMode = false }: LoginFormProps) {
     | "AGENT"
     | "LENDER"
     | "ADMIN";
-  const roleLabels: Record<string, string> = {
-    TENANT: "tenant",
-    LANDLORD: "landlord",
-    AGENT: "agent",
-    LENDER: "lender",
-    ADMIN: "administrator",
-  };
   const roleImage =
     role === "LANDLORD"
       ? "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=1400&q=80"
@@ -242,17 +235,7 @@ export default function LoginForm({ adminMode = false }: LoginFormProps) {
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url('${roleImage}')` }}
         >
-          <div className="flex h-full flex-col justify-end p-12">
-            <div className="max-w-lg rounded-xl bg-black/50 p-8 backdrop-blur-sm">
-              <h2 className="text-3xl font-semibold leading-tight tracking-tight">
-                Sign in as {roleLabels[role] ?? "user"}
-              </h2>
-              <p className="mt-3 text-base leading-relaxed text-emerald-50/90">
-                Secure access to your PayForMe dashboard — manage listings, applications,
-                financing, and payments in one place.
-              </p>
-            </div>
-          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/40 via-transparent to-transparent" />
         </div>
       }
     >
