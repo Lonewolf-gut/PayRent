@@ -87,6 +87,7 @@ function applyStatusToForm(
   setIdentity((prev) => ({
     ...prev,
     fullName: (status.contactName as string) ?? (status.fullName as string) ?? prev.fullName,
+    idNumber: (status.nationalId as string) ?? prev.idNumber,
   }));
 }
 
@@ -310,9 +311,28 @@ export function UserKycForm({
         formData.append("companyRegistration", companyRegistration);
         if (companyTin) formData.append("companyTinDoc", companyTin);
       } else {
+        if (!identity.fullName.trim()) {
+          throw new Error("Enter your full name as it appears on your ID.");
+        }
+        if (!identity.idNumber.trim()) {
+          throw new Error("Enter your ID number before submitting.");
+        }
+        if (identity.idNumber.trim().length < 3) {
+          throw new Error("ID number must be at least 3 characters.");
+        }
+        if (
+          identity.documentType === "GHANA_CARD" &&
+          !/^GHA-\d{9}-\d$/.test(identity.idNumber.trim())
+        ) {
+          throw new Error("Ghana Card number must match GHA-XXXXXXXXX-X.");
+        }
+        if (identity.documentType === "DRIVERS_LICENSE" && !identity.dateOfBirth) {
+          throw new Error("Date of birth is required for driver's licence verification.");
+        }
+
         formData.append("documentType", identity.documentType);
-        formData.append("idNumber", identity.idNumber);
-        formData.append("fullName", identity.fullName);
+        formData.append("idNumber", identity.idNumber.trim());
+        formData.append("fullName", identity.fullName.trim());
         if (identity.dateOfBirth) formData.append("dateOfBirth", identity.dateOfBirth);
         if (!idFront || !idBack || !facePhoto) {
           throw new Error("ID front, ID back, and face photo are required.");

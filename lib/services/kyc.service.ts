@@ -36,7 +36,11 @@ import {
 import { validateBankAccountWithPaystack } from "@/lib/integrations/kyc/paystack-bank-validation";
 import { isPaystackConfigured } from "@/lib/integrations/paystack/config";
 import { withProfileImageVersion } from "@/lib/utils/profile-image";
-import { requiresEmploymentDocuments } from "@/lib/constants/employment-status";
+import {
+  isEmploymentRecorded,
+  requiresEmploymentDocuments,
+} from "@/lib/constants/employment-status";
+import { getUserDisplayName as resolveUserDisplayName } from "@/lib/services/verification-notifications";
 
 function maskAccountNumber(accountNumber: string) {
   if (accountNumber.length <= 4) return accountNumber;
@@ -108,6 +112,31 @@ async function notifyAdmins(
   metadata?: Record<string, unknown>
 ) {
   await notifyAllAdminsInAppAndEmail(title, body, metadata);
+}
+
+async function getUserContactLines(userId: string) {
+  const [user, displayName] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, phone: true, role: true },
+    }),
+    resolveUserDisplayName(userId),
+  ]);
+
+  const lines = [
+    displayName ? `Name: ${displayName}` : null,
+    user?.email ? `Email: ${user.email}` : null,
+    user?.phone ? `Phone: ${user.phone}` : null,
+    user?.role ? `Role: ${user.role}` : null,
+  ].filter(Boolean);
+
+  return {
+    displayName: displayName ?? user?.email ?? "User",
+    email: user?.email ?? null,
+    phone: user?.phone ?? null,
+    role: user?.role ?? null,
+    summary: lines.join(" · "),
+  };
 }
 
 async function saveVerificationDocuments(
@@ -330,6 +359,7 @@ export class KycService {
 
     await this.setProfilePendingIdentity(userId, role, input.idNumber);
 
+    const contact = await getUserContactLines(userId);
     await notifyUser(
       userId,
       "Identity submitted for review",
@@ -337,9 +367,9 @@ export class KycService {
     );
 
     await notifyAdmins(
-      "New KYC submission",
-      `${input.fullName} (${role}) submitted identity documents for manual review.`,
-      { verificationId: verification.id, userId, role }
+      "New identity verification submission",
+      `${contact.summary} submitted identity documents (${input.documentType.replace(/_/g, " ").toLowerCase()}) for manual review.`,
+      { verificationId: verification.id, userId, role, type: "IDENTITY" }
     );
 
     await auditService.log({
@@ -442,6 +472,7 @@ export class KycService {
       });
     }
 
+    const contact = await getUserContactLines(userId);
     await notifyUser(
       userId,
       "Business verification submitted",
@@ -449,9 +480,9 @@ export class KycService {
     );
 
     await notifyAdmins(
-      "New KYB submission",
-      `${input.companyName} (${role}) submitted company registration documents for manual review.`,
-      { verificationId: verification.id, userId, role }
+      "New business verification submission",
+      `${contact.summary} submitted company registration documents for manual review.`,
+      { verificationId: verification.id, userId, role, type: "KYB" }
     );
 
     await auditService.log({
@@ -522,16 +553,16 @@ export class KycService {
 
     await this.updateRoleProfile(userId, role, { staffId: input.staffId });
 
-    const displayName = await this.getUserDisplayName(userId, role);
+    const contact = await getUserContactLines(userId);
     await notifyUser(
       userId,
       "Employment documents submitted",
       "Your employment letter and staff ID have been submitted and are pending administrator review."
     );
     await notifyAdmins(
-      "New employment verification",
-      `${displayName ?? "A user"} (${role}) submitted employment documents for manual review.`,
-      { verificationId: verification.id, userId, role }
+      "New employment verification submission",
+      `${contact.summary} submitted employment documents for manual review.`,
+      { verificationId: verification.id, userId, role, type: "EMPLOYMENT" }
     );
 
     await auditService.log({
@@ -601,16 +632,16 @@ export class KycService {
       });
     }
 
-    const displayName = await this.getUserDisplayName(userId, role);
+    const contact = await getUserContactLines(userId);
     await notifyUser(
       userId,
       "Address documents submitted",
       "Your address proof has been submitted and is pending administrator review."
     );
     await notifyAdmins(
-      "New address verification",
-      `${displayName ?? "A user"} (${role}) submitted address proof for manual review.`,
-      { verificationId: verification.id, userId, role }
+      "New address verification submission",
+      `${contact.summary} submitted address proof for manual review.`,
+      { verificationId: verification.id, userId, role, type: "ADDRESS" }
     );
 
     await auditService.log({
@@ -980,6 +1011,14 @@ export class KycService {
             : role === "LENDER"
               ? lender?.staffId ?? null
               : agent?.staffId ?? null,
+      nationalId:
+        role === "TENANT"
+          ? tenant?.nationalId ?? null
+          : role === "LANDLORD"
+            ? landlord?.nationalId ?? null
+            : role === "LENDER"
+              ? lender?.nationalId ?? null
+              : null,
       employmentVerified:
         role === "TENANT"
           ? (tenant?.employmentVerified ?? false)
@@ -1139,7 +1178,38 @@ export class KycService {
       entityId: verificationId,
     });
 
+    await this.maybeNotifyFullKycVerification(verification.userId, role);
+
     return verification;
+  }
+
+  private isKycFullyVerified(
+    status: Awaited<ReturnType<KycService["getVerificationStatus"]>>
+  ) {
+    const profileComplete = ["PROFILE_COMPLETED", "KYC_PENDING", "KYC_VERIFIED"].includes(
+      status.profileStatus
+    );
+    const identityOk = Boolean(status.identityVerified);
+    const addressOk = Boolean(status.addressVerified);
+    const employmentOk = isEmploymentRecorded(
+      status.employmentStatus,
+      profileComplete,
+      status.employmentVerified
+    );
+
+    return identityOk && addressOk && employmentOk;
+  }
+
+  private async maybeNotifyFullKycVerification(userId: string, role: UserRole) {
+    const status = await this.getVerificationStatus(userId, role);
+    if (!this.isKycFullyVerified(status)) return;
+
+    const contact = await getUserContactLines(userId);
+    await notifyUser(
+      userId,
+      "Account fully verified",
+      `Congratulations${contact.displayName ? `, ${contact.displayName}` : ""}! Your identity, employment, and address verifications are complete. Your PayRent account is now fully verified.`
+    );
   }
 
   async rejectIdentityVerification(
@@ -1361,7 +1431,9 @@ export class KycService {
       include: {
         user: {
           select: {
+            id: true;
             email: true;
+            phone: true;
             role: true;
             tenant: {
               select: {
@@ -1421,7 +1493,9 @@ export class KycService {
       include: {
         user: {
           select: {
+            id: true,
             email: true,
+            phone: true,
             role: true,
             tenant: {
               select: {

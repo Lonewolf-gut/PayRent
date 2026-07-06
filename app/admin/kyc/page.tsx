@@ -1,11 +1,19 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { KYC_DOCUMENT_LABELS, UTILITY_BILL_LABELS } from "@/lib/constants/financing-docs";
 import { getEmploymentStatusLabel } from "@/lib/constants/employment-status";
+import { getProfileDisplayName } from "@/lib/utils/display-name";
 import { toast } from "sonner";
 
 type KycDocument = {
@@ -15,37 +23,48 @@ type KycDocument = {
   fileUrl: string;
 };
 
+type ReviewUser = {
+  id: string;
+  email: string;
+  phone?: string | null;
+  role: string;
+  tenant?: {
+    fullName?: string | null;
+    companyName?: string | null;
+    entityType?: string | null;
+    employmentStatus?: string | null;
+    occupation?: string | null;
+    employerName?: string | null;
+  } | null;
+  landlord?: {
+    fullName?: string | null;
+    companyName?: string | null;
+    entityType?: string | null;
+    employmentStatus?: string | null;
+    occupation?: string | null;
+    employerName?: string | null;
+  } | null;
+  lender?: {
+    fullName?: string | null;
+    employmentStatus?: string | null;
+    lenderType?: string | null;
+    institutionName?: string | null;
+  } | null;
+  agentProfile?: {
+    fullName?: string | null;
+    employmentStatus?: string | null;
+  } | null;
+};
+
 type ReviewItem = {
   id: string;
+  userId: string;
   type: string;
   status: string;
   providerName?: string | null;
   providerReference?: string | null;
   failureReason?: string | null;
-  user?: {
-    email: string;
-    role: string;
-    tenant?: {
-      employmentStatus?: string | null;
-      occupation?: string | null;
-      employerName?: string | null;
-      entityType?: string | null;
-    } | null;
-    landlord?: {
-      employmentStatus?: string | null;
-      occupation?: string | null;
-      employerName?: string | null;
-      entityType?: string | null;
-    } | null;
-    lender?: {
-      employmentStatus?: string | null;
-      lenderType?: string | null;
-      institutionName?: string | null;
-    } | null;
-    agentProfile?: {
-      employmentStatus?: string | null;
-    } | null;
-  };
+  user?: ReviewUser;
   documents?: KycDocument[];
   data?: {
     bankAccountId?: string;
@@ -65,6 +84,14 @@ type ReviewItem = {
     billType?: string;
     employmentStatus?: string;
   };
+};
+
+type UserReviewGroup = {
+  userId: string;
+  user: ReviewUser;
+  displayName: string;
+  reviews: ReviewItem[];
+  pendingCount: number;
 };
 
 function getReviewEmploymentContext(review: ReviewItem) {
@@ -93,16 +120,58 @@ function getReviewEmploymentContext(review: ReviewItem) {
 function reviewTypeLabel(type: string) {
   switch (type) {
     case "KYB":
-      return "Business verification (KYB)";
+      return "Business (KYB)";
     case "EMPLOYMENT":
-      return "Employment verification";
+      return "Employment";
     case "ADDRESS":
-      return "Address verification";
+      return "Residential address";
     case "BANK":
-      return "Bank account validation";
+      return "Bank account";
     default:
-      return "Identity verification (KYC)";
+      return "Identity (KYC)";
   }
+}
+
+function getUserDisplayNameFromReview(user: ReviewUser) {
+  const roleProfile = user.tenant ?? user.landlord ?? user.lender ?? user.agentProfile;
+  const entityType = user.tenant?.entityType ?? user.landlord?.entityType ?? "INDIVIDUAL";
+  const companyName = user.tenant?.companyName ?? user.landlord?.companyName ?? null;
+
+  return (
+    getProfileDisplayName({
+      entityType,
+      fullName: roleProfile?.fullName ?? null,
+      companyName,
+    }) ?? user.email
+  );
+}
+
+function groupReviewsByUser(reviews: ReviewItem[]): UserReviewGroup[] {
+  const groups = new Map<string, UserReviewGroup>();
+
+  for (const review of reviews) {
+    const user = review.user;
+    if (!user) continue;
+
+    const existing = groups.get(review.userId);
+    if (existing) {
+      existing.reviews.push(review);
+      if (review.status === "PENDING") existing.pendingCount += 1;
+      continue;
+    }
+
+    groups.set(review.userId, {
+      userId: review.userId,
+      user,
+      displayName: getUserDisplayNameFromReview(user),
+      reviews: [review],
+      pendingCount: review.status === "PENDING" ? 1 : 0,
+    });
+  }
+
+  return Array.from(groups.values()).sort((a, b) =>
+    a.displayName.localeCompare(b.displayName)
+  );
 }
 
 function DocumentPreview({ doc }: { doc: KycDocument }) {
@@ -118,13 +187,13 @@ function DocumentPreview({ doc }: { doc: KycDocument }) {
         <img
           src={doc.fileUrl}
           alt={label}
-          className="max-h-48 rounded-md border object-contain"
+          className="max-h-40 rounded-md border object-contain"
         />
       ) : isPdf ? (
         <iframe
           src={doc.fileUrl}
           title={label}
-          className="h-48 w-full rounded-md border bg-muted/20"
+          className="h-40 w-full rounded-md border bg-muted/20"
         />
       ) : null}
       <div className="flex flex-wrap gap-3">
@@ -148,6 +217,140 @@ function DocumentPreview({ doc }: { doc: KycDocument }) {
   );
 }
 
+function ReviewDetail({
+  review,
+  onValidateBank,
+  onApprove,
+  onReject,
+  isApproving,
+  isRejecting,
+  isValidating,
+}: {
+  review: ReviewItem;
+  onValidateBank: (bankAccountId: string) => void;
+  onApprove: (verificationId: string) => void;
+  onReject: (verificationId: string) => void;
+  isApproving: boolean;
+  isRejecting: boolean;
+  isValidating: boolean;
+}) {
+  const employment = getReviewEmploymentContext(review);
+
+  return (
+    <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-medium">{reviewTypeLabel(review.type)}</p>
+          {employment.employmentStatus ? (
+            <p className="text-sm text-muted-foreground">
+              Employment: {getEmploymentStatusLabel(employment.employmentStatus)}
+              {employment.occupation ? ` · ${employment.occupation}` : ""}
+              {employment.employerName ? ` · ${employment.employerName}` : ""}
+            </p>
+          ) : null}
+        </div>
+        <StatusBadge status={review.status} />
+      </div>
+
+      {review.type === "EMPLOYMENT" ? (
+        <div className="text-sm">
+          {review.data?.employerName ? (
+            <p className="font-medium">{review.data.employerName}</p>
+          ) : null}
+          {review.data?.occupation ? (
+            <p className="text-muted-foreground">Occupation: {review.data.occupation}</p>
+          ) : null}
+          {review.data?.staffId ? (
+            <p className="text-muted-foreground">Staff ID: {review.data.staffId}</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {review.type === "ADDRESS" ? (
+        <div className="text-sm">
+          <p className="font-medium">{review.data?.address}</p>
+          {review.data?.billType ? (
+            <p className="text-muted-foreground">
+              Bill type: {UTILITY_BILL_LABELS[review.data.billType] ?? review.data.billType}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {review.data?.entityType === "COMPANY" || review.type === "KYB" ? (
+        <div className="text-sm">
+          <p className="font-medium">{review.data?.companyName}</p>
+          <p className="text-muted-foreground">
+            Reg. {review.data?.companyRegistrationNumber}
+            {review.data?.companyTin ? ` · TIN ${review.data.companyTin}` : ""}
+          </p>
+          <p className="text-muted-foreground">{review.data?.companyRegisteredAddress}</p>
+          <p className="text-muted-foreground">Contact: {review.data?.fullName}</p>
+        </div>
+      ) : review.data?.fullName ? (
+        <p className="text-sm">
+          {review.data.fullName}
+          {review.data.documentType ? ` · ${review.data.documentType.replace(/_/g, " ")}` : ""}
+          {review.data.idNumber || review.data.ghanaCardNumber
+            ? ` · ${review.data.idNumber ?? review.data.ghanaCardNumber}`
+            : ""}
+        </p>
+      ) : null}
+
+      {review.failureReason ? (
+        <p className="text-sm text-amber-700">{review.failureReason}</p>
+      ) : null}
+
+      {review.documents?.length ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {review.documents.map((doc) => (
+            <DocumentPreview key={doc.id} doc={doc} />
+          ))}
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap gap-2">
+        {review.type === "BANK" &&
+          review.data?.bankAccountId &&
+          review.status === "PENDING" && (
+            <Button
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-700"
+              disabled={isValidating}
+              onClick={() => onValidateBank(review.data!.bankAccountId!)}
+            >
+              Validate bank account
+            </Button>
+          )}
+        {(review.type === "IDENTITY" ||
+          review.type === "KYB" ||
+          review.type === "EMPLOYMENT" ||
+          review.type === "ADDRESS") &&
+          review.status === "PENDING" && (
+            <>
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700"
+                disabled={isApproving}
+                onClick={() => onApprove(review.id)}
+              >
+                Approve
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isRejecting}
+                onClick={() => onReject(review.id)}
+              >
+                Reject
+              </Button>
+            </>
+          )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminKycPage() {
   const queryClient = useQueryClient();
 
@@ -159,6 +362,11 @@ export default function AdminKycPage() {
       return (json.data ?? []) as ReviewItem[];
     },
   });
+
+  const groupedReviews = useMemo(
+    () => groupReviewsByUser(reviews ?? []),
+    [reviews]
+  );
 
   const validateMutation = useMutation({
     mutationFn: async (bankAccountId: string) => {
@@ -219,133 +427,70 @@ export default function AdminKycPage() {
       <div>
         <h1 className="text-2xl font-bold">KYC / KYB review queue</h1>
         <p className="text-muted-foreground">
-          Review identity, employment, address, and business documents submitted by users. Admins are
-          notified in-app and by email when new submissions arrive.
+          Pending verifications are grouped by user. Open a row to review identity,
+          employment, address, or business documents and approve or reject each type.
         </p>
       </div>
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>
-      ) : !reviews?.length ? (
+      ) : !groupedReviews.length ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             No pending KYC or KYB submissions.
           </CardContent>
         </Card>
       ) : (
-        reviews.map((review) => (
-          <Card key={review.id}>
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div className="space-y-2">
-                <CardTitle className="text-base">{reviewTypeLabel(review.type)}</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {review.user?.email} · {review.user?.role}
-                </p>
-                {(() => {
-                  const employment = getReviewEmploymentContext(review);
-                  if (!employment.employmentStatus) return null;
-                  return (
-                    <p className="text-sm text-muted-foreground">
-                      Employment: {getEmploymentStatusLabel(employment.employmentStatus)}
-                      {employment.occupation ? ` · ${employment.occupation}` : ""}
-                      {employment.employerName ? ` · ${employment.employerName}` : ""}
-                    </p>
-                  );
-                })()}
-                {review.type === "EMPLOYMENT" ? (
-                  <div className="text-sm">
-                    {review.data?.employerName ? (
-                      <p className="font-medium">{review.data.employerName}</p>
-                    ) : null}
-                    {review.data?.occupation ? (
-                      <p className="text-muted-foreground">Occupation: {review.data.occupation}</p>
-                    ) : null}
-                    {review.data?.staffId ? (
-                      <p className="text-muted-foreground">Staff ID: {review.data.staffId}</p>
-                    ) : null}
-                  </div>
-                ) : null}
-                {review.type === "ADDRESS" ? (
-                  <div className="text-sm">
-                    <p className="font-medium">{review.data?.address}</p>
-                    {review.data?.billType ? (
-                      <p className="text-muted-foreground">
-                        Bill type:{" "}
-                        {UTILITY_BILL_LABELS[review.data.billType] ?? review.data.billType}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-                {review.data?.entityType === "COMPANY" || review.type === "KYB" ? (
-                  <div className="text-sm">
-                    <p className="font-medium">{review.data?.companyName}</p>
-                    <p className="text-muted-foreground">
-                      Reg. {review.data?.companyRegistrationNumber}
-                      {review.data?.companyTin ? ` · TIN ${review.data.companyTin}` : ""}
-                    </p>
-                    <p className="text-muted-foreground">{review.data?.companyRegisteredAddress}</p>
-                    <p className="text-muted-foreground">Contact: {review.data?.fullName}</p>
-                  </div>
-                ) : review.data?.fullName ? (
-                  <p className="text-sm">
-                    {review.data.fullName}
-                    {review.data.documentType ? ` · ${review.data.documentType}` : ""}
-                    {review.data.idNumber || review.data.ghanaCardNumber
-                      ? ` · ${review.data.idNumber ?? review.data.ghanaCardNumber}`
-                      : ""}
-                  </p>
-                ) : null}
-                {review.failureReason ? (
-                  <p className="text-sm text-amber-700">{review.failureReason}</p>
-                ) : null}
-              </div>
-              <StatusBadge status={review.status} />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {review.documents?.length ? (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {review.documents.map((doc) => (
-                    <DocumentPreview key={doc.id} doc={doc} />
-                  ))}
-                </div>
-              ) : null}
-              <div className="flex flex-wrap gap-2">
-                {review.type === "BANK" &&
-                  review.data?.bankAccountId &&
-                  review.status === "PENDING" && (
-                    <Button
-                      size="sm"
-                      className="bg-emerald-600 hover:bg-emerald-700"
-                      onClick={() => validateMutation.mutate(review.data!.bankAccountId!)}
-                    >
-                      Validate bank account
-                    </Button>
-                  )}
-                {(review.type === "IDENTITY" ||
-                  review.type === "KYB" ||
-                  review.type === "EMPLOYMENT" ||
-                  review.type === "ADDRESS") &&
-                  review.status === "PENDING" && (
-                    <>
-                      <Button
-                        size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700"
-                        onClick={() => approveIdentityMutation.mutate(review.id)}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => rejectIdentityMutation.mutate(review.id)}
-                      >
-                        Reject
-                      </Button>
-                    </>
-                  )}
-              </div>
-            </CardContent>
-          </Card>
-        ))
+        <Card>
+          <CardContent className="p-0">
+            <Accordion type="single" collapsible>
+              {groupedReviews.map((group) => (
+                <AccordionItem
+                  key={group.userId}
+                  value={group.userId}
+                  className="border-b px-4 last:border-b-0"
+                >
+                  <AccordionTrigger className="py-4 hover:no-underline">
+                    <div className="flex flex-1 flex-col gap-1 pr-4 text-left sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0 space-y-1">
+                        <p className="truncate font-medium">{group.displayName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {group.user.email}
+                          {group.user.phone ? ` · ${group.user.phone}` : ""}
+                          {" · "}
+                          {group.user.role}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {group.reviews
+                            .map((review) => reviewTypeLabel(review.type))
+                            .join(" · ")}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2 pt-1 sm:pt-0">
+                        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                          {group.pendingCount} pending
+                        </span>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 pb-5">
+                    {group.reviews.map((review) => (
+                      <ReviewDetail
+                        key={review.id}
+                        review={review}
+                        onValidateBank={(id) => validateMutation.mutate(id)}
+                        onApprove={(id) => approveIdentityMutation.mutate(id)}
+                        onReject={(id) => rejectIdentityMutation.mutate(id)}
+                        isApproving={approveIdentityMutation.isPending}
+                        isRejecting={rejectIdentityMutation.isPending}
+                        isValidating={validateMutation.isPending}
+                      />
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

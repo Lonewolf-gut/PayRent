@@ -83,12 +83,18 @@ export const identityDocumentTypeSchema = z.enum([
   "DRIVERS_LICENSE",
 ]);
 
+const requiredTrimmedText = (min: number, label: string) =>
+  z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.string().min(min, `${label} must be at least ${min} characters.`)
+  );
+
 export const identityVerifySchema = z
   .object({
     entityType: entityTypeSchema.default("INDIVIDUAL"),
     documentType: identityDocumentTypeSchema.default("GHANA_CARD"),
-    idNumber: z.string().min(3),
-    fullName: z.string().min(2),
+    idNumber: requiredTrimmedText(3, "ID number"),
+    fullName: requiredTrimmedText(2, "Full name"),
     dateOfBirth: z.preprocess(emptyToUndefined, z.string().optional()),
   })
   .superRefine((data, ctx) => {
