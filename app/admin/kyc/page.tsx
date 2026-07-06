@@ -1,16 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { KYC_DOCUMENT_LABELS, UTILITY_BILL_LABELS } from "@/lib/constants/financing-docs";
 import { getEmploymentStatusLabel } from "@/lib/constants/employment-status";
 import { getProfileDisplayName } from "@/lib/utils/display-name";
@@ -353,6 +355,7 @@ function ReviewDetail({
 
 export default function AdminKycPage() {
   const queryClient = useQueryClient();
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const { data: reviews, isLoading } = useQuery({
     queryKey: ["admin-kyc"],
@@ -367,6 +370,17 @@ export default function AdminKycPage() {
     () => groupReviewsByUser(reviews ?? []),
     [reviews]
   );
+
+  const selectedGroup = useMemo(
+    () => groupedReviews.find((group) => group.userId === selectedUserId) ?? null,
+    [groupedReviews, selectedUserId]
+  );
+
+  useEffect(() => {
+    if (selectedUserId && !selectedGroup) {
+      setSelectedUserId(null);
+    }
+  }, [selectedUserId, selectedGroup]);
 
   const validateMutation = useMutation({
     mutationFn: async (bankAccountId: string) => {
@@ -427,8 +441,8 @@ export default function AdminKycPage() {
       <div>
         <h1 className="text-2xl font-bold">KYC / KYB review queue</h1>
         <p className="text-muted-foreground">
-          Pending verifications are grouped by user. Open a row to review identity,
-          employment, address, or business documents and approve or reject each type.
+          Pending verifications are grouped by user. Select a row to open the review
+          panel and approve or reject each verification type.
         </p>
       </div>
       {isLoading ? (
@@ -441,57 +455,79 @@ export default function AdminKycPage() {
         </Card>
       ) : (
         <Card>
-          <CardContent className="p-0">
-            <Accordion type="single" collapsible>
-              {groupedReviews.map((group) => (
-                <AccordionItem
-                  key={group.userId}
-                  value={group.userId}
-                  className="border-b px-4 last:border-b-0"
-                >
-                  <AccordionTrigger className="py-4 hover:no-underline">
-                    <div className="flex flex-1 flex-col gap-1 pr-4 text-left sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0 space-y-1">
-                        <p className="truncate font-medium">{group.displayName}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {group.user.email}
-                          {group.user.phone ? ` · ${group.user.phone}` : ""}
-                          {" · "}
-                          {group.user.role}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {group.reviews
-                            .map((review) => reviewTypeLabel(review.type))
-                            .join(" · ")}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2 pt-1 sm:pt-0">
-                        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
-                          {group.pendingCount} pending
-                        </span>
-                      </div>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-4 pb-5">
-                    {group.reviews.map((review) => (
-                      <ReviewDetail
-                        key={review.id}
-                        review={review}
-                        onValidateBank={(id) => validateMutation.mutate(id)}
-                        onApprove={(id) => approveIdentityMutation.mutate(id)}
-                        onReject={(id) => rejectIdentityMutation.mutate(id)}
-                        isApproving={approveIdentityMutation.isPending}
-                        isRejecting={rejectIdentityMutation.isPending}
-                        isValidating={validateMutation.isPending}
-                      />
-                    ))}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+          <CardContent className="divide-y p-0">
+            {groupedReviews.map((group) => (
+              <button
+                key={group.userId}
+                type="button"
+                onClick={() => setSelectedUserId(group.userId)}
+                className="flex w-full items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-muted/40"
+              >
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="truncate font-medium">{group.displayName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {group.user.email}
+                    {group.user.phone ? ` · ${group.user.phone}` : ""}
+                    {" · "}
+                    {group.user.role}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {group.reviews.map((review) => reviewTypeLabel(review.type)).join(" · ")}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                    {group.pendingCount} pending
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </button>
+            ))}
           </CardContent>
         </Card>
       )}
+
+      <Sheet
+        open={Boolean(selectedGroup)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedUserId(null);
+        }}
+      >
+        <SheetContent side="right" className="w-full gap-0 p-0 sm:max-w-2xl">
+          {selectedGroup ? (
+            <>
+              <SheetHeader className="border-b px-6 py-5 pr-14">
+                <SheetTitle>{selectedGroup.displayName}</SheetTitle>
+                <SheetDescription className="space-y-1">
+                  <span className="block">
+                    {selectedGroup.user.email}
+                    {selectedGroup.user.phone ? ` · ${selectedGroup.user.phone}` : ""}
+                  </span>
+                  <span className="block">
+                    {selectedGroup.user.role} · {selectedGroup.pendingCount} pending review
+                    {selectedGroup.pendingCount === 1 ? "" : "s"}
+                  </span>
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+                {selectedGroup.reviews.map((review) => (
+                  <ReviewDetail
+                    key={review.id}
+                    review={review}
+                    onValidateBank={(id) => validateMutation.mutate(id)}
+                    onApprove={(id) => approveIdentityMutation.mutate(id)}
+                    onReject={(id) => rejectIdentityMutation.mutate(id)}
+                    isApproving={approveIdentityMutation.isPending}
+                    isRejecting={rejectIdentityMutation.isPending}
+                    isValidating={validateMutation.isPending}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
