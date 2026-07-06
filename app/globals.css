@@ -201,4 +201,14 @@
     margin-bottom: calc(var(--spacing) * 4);
   }
 
+  [data-sonner-toaster] [data-sonner-toast] {
+    background-color: #fff !important;
+    color: oklch(0.32 0.08 160) !important;
+    border-color: oklch(0.9 0.03 156) !important;
+  }
+
+  [data-sonner-toaster] [data-sonner-toast] [data-icon] {
+    color: oklch(0.5 0.07 160) !important;
+  }
+
 }
