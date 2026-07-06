@@ -24,7 +24,13 @@ function formatTrialEndDate(value?: string | null) {
   return format(date, "MMM d, yyyy");
 }
 
-export function TrialStatusBanner({ className }: { className?: string }) {
+export function TrialStatusBanner({
+  className,
+  fullWidth = false,
+}: {
+  className?: string;
+  fullWidth?: boolean;
+}) {
   const { data: session } = useSession();
   const role = session?.user?.role;
   const showTrialUi = role ? roleRequiresSubscription(role) : false;
@@ -48,12 +54,18 @@ export function TrialStatusBanner({ className }: { className?: string }) {
       ? Math.max(0, differenceInCalendarDays(new Date(access.trialEndsAt), new Date()))
       : 0;
 
+  const bannerShellClass = cn(
+    "w-full border-2 px-4 py-3.5 text-sm sm:px-6",
+    fullWidth ? "rounded-none border-x-0" : "mb-4 rounded-xl",
+    className
+  );
+
   if (access.trialActive) {
     return (
       <div
         className={cn(
-          "mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100",
-          className
+          bannerShellClass,
+          "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-100"
         )}
       >
         <div className="flex flex-wrap items-start gap-3">
@@ -88,8 +100,8 @@ export function TrialStatusBanner({ className }: { className?: string }) {
     return (
       <div
         className={cn(
-          "mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100",
-          className
+          bannerShellClass,
+          "border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100"
         )}
       >
         <div className="flex flex-wrap items-start gap-3">
