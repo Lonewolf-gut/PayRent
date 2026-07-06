@@ -182,7 +182,7 @@ function DocumentPreview({ doc }: { doc: KycDocument }) {
   const isPdf = /\.pdf$/i.test(doc.fileName);
 
   return (
-    <div className="space-y-2 rounded-lg border p-3">
+    <div className="space-y-2 border p-3">
       <p className="text-sm font-medium">{label}</p>
       {isImage ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -239,7 +239,7 @@ function ReviewDetail({
   const employment = getReviewEmploymentContext(review);
 
   return (
-    <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
+    <div className="space-y-4 border bg-muted/20 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="font-medium">{reviewTypeLabel(review.type)}</p>
@@ -495,7 +495,7 @@ export default function AdminKycPage() {
       >
         <SheetContent
           side="right"
-          className="w-[calc(100vw-1rem)] max-w-none gap-0 p-0 sm:max-w-none lg:w-[calc(100vw-16rem)]"
+          className="w-[calc(100vw-1rem)] max-w-none gap-0 rounded-none p-0 sm:max-w-none lg:w-[calc(100vw-16rem)]"
         >
           {selectedGroup ? (
             <>
