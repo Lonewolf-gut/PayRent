@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getPostLoginRoute } from "@/lib/auth/permissions";
+import { ADMIN_HOME_PATH } from "@/lib/auth/route-guards";
 import { stripSensitiveQueryParams } from "@/lib/utils/api-message";
 import { getSignInErrorMessage } from "@/lib/utils/auth-toast-messages";
 import type { UserRole } from "@prisma/client";
@@ -57,6 +58,19 @@ export default function LoginForm({ adminMode = false }: LoginFormProps) {
     stripSensitiveQueryParams();
   }, []);
 
+  useEffect(() => {
+    if (!adminMode || loading) return;
+
+    fetch("/api/auth/session")
+      .then((res) => res.json())
+      .then((session) => {
+        if (session?.user?.role === "ADMIN") {
+          router.replace(ADMIN_HOME_PATH);
+        }
+      })
+      .catch(() => undefined);
+  }, [adminMode, router]);
+
   const onSubmit = async (data: LoginInput) => {
     setLoading(true);
     const toastId = toast.loading(needs2Fa ? "Verifying code…" : "Signing you in…");
@@ -85,11 +99,12 @@ export default function LoginForm({ adminMode = false }: LoginFormProps) {
       const res = await fetch("/api/auth/session");
       const session = await res.json();
       toast.success("Signed in successfully.", { id: toastId });
-      router.push(
-        session?.user?.role
+      const destination = adminMode
+        ? ADMIN_HOME_PATH
+        : session?.user?.role
           ? getPostLoginRoute(session.user.role as UserRole)
-          : callbackUrl
-      );
+          : callbackUrl;
+      router.push(destination);
       router.refresh();
     } catch (error) {
       const isNetworkError =

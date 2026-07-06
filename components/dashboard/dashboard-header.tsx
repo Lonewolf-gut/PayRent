@@ -231,7 +231,7 @@ export function AdminDashboardHeader({
             variant="outline"
             size="sm"
             className="hidden rounded-none sm:inline-flex"
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={() => signOut({ callbackUrl: "/admin/login" })}
           >
             Sign out
           </Button>
@@ -240,7 +240,7 @@ export function AdminDashboardHeader({
             size="icon-sm"
             className="rounded-none sm:hidden"
             aria-label="Sign out"
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={() => signOut({ callbackUrl: "/admin/login" })}
           >
             <LogOut className="h-4 w-4" />
           </Button>

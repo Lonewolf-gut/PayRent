@@ -1,9 +1,17 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { getPostLoginRoute } from "@/lib/auth/permissions";
 import { Navbar } from "@/components/rentvest/navbar";
 
-export default function MarketingLayout({
+export default async function MarketingLayout({
   children,
 }: { children: React.ReactNode }) {
+  const session = await auth();
+  if (session?.user?.role === "ADMIN") {
+    redirect(getPostLoginRoute("ADMIN"));
+  }
+
   return (
     <>
       <Navbar />

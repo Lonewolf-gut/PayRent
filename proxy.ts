@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
+import {
+  ADMIN_HOME_PATH,
+  isMarketingPath,
+  isNonAdminDashboardPath,
+  isPublicAuthPath,
+} from "@/lib/auth/route-guards";
 
 const publicRoutes = [
   "/",
@@ -28,10 +35,23 @@ function hasAuthCookie(req: NextRequest) {
   return authCookieNames.some((name) => !!req.cookies.get(name)?.value);
 }
 
-export function proxy(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { nextUrl } = req;
   const isLoggedIn = hasAuthCookie(req);
   const pathname = nextUrl.pathname;
+
+  const token = isLoggedIn
+    ? await getToken({
+        req,
+        secret: process.env.AUTH_SECRET,
+        cookieName:
+          process.env.NODE_ENV === "production"
+            ? "__Secure-authjs.session-token"
+            : "authjs.session-token",
+      })
+    : null;
+  const role = token?.role as string | undefined;
+  const isAdmin = role === "ADMIN";
 
   const isPublic = publicRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
@@ -41,8 +61,23 @@ export function proxy(req: NextRequest) {
 
   if (isApiRoute) return NextResponse.next();
 
+  if (isAdmin) {
+    if (pathname === "/admin/login") {
+      return NextResponse.redirect(new URL(ADMIN_HOME_PATH, nextUrl));
+    }
+
+    if (
+      isMarketingPath(pathname) ||
+      isPublicAuthPath(pathname) ||
+      isNonAdminDashboardPath(pathname)
+    ) {
+      return NextResponse.redirect(new URL(ADMIN_HOME_PATH, nextUrl));
+    }
+  }
+
   if (isAuthRoute && isLoggedIn) {
-    return NextResponse.redirect(new URL("/dashboard", nextUrl));
+    const destination = isAdmin ? ADMIN_HOME_PATH : "/dashboard";
+    return NextResponse.redirect(new URL(destination, nextUrl));
   }
 
   if (!isPublic && !isLoggedIn) {
