@@ -14,6 +14,7 @@ import {
   TwoFactorRequiredError,
   DatabaseUnavailableError,
 } from "@/lib/auth/sign-in-errors";
+import { logLoginAttempt } from "@/lib/auth/login-log";
 
 declare module "next-auth" {
   interface Session {
@@ -85,10 +86,12 @@ export const authConfig: NextAuthConfig = {
         }
 
         if (!user.isActive) {
+          await logLoginAttempt(user.id, false);
           throw new AccountSuspendedError();
         }
 
         if (user.lockedUntil && user.lockedUntil > new Date()) {
+          await logLoginAttempt(user.id, false);
           throw new AccountLockedError();
         }
 
@@ -105,6 +108,7 @@ export const authConfig: NextAuthConfig = {
                   : undefined,
             },
           });
+          await logLoginAttempt(user.id, false);
           if (failedCount >= 5) {
             throw new AccountLockedError();
           }
@@ -120,6 +124,7 @@ export const authConfig: NextAuthConfig = {
           try {
             await twoFactorService.validateToken(user.id, String(credentials.otp));
           } catch {
+            await logLoginAttempt(user.id, false);
             throw new InvalidTwoFactorError();
           }
         }
@@ -128,6 +133,8 @@ export const authConfig: NextAuthConfig = {
           where: { id: user.id },
           data: { failedLoginCount: 0, lockedUntil: null },
         });
+
+        await logLoginAttempt(user.id, true);
 
         return {
           id: user.id,
