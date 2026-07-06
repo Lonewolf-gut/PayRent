@@ -65,12 +65,18 @@ export function TrialStatusBanner({
       setDismissed(false);
       return;
     }
-    setDismissed(localStorage.getItem(dismissKey) === "true");
+    setDismissed(sessionStorage.getItem(dismissKey) === "true");
   }, [dismissKey]);
+
+  useEffect(() => {
+    if (sessionStorage.getItem("fresh-dashboard-login") === "1") {
+      setDismissed(false);
+    }
+  }, [dismissKey, access?.trialEndsAt, bannerKind]);
 
   const dismissBanner = () => {
     if (!dismissKey) return;
-    localStorage.setItem(dismissKey, "true");
+    sessionStorage.setItem(dismissKey, "true");
     setDismissed(true);
   };
 

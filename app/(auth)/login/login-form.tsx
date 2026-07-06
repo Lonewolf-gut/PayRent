@@ -99,6 +99,7 @@ export default function LoginForm({ adminMode = false }: LoginFormProps) {
       const res = await fetch("/api/auth/session");
       const session = await res.json();
       toast.success("Signed in successfully.", { id: toastId });
+      sessionStorage.setItem("fresh-dashboard-login", "1");
       const destination = adminMode
         ? ADMIN_HOME_PATH
         : session?.user?.role

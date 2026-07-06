@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import {
+  deriveAccountStatusLabel,
+  type VerificationStatusSnapshot,
+} from "@/lib/utils/account-verification";
 import type { UserRole } from "@prisma/client";
 
 const KYC_ROUTES: Partial<Record<UserRole, string>> = {
@@ -13,37 +17,10 @@ const KYC_ROUTES: Partial<Record<UserRole, string>> = {
   LENDER: "/dashboard/lender/kyc",
 };
 
-type KycStatus = {
-  profileStatus?: string;
-  kycVerified?: boolean;
-  identityVerified?: boolean;
-  verifications?: { type: string; status: string }[];
-  bankAccounts?: { isVerified?: boolean; validationStatus?: string }[];
-};
+type KycStatus = VerificationStatusSnapshot;
 
 function deriveAccountStatus(status?: KycStatus) {
-  if (!status) {
-    return { label: "Unverified", className: "bg-amber-100 text-amber-800" };
-  }
-
-  const profileComplete =
-    status.profileStatus === "PROFILE_COMPLETED" || status.profileStatus === "KYC_VERIFIED";
-  const identityVerified = Boolean(status.kycVerified || status.identityVerified);
-  const identityPending =
-    status.verifications?.some((v) => v.type === "IDENTITY" && v.status === "PENDING") ?? false;
-  const bankVerified = status.bankAccounts?.some((b) => b.isVerified) ?? false;
-  const bankPending =
-    status.bankAccounts?.some((b) => b.validationStatus === "PENDING") ?? false;
-
-  if (profileComplete && identityVerified && bankVerified) {
-    return { label: "Verified", className: "bg-emerald-100 text-emerald-800" };
-  }
-
-  if (identityPending || bankPending) {
-    return { label: "Pending", className: "bg-sky-100 text-sky-800" };
-  }
-
-  return { label: "Unverified", className: "bg-amber-100 text-amber-800" };
+  return deriveAccountStatusLabel(status);
 }
 
 export function AccountVerificationBadge() {

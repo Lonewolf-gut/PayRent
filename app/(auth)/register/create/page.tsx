@@ -125,6 +125,7 @@ export default function RegisterCreatePage() {
       toast.success("Welcome! Your account is ready — verify your email to continue.", {
         id: toastId,
       });
+      sessionStorage.setItem("fresh-dashboard-login", "1");
       router.push("/verify-email");
       router.refresh();
     } catch {
