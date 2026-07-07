@@ -2,7 +2,9 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
 const navItems = [
   { href: "/dashboard/agent", label: "Overview", icon: "Home" as const },
-  { href: "/dashboard/agent/listings", label: "Assigned Listings", icon: "Building2" as const },
+  { href: "/dashboard/agent/listings", label: "My Listings", icon: "Building2" as const },
+  { href: "/dashboard/agent/promote", label: "Promote & Links", icon: "Share2" as const },
+  { href: "/dashboard/agent/earnings", label: "Commissions", icon: "Coins" as const },
   { href: "/dashboard/agent/applications", label: "Applications", icon: "FileText" as const },
   { href: "/dashboard/agent/messages", label: "Messages", icon: "MessageSquare" as const },
   { href: "/dashboard/agent/wallet", label: "Wallet", icon: "Wallet" as const },

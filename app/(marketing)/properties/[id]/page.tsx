@@ -25,6 +25,7 @@ import { PropertyLocationSheet, PropertyLocationTrigger } from "@/components/pro
 import { PropertySpecsGrid } from "@/components/properties/property-specs-grid";
 import { SimilarPropertiesSection } from "@/components/properties/similar-properties";
 import { PropertyActionPanel } from "@/components/properties/property-action-panel";
+import { AgentReferralTracker } from "@/components/properties/agent-referral-tracker";
 import { buildPropertySpecs } from "@/lib/utils/property-specs";
 import { isEmploymentRecorded } from "@/lib/constants/employment-status";
 import { isSaleListing } from "@/lib/subscription-limits";
@@ -154,6 +155,7 @@ export default function PropertyDetailPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+      <AgentReferralTracker />
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <PropertyImageGallery images={images} title={property.name} />

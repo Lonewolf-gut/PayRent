@@ -3,6 +3,7 @@ import { createApplicationSchema } from "@/lib/validations/application";
 import { applicationService } from "@/lib/services/application.service";
 import { prisma } from "@/lib/db/prisma";
 import { apiResponse, withAuth } from "@/lib/api/handler";
+import { getReferralAgentProfileId } from "@/lib/utils/agent-referral-request";
 
 export const GET = withAuth(
   async (_req: NextRequest, _ctx, session) => {
@@ -51,10 +52,13 @@ export const POST = withAuth(
     });
     if (!tenant) return apiResponse(null, 403, "Tenant profile required.");
 
+    const referredAgentProfileId = await getReferralAgentProfileId(req);
+
     const application = await applicationService.create(
       tenant.id,
       session.user.id,
-      parsed.data
+      parsed.data,
+      referredAgentProfileId
     );
 
     return apiResponse(application, 201, "Application submitted.");

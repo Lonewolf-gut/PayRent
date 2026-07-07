@@ -5,7 +5,12 @@ import { AppError } from "@/lib/errors";
 import type { CreateApplicationInput, ReviewApplicationInput } from "@/lib/validations/application";
 
 export class ApplicationService {
-  async create(tenantId: string, userId: string, input: CreateApplicationInput) {
+  async create(
+    tenantId: string,
+    userId: string,
+    input: CreateApplicationInput,
+    referredAgentProfileId?: string | null
+  ) {
     const property = await prisma.property.findUnique({
       where: { id: input.propertyId },
       include: {
@@ -33,6 +38,7 @@ export class ApplicationService {
       data: {
         propertyId: input.propertyId,
         tenantId,
+        referredAgentProfileId: referredAgentProfileId ?? undefined,
         status: "SUBMITTED",
         requestedMoveInDate: input.requestedMoveInDate
           ? new Date(input.requestedMoveInDate)

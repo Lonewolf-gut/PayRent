@@ -3,6 +3,7 @@ import { financingRequestSchema } from "@/lib/validations/financing";
 import { financingService } from "@/lib/services/financing.service";
 import { prisma } from "@/lib/db/prisma";
 import { apiResponse, withAuth } from "@/lib/api/handler";
+import { getReferralAgentProfileId } from "@/lib/utils/agent-referral-request";
 export const GET = withAuth(
   async (req: NextRequest, _ctx, session) => {
     if (session.user.role === "LENDER") {
@@ -49,13 +50,16 @@ export const POST = withAuth(
     });
     if (!tenant) return apiResponse({ error: "Tenant profile required" }, 403);
 
+    const referredAgentProfileId = await getReferralAgentProfileId(req);
+
     const request = await financingService.createRequest(
       tenant.id,
       parsed.data.propertyId,
       parsed.data.requestedAmount,
       parsed.data.durationMonths,
       parsed.data.notes,
-      parsed.data.applicationId
+      parsed.data.applicationId,
+      referredAgentProfileId
     );
 
     return apiResponse(request, 201);

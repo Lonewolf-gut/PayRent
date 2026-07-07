@@ -228,6 +228,11 @@ enum TransactionType {
   INSTALLMENT
 }
 
+enum AgentEarningType {
+  SALE
+  FINANCING
+}
+
 enum TransactionStatus {
   PENDING
   PROCESSING
@@ -459,6 +464,10 @@ model AgentProfile {
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   properties Property[] @relation("AssignedAgent")
+  referralLinks AgentReferralLink[]
+  earnings   AgentEarning[]
+  referredApplications PropertyApplication[]
+  referredFinancingRequests FinancingRequest[]
 }
 
 model Property {
@@ -498,6 +507,8 @@ model Property {
   savedBy           SavedProperty[]
   applications      PropertyApplication[]
   views             PropertyView[]
+  referralLinks     AgentReferralLink[]
+  agentEarnings     AgentEarning[]
 
   @@index([landlordId])
   @@index([agentUserId])
@@ -566,6 +577,44 @@ model PropertyView {
   @@index([userId])
 }
 
+model AgentReferralLink {
+  id             String   @id @default(cuid())
+  agentProfileId String
+  propertyId     String?
+  code           String   @unique
+  label          String?
+  clickCount     Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  agent    AgentProfile @relation(fields: [agentProfileId], references: [id], onDelete: Cascade)
+  property Property?    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([agentProfileId])
+  @@index([propertyId])
+}
+
+model AgentEarning {
+  id                  String           @id @default(cuid())
+  agentProfileId      String
+  propertyId          String
+  type                AgentEarningType
+  amount              Decimal          @db.Decimal(14, 2)
+  grossAmount         Decimal          @db.Decimal(14, 2)
+  commissionRate      Decimal          @db.Decimal(5, 2)
+  reference           String
+  applicationId       String?
+  financingRequestId  String?
+  walletTransactionId String?
+  createdAt           DateTime         @default(now())
+
+  agent    AgentProfile @relation(fields: [agentProfileId], references: [id], onDelete: Cascade)
+  property Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([agentProfileId])
+  @@index([propertyId])
+  @@index([createdAt])
+}
+
 model Subscription {
   id           String             @id @default(cuid())
   userId       String
@@ -627,26 +676,29 @@ model WalletTransaction {
 }
 
 model PropertyApplication {
-  id                  String            @id @default(cuid())
-  propertyId          String
-  tenantId            String
-  status              ApplicationStatus @default(DRAFT)
-  requestedMoveInDate DateTime?
-  notes               String?
-  reviewedBy          String?
-  reviewedAt          DateTime?
-  decisionReason      String?
-  withdrawnAt         DateTime?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  id                     String            @id @default(cuid())
+  propertyId             String
+  tenantId               String
+  referredAgentProfileId String?
+  status                 ApplicationStatus @default(DRAFT)
+  requestedMoveInDate    DateTime?
+  notes                  String?
+  reviewedBy             String?
+  reviewedAt             DateTime?
+  decisionReason         String?
+  withdrawnAt            DateTime?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
 
   property          Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  referredAgent     AgentProfile?      @relation(fields: [referredAgentProfileId], references: [id], onDelete: SetNull)
   documents         ApplicationDocument[]
   financingRequests FinancingRequest[]
 
   @@index([tenantId, status])
   @@index([propertyId, status])
+  @@index([referredAgentProfileId])
 }
 
 model ApplicationDocument {
@@ -663,11 +715,12 @@ model ApplicationDocument {
 }
 
 model FinancingRequest {
-  id              String          @id @default(cuid())
-  tenantId        String
-  propertyId      String
-  applicationId   String?
-  mandateId       String?         @unique
+  id                     String          @id @default(cuid())
+  tenantId               String
+  propertyId             String
+  applicationId          String?
+  referredAgentProfileId String?
+  mandateId              String?         @unique
   requestedAmount Decimal         @db.Decimal(14, 2)
   approvedAmount  Decimal?        @db.Decimal(14, 2)
   durationMonths  Int
@@ -683,6 +736,7 @@ model FinancingRequest {
   tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   property      Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   application   PropertyApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  referredAgent AgentProfile?        @relation(fields: [referredAgentProfileId], references: [id], onDelete: SetNull)
   mandate       Mandate?             @relation(fields: [mandateId], references: [id], onDelete: SetNull)
   investment    Investment?
   repaymentPlan RepaymentPlan?

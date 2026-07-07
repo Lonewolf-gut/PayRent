@@ -17,6 +17,8 @@ import {
   DollarSign,
   BarChart3,
   Crown,
+  Share2,
+  Coins,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,6 +39,8 @@ const ICONS: Record<string, LucideIcon> = {
   DollarSign,
   BarChart3,
   Crown,
+  Share2,
+  Coins,
 };
 
 export interface NavItem {

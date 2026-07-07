@@ -6,6 +6,8 @@ import { settlementService } from "@/lib/services/settlement.service";
 import { AppError } from "@/lib/errors";
 import type { ApproveFinancingInput } from "@/lib/validations/financing";
 import { tenantFinancingDocService } from "@/lib/services/tenant-financing-doc.service";
+import { agentCommissionService } from "@/lib/services/agent-commission.service";
+import { calculateAgentCommission } from "@/lib/constants/agent-commission";
 
 export class FinancingService {
   private async assertEligibility(tenantId: string) {
@@ -30,7 +32,8 @@ export class FinancingService {
     requestedAmount: number,
     durationMonths: number,
     notes?: string,
-    applicationId?: string
+    applicationId?: string,
+    referredAgentProfileId?: string | null
   ) {
     await this.assertEligibility(tenantId);
     await tenantFinancingDocService.assertFinancingDocsApproved(tenantId);
@@ -53,18 +56,48 @@ export class FinancingService {
       throw new AppError("Property not available", 400);
     }
 
-    return prisma.financingRequest.create({
+    const agentAttribution =
+      referredAgentProfileId ?? application.referredAgentProfileId ?? undefined;
+
+    const request = await prisma.financingRequest.create({
       data: {
         tenantId,
         propertyId,
         applicationId,
+        referredAgentProfileId: agentAttribution,
         requestedAmount: new Prisma.Decimal(requestedAmount),
         durationMonths,
         notes,
         status: "MANDATE_PENDING",
       },
-      include: { property: true, tenant: { include: { user: true } }, application: true },
+      include: {
+        property: {
+          include: {
+            assignedAgent: { include: { user: { select: { id: true } } } },
+          },
+        },
+        tenant: { include: { user: true } },
+        application: true,
+      },
     });
+
+    const notifyAgentId =
+      agentAttribution &&
+      (await prisma.agentProfile.findUnique({
+        where: { id: agentAttribution },
+        select: { userId: true },
+      }));
+
+    if (notifyAgentId) {
+      await notificationService.create({
+        userId: notifyAgentId.userId,
+        title: "Financing request from your promotion",
+        body: `A tenant requested financing for ${request.property.name} through your referral.`,
+        metadata: { propertyId, financingRequestId: request.id },
+      });
+    }
+
+    return request;
   }
 
   async approveRequest(lenderId: string, input: ApproveFinancingInput) {
@@ -72,7 +105,12 @@ export class FinancingService {
       where: { id: input.financingRequestId },
       include: {
         tenant: { include: { user: true } },
-        property: { include: { landlord: { include: { user: true } } } },
+        property: {
+          include: {
+            landlord: { include: { user: true } },
+            assignedAgent: { include: { user: true } },
+          },
+        },
         mandate: true,
       },
     });
@@ -107,15 +145,36 @@ export class FinancingService {
     endDate.setMonth(endDate.getMonth() + request.durationMonths);
 
     const landlordUserId = request.property.landlord.userId;
+    const commissionAgent = await agentCommissionService.resolveCommissionAgent(
+      request.propertyId,
+      request.referredAgentProfileId
+    );
+    const agentCommission = commissionAgent
+      ? calculateAgentCommission(input.amount)
+      : 0;
+    const landlordNet = input.amount - agentCommission;
 
     await walletService.transfer(
       lender.userId,
       "LENDER",
       landlordUserId,
       "LANDLORD",
-      input.amount,
+      landlordNet,
       `Financing disbursement for ${request.property.name}`
     );
+
+    if (commissionAgent && agentCommission > 0) {
+      await walletService.transfer(
+        landlordUserId,
+        "LANDLORD",
+        commissionAgent.user.id,
+        "AGENT",
+        agentCommission,
+        `Agent commission for financing: ${request.property.name}`
+      );
+    }
+
+    const reference = `FIN-${input.financingRequestId.slice(0, 8).toUpperCase()}`;
 
     const result = await runTransaction(async (db) => {
       const investment = await db.investment.create({
@@ -168,6 +227,34 @@ export class FinancingService {
 
       return { investment, repaymentPlan };
     });
+
+    if (commissionAgent && agentCommission > 0) {
+      await prisma.agentEarning.create({
+        data: {
+          agentProfileId: commissionAgent.id,
+          propertyId: request.propertyId,
+          type: "FINANCING",
+          amount: new Prisma.Decimal(agentCommission),
+          grossAmount: new Prisma.Decimal(input.amount),
+          commissionRate: new Prisma.Decimal(
+            Number(process.env.AGENT_COMMISSION_PERCENT ?? "2.5")
+          ),
+          reference,
+          financingRequestId: request.id,
+        },
+      });
+
+      await notificationService.create({
+        userId: commissionAgent.user.id,
+        title: "Financing commission earned",
+        body: `You earned GHS ${agentCommission.toLocaleString()} commission on financing for "${request.property.name}".`,
+        metadata: {
+          propertyId: request.propertyId,
+          financingRequestId: request.id,
+          commission: agentCommission,
+        },
+      });
+    }
 
     await settlementService.createFromFinancing(request.id, lender.userId);
 

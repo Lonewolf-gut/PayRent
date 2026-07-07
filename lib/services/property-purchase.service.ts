@@ -2,14 +2,18 @@ import { Prisma } from "@prisma/client";
 import { prisma, runTransaction } from "@/lib/db/prisma";
 import { walletService } from "@/lib/services/wallet.service";
 import { notificationService } from "@/lib/services/notification.service";
+import { agentCommissionService } from "@/lib/services/agent-commission.service";
+import { calculateAgentCommission } from "@/lib/constants/agent-commission";
 import { AppError } from "@/lib/errors";
 import { isSaleListing } from "@/lib/subscription-limits";
 import { v4 as uuidv4 } from "uuid";
 
-const AGENT_COMMISSION_RATE = Number(process.env.AGENT_COMMISSION_PERCENT ?? "2.5") / 100;
-
 export class PropertyPurchaseService {
-  async purchase(tenantUserId: string, propertyId: string) {
+  async purchase(
+    tenantUserId: string,
+    propertyId: string,
+    referredAgentProfileId?: string | null
+  ) {
     const tenant = await prisma.tenant.findUnique({ where: { userId: tenantUserId } });
     if (!tenant) throw new AppError("Tenant profile required", 403);
 
@@ -41,18 +45,22 @@ export class PropertyPurchaseService {
       );
     }
 
+    const commissionAgent = await agentCommissionService.resolveCommissionAgent(
+      propertyId,
+      referredAgentProfileId
+    );
+
     const landlordWallet = await walletService.getOrCreateWallet(
       property.landlord.userId,
       "LANDLORD"
     );
-    const agentWallet =
-      property.assignedAgent && property.agentUserId
-        ? await walletService.getOrCreateWallet(property.assignedAgent.userId, "AGENT")
-        : null;
+    const agentWallet = commissionAgent
+      ? await walletService.getOrCreateWallet(commissionAgent.user.id, "AGENT")
+      : null;
 
     const agentCommission =
-      agentWallet && property.agentUserId
-        ? Math.round(price * AGENT_COMMISSION_RATE * 100) / 100
+      agentWallet && commissionAgent
+        ? calculateAgentCommission(price)
         : 0;
     const landlordNet = price - agentCommission;
     const reference = `BUY-${uuidv4().slice(0, 8).toUpperCase()}`;
@@ -79,6 +87,9 @@ export class PropertyPurchaseService {
           netAmount: new Prisma.Decimal(price),
           reference,
           description: `Purchase: ${property.name}`,
+          metadata: referredAgentProfileId
+            ? { referredAgentProfileId }
+            : undefined,
         },
       });
 
@@ -96,25 +107,22 @@ export class PropertyPurchaseService {
         },
       });
 
-      if (agentWallet && agentCommission > 0) {
-        await db.wallet.update({
-          where: { id: agentWallet.id },
-          data: { balance: { increment: agentCommission } },
-        });
-
-        await db.walletTransaction.create({
-          data: {
-            walletId: agentWallet.id,
-            type: "COMMISSION",
-            status: "COMPLETED",
-            amount: new Prisma.Decimal(agentCommission),
-            fee: 0,
-            commission: 0,
-            netAmount: new Prisma.Decimal(agentCommission),
-            reference: `${reference}-AG`,
-            description: `Commission: ${property.name}`,
+      if (agentWallet && commissionAgent && agentCommission > 0) {
+        await agentCommissionService.recordCommission(
+          db,
+          commissionAgent.id,
+          agentWallet.id,
+          commissionAgent.user.id,
+          {
+            agentProfileId: commissionAgent.id,
+            propertyId,
+            propertyName: property.name,
+            grossAmount: price,
+            type: "SALE",
+            reference,
           },
-        });
+          agentCommission
+        );
       }
 
       await db.property.update({
@@ -132,15 +140,19 @@ export class PropertyPurchaseService {
       metadata: { propertyId, reference: result.reference },
     });
 
-    if (property.assignedAgent) {
+    if (commissionAgent && agentCommission > 0) {
       await notificationService.create({
-        userId: property.assignedAgent.userId,
+        userId: commissionAgent.user.id,
         title: "Sale commission earned",
-        body:
-          agentCommission > 0
-            ? `You earned GHS ${agentCommission.toLocaleString()} commission on "${property.name}".`
-            : `"${property.name}" was sold. Thank you for promoting this listing.`,
+        body: `You earned GHS ${agentCommission.toLocaleString()} commission on "${property.name}".`,
         metadata: { propertyId, commission: agentCommission },
+      });
+    } else if (commissionAgent) {
+      await notificationService.create({
+        userId: commissionAgent.user.id,
+        title: "Promoted listing sold",
+        body: `"${property.name}" was sold through your promotion.`,
+        metadata: { propertyId },
       });
     }
 
