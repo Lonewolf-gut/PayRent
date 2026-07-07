@@ -30,6 +30,7 @@ export const RESIDENTIAL_TYPES: PropertyType[] = [
   "TOWNHOUSE",
   "STUDIO",
   "COMMERCIAL",
+  "LAND",
 ];
 
 export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
@@ -39,6 +40,7 @@ export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   TOWNHOUSE: "Townhouse",
   STUDIO: "Studio / Room",
   COMMERCIAL: "Commercial space",
+  LAND: "Land",
   CAR: "Car",
   APPLIANCE: "Home appliance",
 };

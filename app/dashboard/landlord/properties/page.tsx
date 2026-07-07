@@ -25,6 +25,19 @@ import { getApiErrorMessage, readApiJson } from "@/lib/utils/api-message";
 import { useSubscriptionUpgradePrompt } from "@/components/dashboard/use-subscription-upgrade-prompt";
 import { PropertyCategorySelect } from "@/components/dashboard/PropertyCategorySelect";
 import { AgentSearchField } from "@/components/dashboard/AgentSearchField";
+import { PropertyAmenityChips } from "@/components/properties/property-amenity-chips";
+import { PropertyAttributeFields } from "@/components/properties/property-attribute-fields";
+import {
+  PropertyLocationFields,
+  emptyPropertyLocation,
+  type PropertyLocationForm,
+} from "@/components/properties/property-location-fields";
+import {
+  emptyAttributesForType,
+  getAmenitiesForType,
+  parseAttributesJson,
+  type PropertyAttributes,
+} from "@/lib/constants/property-listing";
 import {
   getCategoryForType,
   isSaleListing,
@@ -45,8 +58,6 @@ export default function LandlordPropertiesPage() {
   const [editImages, setEditImages] = useState<File[]>([]);
   const [mapUrl, setMapUrl] = useState("");
   const [editMapUrl, setEditMapUrl] = useState("");
-  const [locationQuery, setLocationQuery] = useState("");
-  const [editLocationQuery, setEditLocationQuery] = useState("");
   const [fileError, setFileError] = useState<string | null>(null);
   const [editFileError, setEditFileError] = useState<string | null>(null);
   const [addCategory, setAddCategory] = useState<PropertyCategory>("residential");
@@ -54,6 +65,18 @@ export default function LandlordPropertiesPage() {
   const [showAddMap, setShowAddMap] = useState(false);
   const [showEditMap, setShowEditMap] = useState(false);
   const [addAgentId, setAddAgentId] = useState<string | null>(null);
+  const [addLocation, setAddLocation] = useState<PropertyLocationForm>(emptyPropertyLocation());
+  const [editLocation, setEditLocation] = useState<PropertyLocationForm>(emptyPropertyLocation());
+  const [addAmenities, setAddAmenities] = useState<string[]>([]);
+  const [editAmenities, setEditAmenities] = useState<string[]>([]);
+  const [addAttributes, setAddAttributes] = useState<PropertyAttributes>(
+    emptyAttributesForType("APARTMENT")
+  );
+  const [editAttributes, setEditAttributes] = useState<PropertyAttributes>(
+    emptyAttributesForType("APARTMENT")
+  );
+  const [addSurveyPlan, setAddSurveyPlan] = useState<File | null>(null);
+  const [editSurveyPlan, setEditSurveyPlan] = useState<File | null>(null);
 
   const optionalNumberField = {
     setValueAs: (value: string) => {
@@ -107,35 +130,91 @@ export default function LandlordPropertiesPage() {
     },
   });
 
-  const locationField = addRegister("location");
-  const editLocationField = editRegister("location");
-  const googleMapQuery = mapUrl || locationQuery;
-  const editGoogleMapQuery = editMapUrl || editLocationQuery;
   const addPropertyType = (watchAdd("propertyType") ?? "APARTMENT") as PropertyType;
   const editPropertyType = (watchEdit("propertyType") ?? "APARTMENT") as PropertyType;
+  const googleMapQuery =
+    mapUrl ||
+    [addLocation.landmark, addLocation.area, addLocation.city, addLocation.region]
+      .filter(Boolean)
+      .join(", ");
+  const editGoogleMapQuery =
+    editMapUrl ||
+    [editLocation.landmark, editLocation.area, editLocation.city, editLocation.region]
+      .filter(Boolean)
+      .join(", ");
   const isAddSale = isSaleListing(addPropertyType);
   const isEditSale = isSaleListing(editPropertyType);
 
   const appendPropertyFields = (
     formData: FormData,
     data: LandlordPropertyInput,
-    isSale: boolean
+    isSale: boolean,
+    location: PropertyLocationForm,
+    amenities: string[],
+    attributes: PropertyAttributes,
+    surveyPlan?: File | null
   ) => {
     formData.append("name", data.name);
     formData.append("propertyType", data.propertyType);
     formData.append("monthlyRent", String(data.monthlyRent));
     if (!isSale) {
       formData.append("annualRent", String(data.annualRent));
-      formData.append("location", data.location ?? "");
-      if (data.latitude !== undefined) formData.append("latitude", String(data.latitude));
-      if (data.longitude !== undefined) formData.append("longitude", String(data.longitude));
+      formData.append("region", location.region);
+      formData.append("city", location.city);
+      formData.append("area", location.area);
+      formData.append("street", location.street);
+      formData.append("houseNumber", location.houseNumber);
+      formData.append("digitalAddress", location.digitalAddress);
+      formData.append("landmark", location.landmark);
+      if (data.location) formData.append("location", data.location);
+      const latitude = location.latitude
+        ? Number(location.latitude)
+        : data.latitude;
+      const longitude = location.longitude
+        ? Number(location.longitude)
+        : data.longitude;
+      if (latitude !== undefined && Number.isFinite(latitude)) {
+        formData.append("latitude", String(latitude));
+      }
+      if (longitude !== undefined && Number.isFinite(longitude)) {
+        formData.append("longitude", String(longitude));
+      }
     }
     if (isSale && data.discountedPrice != null && !Number.isNaN(data.discountedPrice)) {
       formData.append("discountedPrice", String(data.discountedPrice));
     }
     formData.append("description", data.description);
     if (data.availableFrom) formData.append("availableFrom", data.availableFrom);
+    if (getAmenitiesForType(data.propertyType as PropertyType).length > 0) {
+      formData.append("amenities", JSON.stringify(amenities));
+    }
+    formData.append("attributes", JSON.stringify(attributes));
+    if (surveyPlan) formData.append("surveyPlan", surveyPlan);
   };
+
+  useEffect(() => {
+    setAddAttributes(emptyAttributesForType(addPropertyType));
+    setAddAmenities([]);
+    setAddSurveyPlan(null);
+  }, [addPropertyType]);
+
+  useEffect(() => {
+    if (addLocation.latitude) {
+      setAddValue("latitude", Number(addLocation.latitude));
+    }
+    if (addLocation.longitude) {
+      setAddValue("longitude", Number(addLocation.longitude));
+    }
+  }, [addLocation.latitude, addLocation.longitude, setAddValue]);
+
+  useEffect(() => {
+    if (editLocation.latitude) {
+      setEditValue("latitude", Number(editLocation.latitude));
+    }
+    if (editLocation.longitude) {
+      setEditValue("longitude", Number(editLocation.longitude));
+    }
+  }, [editLocation.latitude, editLocation.longitude, setEditValue]);
 
   useEffect(() => {
     if (!mapUrl) {
@@ -146,6 +225,11 @@ export default function LandlordPropertiesPage() {
     if (coords) {
       setAddValue("latitude", Number(coords[1]));
       setAddValue("longitude", Number(coords[2]));
+      setAddLocation((current) => ({
+        ...current,
+        latitude: coords[1],
+        longitude: coords[2],
+      }));
     }
   }, [mapUrl, setAddValue]);
 
@@ -158,6 +242,11 @@ export default function LandlordPropertiesPage() {
     if (coords) {
       setEditValue("latitude", Number(coords[1]));
       setEditValue("longitude", Number(coords[2]));
+      setEditLocation((current) => ({
+        ...current,
+        latitude: coords[1],
+        longitude: coords[2],
+      }));
     }
   }, [editMapUrl, setEditValue]);
 
@@ -212,7 +301,15 @@ export default function LandlordPropertiesPage() {
     mutationFn: async (data: LandlordPropertyInput) => {
       const formData = new FormData();
       const isSale = isSaleListing(data.propertyType as PropertyType);
-      appendPropertyFields(formData, data, isSale);
+      appendPropertyFields(
+        formData,
+        data,
+        isSale,
+        addLocation,
+        addAmenities,
+        addAttributes,
+        addSurveyPlan
+      );
       if (!isSale && mapUrl) {
         formData.append("googleMapUrl", mapUrl);
       }
@@ -240,6 +337,10 @@ export default function LandlordPropertiesPage() {
       setImages([]);
       setMapUrl("");
       setAddAgentId(null);
+      setAddLocation(emptyPropertyLocation());
+      setAddAmenities([]);
+      setAddAttributes(emptyAttributesForType("APARTMENT"));
+      setAddSurveyPlan(null);
     },
     onError: (error: Error) => {
       const message = error?.message ?? "Failed to create property";
@@ -253,7 +354,15 @@ export default function LandlordPropertiesPage() {
     mutationFn: async (data: LandlordPropertyInput & { id: string }) => {
       const formData = new FormData();
       const isSale = isSaleListing(data.propertyType as PropertyType);
-      appendPropertyFields(formData, data, isSale);
+      appendPropertyFields(
+        formData,
+        data,
+        isSale,
+        editLocation,
+        editAmenities,
+        editAttributes,
+        editSurveyPlan
+      );
       if (!isSale && editMapUrl) {
         formData.append("googleMapUrl", editMapUrl);
       }
@@ -277,7 +386,10 @@ export default function LandlordPropertiesPage() {
       setEditingPropertyId(null);
       setEditImages([]);
       setEditMapUrl("");
-      setEditLocationQuery("");
+      setEditLocation(emptyPropertyLocation());
+      setEditAmenities([]);
+      setEditAttributes(emptyAttributesForType("APARTMENT"));
+      setEditSurveyPlan(null);
     },
     onError: (error: Error) => {
       toast.error(error?.message ?? "Failed to update property");
@@ -329,8 +441,25 @@ export default function LandlordPropertiesPage() {
     setShowForm(false);
     setEditImages([]);
     setEditMapUrl("");
-    setEditLocationQuery(isSaleListing(property.propertyType as PropertyType) ? "" : property.location ?? "");
-    setEditCategory(getCategoryForType(property.propertyType as PropertyType));
+    const propertyType = property.propertyType as PropertyType;
+    setEditCategory(getCategoryForType(propertyType));
+    setEditLocation({
+      region: property.region ?? "",
+      city: property.city ?? "",
+      area: property.area ?? "",
+      street: property.street ?? "",
+      houseNumber: property.houseNumber ?? "",
+      digitalAddress: property.digitalAddress ?? "",
+      landmark: property.landmark ?? "",
+      latitude: property.latitude != null ? String(property.latitude) : "",
+      longitude: property.longitude != null ? String(property.longitude) : "",
+    });
+    setEditAmenities(property.amenities ?? []);
+    setEditAttributes({
+      ...emptyAttributesForType(propertyType),
+      ...(parseAttributesJson(property.attributes) ?? {}),
+    });
+    setEditSurveyPlan(null);
     editForm.reset({
       name: property.name,
       propertyType: property.propertyType,
@@ -350,7 +479,10 @@ export default function LandlordPropertiesPage() {
     setEditingPropertyId(null);
     setEditImages([]);
     setEditMapUrl("");
-    setEditLocationQuery("");
+    setEditLocation(emptyPropertyLocation());
+    setEditAmenities([]);
+    setEditAttributes(emptyAttributesForType("APARTMENT"));
+    setEditSurveyPlan(null);
   };
 
   return (
@@ -427,21 +559,24 @@ export default function LandlordPropertiesPage() {
                 category={editCategory}
                 propertyType={editForm.watch("propertyType") as PropertyType}
                 onCategoryChange={setEditCategory}
-                onTypeChange={(type) => setEditValue("propertyType", type)}
+                onTypeChange={(type) => {
+                  setEditValue("propertyType", type);
+                  setEditAttributes(emptyAttributesForType(type));
+                  setEditAmenities([]);
+                  setEditSurveyPlan(null);
+                }}
               />
               {!isEditSale && (
                 <>
-                  <div className="sm:col-span-2">
-                    <Label>Location</Label>
-                    <Input
-                      {...editLocationField}
-                      value={editLocationQuery}
-                      onChange={(event) => {
-                        editLocationField.onChange(event);
-                        setEditLocationQuery(event.target.value);
-                      }}
+                  <div className="sm:col-span-2 space-y-2">
+                    <Label>Location details</Label>
+                    <PropertyLocationFields
+                      value={editLocation}
+                      onChange={setEditLocation}
                     />
-                    {editErrors.location && <p className="text-xs text-destructive">{editErrors.location.message}</p>}
+                    {editErrors.location && (
+                      <p className="text-xs text-destructive">{editErrors.location.message}</p>
+                    )}
                   </div>
                   <div className="sm:col-span-2">
                     <Label>Google Maps place or URL</Label>
@@ -510,6 +645,31 @@ export default function LandlordPropertiesPage() {
                   </div>
                 </>
               )}
+              <div className="sm:col-span-2 space-y-2">
+                <Label>Listing details</Label>
+                <PropertyAttributeFields
+                  propertyType={editPropertyType}
+                  attributes={editAttributes}
+                  onChange={setEditAttributes}
+                  surveyPlanFile={editSurveyPlan}
+                  onSurveyPlanChange={setEditSurveyPlan}
+                  existingSurveyPlanUrl={
+                    typeof editAttributes.surveyPlanUrl === "string"
+                      ? editAttributes.surveyPlanUrl
+                      : null
+                  }
+                />
+              </div>
+              {getAmenitiesForType(editPropertyType).length > 0 ? (
+                <div className="sm:col-span-2 space-y-2">
+                  <Label>Amenities</Label>
+                  <PropertyAmenityChips
+                    propertyType={editPropertyType}
+                    selected={editAmenities}
+                    onChange={setEditAmenities}
+                  />
+                </div>
+              ) : null}
               <div className="sm:col-span-2">
                 <Label>Description</Label>
                 <Textarea rows={4} {...editRegister("description")} />
@@ -592,20 +752,21 @@ export default function LandlordPropertiesPage() {
                 category={addCategory}
                 propertyType={(watchAdd("propertyType") ?? "APARTMENT") as PropertyType}
                 onCategoryChange={setAddCategory}
-                onTypeChange={(type) => setAddValue("propertyType", type)}
+                onTypeChange={(type) => {
+                  setAddValue("propertyType", type);
+                  setAddAttributes(emptyAttributesForType(type));
+                  setAddAmenities([]);
+                  setAddSurveyPlan(null);
+                }}
               />
               {!isAddSale && (
                 <>
-                  <div className="sm:col-span-2">
-                    <Label>Location</Label>
-                    <Input
-                      {...locationField}
-                      onChange={(event) => {
-                        locationField.onChange(event);
-                        setLocationQuery(event.target.value);
-                      }}
-                    />
-                    {addErrors.location && <p className="text-xs text-destructive">{addErrors.location.message}</p>}
+                  <div className="sm:col-span-2 space-y-2">
+                    <Label>Location details</Label>
+                    <PropertyLocationFields value={addLocation} onChange={setAddLocation} />
+                    {addErrors.location && (
+                      <p className="text-xs text-destructive">{addErrors.location.message}</p>
+                    )}
                   </div>
                   <div className="sm:col-span-2">
                     <Label>Google Maps place or URL</Label>
@@ -674,6 +835,26 @@ export default function LandlordPropertiesPage() {
                   </div>
                 </>
               )}
+              <div className="sm:col-span-2 space-y-2">
+                <Label>Listing details</Label>
+                <PropertyAttributeFields
+                  propertyType={addPropertyType}
+                  attributes={addAttributes}
+                  onChange={setAddAttributes}
+                  surveyPlanFile={addSurveyPlan}
+                  onSurveyPlanChange={setAddSurveyPlan}
+                />
+              </div>
+              {getAmenitiesForType(addPropertyType).length > 0 ? (
+                <div className="sm:col-span-2 space-y-2">
+                  <Label>Amenities</Label>
+                  <PropertyAmenityChips
+                    propertyType={addPropertyType}
+                    selected={addAmenities}
+                    onChange={setAddAmenities}
+                  />
+                </div>
+              ) : null}
               <div className="sm:col-span-2">
                 <Label>Description</Label>
                 <Textarea rows={4} {...addRegister("description")} />

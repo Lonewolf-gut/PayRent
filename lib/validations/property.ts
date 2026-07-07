@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { hasStructuredLocation } from "@/lib/utils/property-location";
 
 const PROPERTY_TYPES = [
   "APARTMENT",
@@ -7,6 +8,7 @@ const PROPERTY_TYPES = [
   "TOWNHOUSE",
   "STUDIO",
   "COMMERCIAL",
+  "LAND",
   "CAR",
   "APPLIANCE",
 ] as const;
@@ -39,6 +41,12 @@ const optionalDateTime = z.preprocess((val) => {
   return date.toISOString();
 }, z.string().datetime().optional());
 
+const optionalString = z.preprocess((val) => {
+  if (val === "" || val === null || val === undefined) return undefined;
+  const text = String(val).trim();
+  return text || undefined;
+}, z.string().optional());
+
 export const propertySchema = z
   .object({
     name: z.string().min(3, "Name must be at least 3 characters"),
@@ -47,10 +55,18 @@ export const propertySchema = z
     annualRent: optionalPositiveNumber(),
     discountedPrice: optionalPositiveNumber(),
     location: z.string().optional(),
+    region: optionalString,
+    city: optionalString,
+    area: optionalString,
+    street: optionalString,
+    houseNumber: optionalString,
+    digitalAddress: optionalString,
+    landmark: optionalString,
     latitude: z.number().optional(),
     longitude: z.number().optional(),
     description: z.string().min(20, "Description must be at least 20 characters"),
     amenities: z.array(z.string()).optional(),
+    attributes: z.record(z.string(), z.unknown()).optional(),
     availableFrom: optionalDateTime,
   })
   .superRefine((data, ctx) => {
@@ -70,10 +86,15 @@ export const propertySchema = z
       return;
     }
 
-    if (!data.location || data.location.trim().length < 5) {
+    const hasLocation =
+      hasStructuredLocation(data) ||
+      (data.location && data.location.trim().length >= 5);
+
+    if (!hasLocation) {
       ctx.addIssue({
         code: "custom",
-        message: "Location must be at least 5 characters",
+        message:
+          "Add structured location details (region, city, and area) or a location summary of at least 5 characters",
         path: ["location"],
       });
     }
@@ -98,14 +119,36 @@ export function parseOptionalFormNumber(value: FormDataEntryValue | null): numbe
 
 export function normalizePropertyPayload(data: z.infer<typeof propertySchema>) {
   const isSale = SALE_TYPES.has(data.propertyType);
+  const structuredLocation = [
+    data.houseNumber,
+    data.street,
+    data.area,
+    data.city,
+    data.region,
+    data.digitalAddress,
+    data.landmark,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const location = isSale
+    ? "Ghana"
+    : (structuredLocation || data.location || "").trim();
 
   return {
     ...data,
-    location: isSale ? "Ghana" : data.location!.trim(),
+    location,
     annualRent: isSale ? data.monthlyRent : data.annualRent!,
     discountedPrice: isSale && data.discountedPrice ? data.discountedPrice : null,
     latitude: isSale ? undefined : data.latitude,
     longitude: isSale ? undefined : data.longitude,
+    region: isSale ? undefined : data.region,
+    city: isSale ? undefined : data.city,
+    area: isSale ? undefined : data.area,
+    street: isSale ? undefined : data.street,
+    houseNumber: isSale ? undefined : data.houseNumber,
+    digitalAddress: isSale ? undefined : data.digitalAddress,
+    landmark: isSale ? undefined : data.landmark,
   };
 }
 

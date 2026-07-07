@@ -126,6 +126,7 @@ enum PropertyType {
   TOWNHOUSE
   STUDIO
   COMMERCIAL
+  LAND
   CAR
   APPLIANCE
 }
@@ -469,6 +470,10 @@ model Property {
   region          String?
   city            String?
   area            String?
+  street          String?
+  houseNumber     String?
+  digitalAddress  String?
+  landmark        String?
   monthlyRent     Decimal        @db.Decimal(12, 2)
   annualRent      Decimal        @db.Decimal(12, 2)
   discountedPrice Decimal?       @db.Decimal(12, 2)
@@ -477,6 +482,7 @@ model Property {
   longitude       Float?
   description     String         @db.Text
   amenities       String[]
+  attributes      Json?
   status          PropertyStatus @default(DRAFT)
   isPremium       Boolean        @default(false)
   availableFrom   DateTime?

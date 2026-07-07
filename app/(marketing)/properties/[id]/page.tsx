@@ -180,7 +180,19 @@ export default function PropertyDetailPage() {
             </div>
 
             {!isSale ? (
-              <p className="text-muted-foreground">{property.location}</p>
+              <p className="text-muted-foreground">
+                {[
+                  property.houseNumber,
+                  property.street,
+                  property.area,
+                  property.city,
+                  property.region,
+                  property.digitalAddress,
+                  property.landmark,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || property.location}
+              </p>
             ) : null}
 
             {isSale ? (

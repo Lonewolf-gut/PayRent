@@ -4,6 +4,8 @@ import { randomUUID } from "crypto";
 import type { Prisma, PropertyType } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { propertyFilterSchema, propertySchema, normalizePropertyPayload, parseOptionalFormNumber } from "@/lib/validations/property";
+import { parsePropertyFormData } from "@/lib/utils/property-form-payload";
+import { cleanAttributesForDb } from "@/lib/utils/property-form";
 import { propertyRepository } from "@/lib/repositories/property.repository";
 import { prisma } from "@/lib/db/prisma";
 import { auth } from "@/lib/auth";
@@ -23,6 +25,7 @@ import { getSubscriptionAccess } from "@/lib/subscription/access";
 import { roleHasFreePlatformAccess } from "@/lib/subscription/roles";
 import { assignAgentToProperty } from "@/lib/services/agent-assignment.service";
 import { firstZodIssueMessage } from "@/lib/validations/auth";
+import type { PropertyAttributes } from "@/lib/constants/property-listing";
 
 const saveUploadedFile = async (file: File, folder: string) => {
   const mimeMatch = file.type.match(/\/([a-z0-9]+)(?:;|$)/i);
@@ -156,30 +159,19 @@ export const POST = withAuth(
   async (req, _ctx, session) => {
     let parsed;
     let images: File[] = [];
+    let surveyPlanFile: File | null = null;
     let agentProfileId: string | undefined;
 
     if (req.headers.get("content-type")?.includes("multipart/form-data")) {
       const formData = await req.formData();
       agentProfileId = formData.get("agentUserId")?.toString() || undefined;
-      const discountedRaw = formData.get("discountedPrice");
-      const payload = {
-        name: formData.get("name")?.toString() ?? "",
-        propertyType: formData.get("propertyType")?.toString() ?? "",
-        monthlyRent: Number(formData.get("monthlyRent") ?? 0),
-        annualRent: parseOptionalFormNumber(formData.get("annualRent")),
-        discountedPrice: parseOptionalFormNumber(discountedRaw),
-        location: formData.get("location")?.toString() ?? "",
-        latitude: formData.get("latitude") ? Number(formData.get("latitude")) : undefined,
-        longitude: formData.get("longitude") ? Number(formData.get("longitude")) : undefined,
-        description: formData.get("description")?.toString() ?? "",
-        availableFrom: formData.get("availableFrom")?.toString(),
-        amenities: undefined,
-      };
-
-      parsed = propertySchema.safeParse(payload);
+      parsed = parsePropertyFormData(formData);
       images = formData.getAll("images").filter(
         (value): value is File => value instanceof File && Boolean(value.name)
       );
+      const rawSurveyPlan = formData.get("surveyPlan");
+      surveyPlanFile =
+        rawSurveyPlan instanceof File && rawSurveyPlan.name ? rawSurveyPlan : null;
     } else {
       const body = await req.json();
       agentProfileId = body.agentUserId;
@@ -210,18 +202,37 @@ export const POST = withAuth(
     );
 
     const normalized = normalizePropertyPayload(parsed.data);
+    let attributes = cleanAttributesForDb(
+      normalized.attributes as PropertyAttributes | undefined
+    );
+
+    if (surveyPlanFile) {
+      const surveyPlanUrl = await saveUploadedFile(surveyPlanFile, "documents");
+      attributes = {
+        ...(typeof attributes === "object" && attributes ? attributes : {}),
+        surveyPlanUrl,
+      };
+    }
 
     const propertyData: Prisma.PropertyCreateInput = {
       name: normalized.name,
-      propertyType: normalized.propertyType,
+      propertyType: normalized.propertyType as PropertyType,
       monthlyRent: normalized.monthlyRent,
       annualRent: normalized.annualRent,
       discountedPrice: normalized.discountedPrice ?? undefined,
       location: normalized.location,
+      region: normalized.region,
+      city: normalized.city,
+      area: normalized.area,
+      street: normalized.street,
+      houseNumber: normalized.houseNumber,
+      digitalAddress: normalized.digitalAddress,
+      landmark: normalized.landmark,
       latitude: normalized.latitude,
       longitude: normalized.longitude,
       description: normalized.description,
       amenities: normalized.amenities ?? [],
+      attributes,
       availableFrom: normalized.availableFrom
         ? new Date(normalized.availableFrom)
         : undefined,
