@@ -1,16 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-export function MessagesPanel() {
+export function MessagesPanel({
+  startRecipientId,
+}: {
+  startRecipientId?: string | null;
+}) {
   const [content, setContent] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!startRecipientId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipientId: startRecipientId,
+          content: "Hello, I'd like to continue our conversation here.",
+        }),
+      });
+      const json = await res.json();
+      if (!cancelled && json.success && json.data?.conversationId) {
+        setActiveId(json.data.conversationId);
+        queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [queryClient, startRecipientId]);
 
   const { data: conversations } = useQuery({
     queryKey: ["conversations"],

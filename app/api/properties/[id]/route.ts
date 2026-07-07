@@ -4,9 +4,11 @@ import { randomUUID } from "crypto";
 import type { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { propertyRepository } from "@/lib/repositories/property.repository";
+import { propertyDetailService } from "@/lib/services/property-detail.service";
 import { apiResponse, apiError, withAuth, withPublicHandler } from "@/lib/api/handler";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/db/prisma";
+import { resolveAppSession } from "@/lib/auth/resolve-session";
 import { propertySchema, normalizePropertyPayload, parseOptionalFormNumber } from "@/lib/validations/property";
 import { firstZodIssueMessage } from "@/lib/validations/auth";
 
@@ -22,9 +24,10 @@ const saveUploadedFile = async (file: File, folder: string) => {
   return `/uploads/properties/${folder}/${fileName}`;
 };
 
-export const GET = withPublicHandler(async (_req, context) => {
+export const GET = withPublicHandler(async (req, context) => {
   const { id } = await context.params;
-  const property = await propertyRepository.findById(id);
+  const session = await resolveAppSession(req);
+  const property = await propertyDetailService.getDetail(id, session?.user?.id ?? null);
   if (!property) return apiError(new AppError("Property not found", 404));
   return apiResponse(property);
 });

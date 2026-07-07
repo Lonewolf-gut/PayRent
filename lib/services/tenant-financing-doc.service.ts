@@ -45,6 +45,14 @@ export class TenantFinancingDocService {
     });
     if (!tenant) throw new AppError("Tenant profile required", 403);
 
+    if (!tenant.kycVerified) {
+      throw new AppError(
+        "Complete identity verification on your dashboard before uploading financing documents.",
+        403,
+        "KYC_REQUIRED"
+      );
+    }
+
     const requiredTypes = getRequiredFinancingDocTypes(tenant.entityType);
     if (!requiredTypes.includes(documentType)) {
       throw new AppError("This document is not required for your account type.", 400);
@@ -88,17 +96,48 @@ export class TenantFinancingDocService {
   }
 
   async listForAdmin(status?: "PENDING" | "APPROVED" | "REJECTED") {
-    return prisma.tenantFinancingDocument.findMany({
+    const docs = await prisma.tenantFinancingDocument.findMany({
       where: status ? { status } : undefined,
       include: {
         tenant: {
           include: {
-            user: { select: { id: true, email: true } },
+            user: { select: { id: true, email: true, phone: true } },
           },
         },
       },
       orderBy: { createdAt: "desc" },
     });
+
+    const userIds = [...new Set(docs.map((doc) => doc.tenant.userId))];
+    const [kycDocs, verifications] = await Promise.all([
+      userIds.length
+        ? prisma.kycDocument.findMany({
+            where: { userId: { in: userIds } },
+            orderBy: { createdAt: "desc" },
+          })
+        : Promise.resolve([]),
+      userIds.length
+        ? prisma.verification.findMany({
+            where: { userId: { in: userIds }, status: "APPROVED" },
+            orderBy: { createdAt: "desc" },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    return docs.map((doc) => ({
+      ...doc,
+      kycSummary: {
+        fullName: doc.tenant.fullName,
+        kycVerified: doc.tenant.kycVerified,
+        employmentVerified: doc.tenant.employmentVerified,
+        addressVerified: doc.tenant.addressVerified,
+        entityType: doc.tenant.entityType,
+        email: doc.tenant.user.email,
+        phone: doc.tenant.user.phone,
+        kycDocuments: kycDocs.filter((item) => item.userId === doc.tenant.userId),
+        verifications: verifications.filter((item) => item.userId === doc.tenant.userId),
+      },
+    }));
   }
 
   async review(

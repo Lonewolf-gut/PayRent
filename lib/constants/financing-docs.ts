@@ -5,14 +5,11 @@ export const FINANCING_DOC_LABELS: Record<TenantFinancingDocType, string> = {
   EMPLOYMENT_LETTER: "Employment letter",
   STAFF_ID: "Staff ID card",
   NATIONAL_ID: "National ID (front & back)",
-  BANK_STATEMENT: "Bank statement",
+  BANK_STATEMENT: "Bank statement (6–12 months)",
 };
 
 export const INDIVIDUAL_FINANCING_DOC_TYPES: TenantFinancingDocType[] = [
   "PAYSLIP",
-  "EMPLOYMENT_LETTER",
-  "STAFF_ID",
-  "NATIONAL_ID",
   "BANK_STATEMENT",
 ];
 

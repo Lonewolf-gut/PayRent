@@ -311,6 +311,7 @@ model User {
   bankAccounts      BankAccount[]
   withdrawalRequests WithdrawalRequest[]
   savedProperties   SavedProperty[]
+  propertyViews     PropertyView[]
   sessions          Session[]
   accounts          Account[]
   subscriptions     Subscription[]
@@ -490,6 +491,7 @@ model Property {
   financingRequests FinancingRequest[]
   savedBy           SavedProperty[]
   applications      PropertyApplication[]
+  views             PropertyView[]
 
   @@index([landlordId])
   @@index([agentUserId])
@@ -543,6 +545,19 @@ model SavedProperty {
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@unique([userId, propertyId])
+}
+
+model PropertyView {
+  id         String   @id @default(cuid())
+  propertyId String
+  userId     String?
+  createdAt  DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([propertyId])
+  @@index([userId])
 }
 
 model Subscription {
@@ -844,12 +859,13 @@ model ConversationParticipant {
 }
 
 model Message {
-  id             String        @id @default(cuid())
-  conversationId String
-  senderId       String
-  content        String        @db.Text
-  status         MessageStatus @default(SENT)
-  createdAt      DateTime      @default(now())
+  id                  String        @id @default(cuid())
+  conversationId      String
+  senderId            String
+  content             String        @db.Text
+  status              MessageStatus @default(SENT)
+  emailReminderSentAt DateTime?
+  createdAt           DateTime      @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)

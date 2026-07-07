@@ -4,6 +4,7 @@ const navItems = [
   { href: "/dashboard/tenant", label: "Overview", icon: "Home" as const },
   { href: "/dashboard/tenant/kyc", label: "Profile & KYC", icon: "Shield" as const },
   { href: "/dashboard/tenant/applications", label: "Applications", icon: "FileText" as const },
+  { href: "/dashboard/tenant/financing-documents", label: "Financing Docs", icon: "FileText" as const },
   { href: "/dashboard/tenant/properties", label: "Properties", icon: "Building2" as const },
   { href: "/dashboard/tenant/financing", label: "Pay for Rent", icon: "CreditCard" as const },
   { href: "/dashboard/tenant/mandates", label: "Mandates", icon: "DollarSign" as const },

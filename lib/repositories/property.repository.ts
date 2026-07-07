@@ -16,7 +16,11 @@ export class PropertyRepository {
             user: { select: { id: true, email: true, phone: true, image: true } },
           },
         },
-        landlord: { include: { user: { select: { email: true, image: true } } } },
+        landlord: {
+          include: {
+            user: { select: { id: true, email: true, phone: true, image: true } },
+          },
+        },
       },
     });
   }

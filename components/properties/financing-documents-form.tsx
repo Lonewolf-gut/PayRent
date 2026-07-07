@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,15 @@ import { FINANCING_DOC_LABELS } from "@/lib/constants/financing-docs";
 
 export function FinancingDocumentsForm() {
   const queryClient = useQueryClient();
+
+  const { data: kycStatus } = useQuery({
+    queryKey: ["kyc-status"],
+    queryFn: async () => {
+      const res = await fetch("/api/kyc");
+      const json = await res.json();
+      return json.data;
+    },
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["tenant-financing-docs"],
@@ -63,22 +73,34 @@ export function FinancingDocumentsForm() {
   const docsByType = new Map(
     (data?.documents ?? []).map((doc) => [doc.documentType, doc])
   );
+  const kycVerified = Boolean(kycStatus?.kycVerified);
 
   return (
     <div className="space-y-4">
+      {!kycVerified ? (
+        <div className="space-y-3 border border-amber-200 bg-amber-50 p-4 text-sm">
+          <p className="text-amber-900">
+            Complete identity verification before uploading financing documents.
+          </p>
+          <Button className="rounded-none" asChild>
+            <Link href="/dashboard/tenant/kyc">Go to verification</Link>
+          </Button>
+        </div>
+      ) : null}
+
       {data?.allApproved ? (
         <Badge className="bg-emerald-600">All financing documents approved</Badge>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Upload the documents below for admin review. If you are employed by an organization,
-          include your staff ID and employment letter. An admin must approve each document before
-          you can request financing.
+          Upload your current payslip and bank statements covering the last 6–12 months. An admin
+          will review them before you can request financing on a property.
         </p>
       )}
+
       {(data?.requiredTypes ?? []).map((type) => {
         const existing = docsByType.get(type);
         return (
-          <div key={type} className="space-y-2 rounded-lg border p-3">
+          <div key={type} className="space-y-2 border p-3">
             <div className="flex items-center justify-between gap-2">
               <Label htmlFor={`doc-${type}`}>{FINANCING_DOC_LABELS[type]}</Label>
               {existing ? (
@@ -99,12 +121,13 @@ export function FinancingDocumentsForm() {
               id={`doc-${type}`}
               type="file"
               accept=".pdf,image/*"
+              className="rounded-none"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) uploadMutation.mutate({ documentType: type, file });
                 e.target.value = "";
               }}
-              disabled={uploadMutation.isPending}
+              disabled={uploadMutation.isPending || !kycVerified}
             />
             {existing ? (
               <p className="text-xs text-muted-foreground">Uploaded: {existing.fileName}</p>
@@ -112,11 +135,6 @@ export function FinancingDocumentsForm() {
           </div>
         );
       })}
-      {!data?.allApproved ? (
-        <Button variant="outline" className="w-full" asChild>
-          <a href="/dashboard/tenant/kyc">Complete identity verification</a>
-        </Button>
-      ) : null}
     </div>
   );
 }
