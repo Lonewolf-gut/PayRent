@@ -1,16 +1,20 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { MessagesPanel } from "@/components/dashboard/messages-panel";
+import { Suspense } from "react";
+import { MessagesInbox } from "@/components/dashboard/messaging/messages-inbox";
 
-export default function TenantMessagesPage() {
+function MessagesPageContent() {
   const searchParams = useSearchParams();
   const recipientId = searchParams.get("recipient");
 
+  return <MessagesInbox startRecipientId={recipientId} />;
+}
+
+export default function MessagesPage() {
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Messages</h1>
-      <MessagesPanel startRecipientId={recipientId} />
-    </div>
+    <Suspense fallback={<p className="text-muted-foreground">Loading messages...</p>}>
+      <MessagesPageContent />
+    </Suspense>
   );
 }

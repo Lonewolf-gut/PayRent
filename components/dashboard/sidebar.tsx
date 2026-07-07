@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { Badge } from "@/components/ui/badge";
+import { SidebarUpgradeCard } from "@/components/dashboard/subscription-upgrade-dialog";
 
 const ICONS: Record<string, LucideIcon> = {
   Home,
@@ -130,6 +131,7 @@ export function SidebarNavContent({
           );
         })}
       </nav>
+      <SidebarUpgradeCard />
     </div>
   );
 }

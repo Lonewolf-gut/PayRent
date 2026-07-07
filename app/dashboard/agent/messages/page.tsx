@@ -1,1 +1,5 @@
-export { default } from "../../tenant/messages/page";
+"use client";
+
+import TenantMessagesPage from "../../tenant/messages/page";
+
+export default TenantMessagesPage;

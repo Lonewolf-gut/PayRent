@@ -7,6 +7,7 @@ import { LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NotificationsPopover } from "@/components/dashboard/notifications-popover";
+import { NavQuickActions } from "@/components/dashboard/nav-quick-actions";
 import { AccountVerificationBadge } from "@/components/dashboard/account-verification-badge";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { getTimeGreeting } from "@/lib/utils/greeting";
@@ -114,6 +115,7 @@ export function DashboardHeader({
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
+          <NavQuickActions />
           <NotificationsPopover />
           <div className="flex min-w-0 items-center gap-2.5 rounded-full border border-border/60 bg-muted/30 py-1 pl-1 pr-3">
             <Avatar size="lg" className="size-11">

@@ -1,21 +1,36 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Crown, Sparkles, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
-import { Crown, Sparkles, X } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { roleRequiresSubscription } from "@/lib/subscription/roles";
 import { isPaidPlan, normalizeSubscriptionPlan } from "@/lib/subscription/plans";
+import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
 
-export function SubscriptionUpgradeDialog() {
-  return null;
+export function useSubscriptionPlan() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["subscription"],
+    queryFn: async () => {
+      const res = await fetch("/api/subscriptions");
+      const json = await res.json();
+      return json.data;
+    },
+  });
+
+  const plan = normalizeSubscriptionPlan(data?.subscription?.plan ?? "FREE");
+
+  return {
+    isLoading,
+    plan,
+    isPremium: isPaidPlan(plan),
+  };
 }
 
 export function SubscriptionStatusBanner() {
-  const router = useRouter();
   const { data: session } = useSession();
+  const { openUpgrade } = useSubscriptionUpgrade();
   const [dismissed, setDismissed] = useState(false);
 
   const role = session?.user?.role;
@@ -54,7 +69,7 @@ export function SubscriptionStatusBanner() {
           <Button
             size="sm"
             className="bg-emerald-600 hover:bg-emerald-700"
-            onClick={() => router.push("/pricing")}
+            onClick={() => openUpgrade("PRO")}
           >
             <Crown className="mr-1.5 h-4 w-4" />
             Upgrade now
@@ -72,23 +87,4 @@ export function SubscriptionStatusBanner() {
       </div>
     </div>
   );
-}
-
-export function useSubscriptionPlan() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["subscription"],
-    queryFn: async () => {
-      const res = await fetch("/api/subscriptions");
-      const json = await res.json();
-      return json.data;
-    },
-  });
-
-  const plan = normalizeSubscriptionPlan(data?.subscription?.plan ?? "FREE");
-
-  return {
-    isLoading,
-    plan,
-    isPremium: isPaidPlan(plan),
-  };
 }

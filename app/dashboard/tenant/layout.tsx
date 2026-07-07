@@ -10,7 +10,6 @@ const navItems = [
   { href: "/dashboard/tenant/mandates", label: "Mandates", icon: "DollarSign" as const },
   { href: "/dashboard/tenant/repayments", label: "Repayments", icon: "TrendingUp" as const },
   { href: "/dashboard/tenant/wallet", label: "Wallet", icon: "Wallet" as const },
-  { href: "/dashboard/tenant/messages", label: "Messages", icon: "MessageSquare" as const },
   { href: "/dashboard/tenant/settings", label: "Settings", icon: "Settings" as const },
 ];
 

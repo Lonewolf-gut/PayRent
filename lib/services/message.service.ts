@@ -1,5 +1,41 @@
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors";
+import {
+  mapMessageUser,
+  MESSAGE_USER_SELECT,
+} from "@/lib/messaging/display";
+import type { ChatMessage, ConversationSummary } from "@/lib/messaging/types";
+
+function mapConversation(
+  conv: {
+    id: string;
+    updatedAt: Date;
+    participants: {
+      userId: string;
+      lastReadAt: Date | null;
+      user: Parameters<typeof mapMessageUser>[0];
+    }[];
+    messages: { id: string; content: string; createdAt: Date; senderId: string }[];
+  },
+  currentUserId: string,
+  unreadCount = 0
+): ConversationSummary {
+  const lastMessage = conv.messages[0] ?? null;
+  return {
+    id: conv.id,
+    updatedAt: conv.updatedAt.toISOString(),
+    unreadCount,
+    participants: conv.participants.map((p) => mapMessageUser(p.user)),
+    lastMessage: lastMessage
+      ? {
+          id: lastMessage.id,
+          content: lastMessage.content,
+          createdAt: lastMessage.createdAt.toISOString(),
+          senderId: lastMessage.senderId,
+        }
+      : null,
+  };
+}
 
 export class MessageService {
   async getOrCreateConversation(userIds: string[]) {
@@ -27,7 +63,9 @@ export class MessageService {
         },
       },
       include: {
-        participants: { include: { user: { select: { id: true, email: true, image: true } } } },
+        participants: {
+          include: { user: { select: MESSAGE_USER_SELECT } },
+        },
         messages: true,
       },
     });
@@ -42,7 +80,7 @@ export class MessageService {
     const message = await prisma.message.create({
       data: { conversationId, senderId, content, status: "SENT" },
       include: {
-        sender: { select: { id: true, email: true, image: true } },
+        sender: { select: MESSAGE_USER_SELECT },
       },
     });
 
@@ -51,7 +89,14 @@ export class MessageService {
       data: { updatedAt: new Date() },
     });
 
-    return message;
+    return {
+      id: message.id,
+      conversationId,
+      content: message.content,
+      createdAt: message.createdAt.toISOString(),
+      senderId: message.senderId,
+      sender: mapMessageUser(message.sender),
+    } satisfies ChatMessage & { conversationId: string };
   }
 
   async markRead(conversationId: string, userId: string) {
@@ -71,27 +116,79 @@ export class MessageService {
     });
     if (!participant) return [];
 
-    return prisma.message.findMany({
+    const messages = await prisma.message.findMany({
       where: { conversationId },
       include: {
-        sender: { select: { id: true, email: true, image: true } },
+        sender: { select: MESSAGE_USER_SELECT },
       },
       orderBy: { createdAt: "asc" },
       take: 100,
     });
+
+    await this.markRead(conversationId, userId);
+
+    return messages.map(
+      (message) =>
+        ({
+          id: message.id,
+          content: message.content,
+          createdAt: message.createdAt.toISOString(),
+          senderId: message.senderId,
+          sender: mapMessageUser(message.sender),
+        }) satisfies ChatMessage
+    );
   }
 
   async listConversations(userId: string) {
-    return prisma.conversation.findMany({
+    const conversations = await prisma.conversation.findMany({
       where: { participants: { some: { userId } } },
       include: {
         participants: {
-          include: { user: { select: { id: true, email: true, image: true } } },
+          include: { user: { select: MESSAGE_USER_SELECT } },
         },
         messages: { take: 1, orderBy: { createdAt: "desc" } },
       },
       orderBy: { updatedAt: "desc" },
     });
+
+    const unreadCounts = await Promise.all(
+      conversations.map(async (conv) => {
+        const self = conv.participants.find((p) => p.userId === userId);
+        return prisma.message.count({
+          where: {
+            conversationId: conv.id,
+            senderId: { not: userId },
+            ...(self?.lastReadAt ? { createdAt: { gt: self.lastReadAt } } : {}),
+          },
+        });
+      })
+    );
+
+    return conversations.map((conv, index) =>
+      mapConversation(conv, userId, unreadCounts[index] ?? 0)
+    );
+  }
+
+  async getUnreadCount(userId: string) {
+    const parts = await prisma.conversationParticipant.findMany({
+      where: { userId },
+      select: { conversationId: true, lastReadAt: true },
+    });
+    if (!parts.length) return 0;
+
+    const counts = await Promise.all(
+      parts.map((part) =>
+        prisma.message.count({
+          where: {
+            conversationId: part.conversationId,
+            senderId: { not: userId },
+            ...(part.lastReadAt ? { createdAt: { gt: part.lastReadAt } } : {}),
+          },
+        })
+      )
+    );
+
+    return counts.reduce((sum, count) => sum + count, 0);
   }
 }
 

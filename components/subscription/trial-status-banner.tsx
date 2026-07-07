@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { differenceInCalendarDays, format } from "date-fns";
@@ -10,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { TRIAL_DAYS } from "@/lib/subscription/pricing";
 import { roleRequiresSubscription } from "@/lib/subscription/roles";
+import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
 
 type SubscriptionAccess = {
   trialActive?: boolean;
@@ -34,6 +34,7 @@ export function TrialStatusBanner({
   fullWidth?: boolean;
 }) {
   const { data: session } = useSession();
+  const { openUpgrade } = useSubscriptionUpgrade();
   const [dismissed, setDismissed] = useState(false);
   const role = session?.user?.role;
   const showTrialUi = role ? roleRequiresSubscription(role) : false;
@@ -114,12 +115,13 @@ export function TrialStatusBanner({
               {trialEndLabel
                 ? `Full access until ${trialEndLabel}. `
                 : "You currently have full platform access. "}
-              <Link
-                href="/pricing"
+              <button
+                type="button"
+                onClick={() => openUpgrade("PRO")}
                 className="font-medium text-emerald-800 underline underline-offset-2 dark:text-emerald-300"
               >
                 Upgrade anytime
-              </Link>{" "}
+              </button>{" "}
               {role === "AGENT"
                 ? "to support more assigned listings after your trial."
                 : "to keep listings visible and assign agents after your trial."}
@@ -156,12 +158,13 @@ export function TrialStatusBanner({
               {role === "AGENT"
                 ? "New listing assignments are paused until you upgrade. Existing assignments remain in your dashboard. "
                 : "Listings are hidden (not deleted), and agent advertising is paused until you upgrade. "}
-              <Link
-                href="/pricing"
+              <button
+                type="button"
+                onClick={() => openUpgrade("PRO")}
                 className="font-medium text-amber-900 underline underline-offset-2 dark:text-amber-300"
               >
                 Choose a plan
-              </Link>{" "}
+              </button>{" "}
               to restore full access.
             </p>
           </div>

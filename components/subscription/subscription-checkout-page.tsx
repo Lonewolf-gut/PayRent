@@ -17,7 +17,6 @@ import {
   type CheckoutPlanId,
 } from "@/lib/subscription/plans";
 import { getSubscriptionPrice } from "@/lib/subscription/pricing";
-import { TrialStatusBanner } from "@/components/subscription/trial-status-banner";
 import { roleRequiresSubscription } from "@/lib/subscription/roles";
 import { DASHBOARD_ROUTES } from "@/lib/auth/permissions";
 
@@ -188,22 +187,28 @@ export function SubscriptionCheckoutPage() {
 
   return (
     <div>
-      {session?.user && canSubscribe ? (
-        <div className="border-b border-emerald-200 bg-emerald-100/70">
-          <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-            <TrialStatusBanner className="mb-0" />
-          </div>
-        </div>
-      ) : null}
-
       {!checkoutPlan ? (
-        <PricingCardsSection
+        <>
+          {session?.user && canSubscribe ? (
+            <div className="border-b border-emerald-100 bg-white">
+              <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
+                <p className="text-sm text-muted-foreground">
+                  Current plan:{" "}
+                  <span className="font-semibold text-emerald-900">
+                    {currentPlan === "FREE" ? "Free" : currentPlan}
+                  </span>
+                </p>
+              </div>
+            </div>
+          ) : null}
+          <PricingCardsSection
           mode="checkout"
           selectedPlan={selectedPlan}
           currentPlan={currentPlan}
           onSelectPlan={handlePlanSelect}
           showHeader
         />
+        </>
       ) : null}
 
       {checkoutPlan && planMeta ? (

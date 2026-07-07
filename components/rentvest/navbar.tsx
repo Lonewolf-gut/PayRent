@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -25,6 +26,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { PROFILE_MENU_ITEMS } from "@/lib/nav/profile-menu";
+import { NavQuickActions } from "@/components/dashboard/nav-quick-actions";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@prisma/client";
 
@@ -48,6 +50,7 @@ function getInitials(name?: string | null, email?: string | null) {
 }
 
 export function Navbar() {
+  const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -65,17 +68,6 @@ export function Navbar() {
   const scheduleCloseMenu = () => {
     closeTimer.current = setTimeout(() => setMenuOpen(false), 150);
   };
-
-  const { data: savedCount = 0 } = useQuery({
-    queryKey: ["saved-property-count"],
-    queryFn: async () => {
-      const res = await fetch("/api/properties/saved");
-      const json = await res.json();
-      if (!json.success) return 0;
-      return (json.data ?? []).length as number;
-    },
-    enabled: !!session?.user && session.user.role === "TENANT",
-  });
 
   const { data: profile } = useQuery({
     queryKey: ["navbar-profile"],
@@ -97,6 +89,9 @@ export function Navbar() {
   const avatarImage = profile?.image ?? session?.user?.image ?? null;
   const role = session?.user?.role as UserRole | undefined;
   const menuItems = role ? PROFILE_MENU_ITEMS[role] ?? [] : [];
+  const marketingLinks = MARKETING_LINKS.filter(
+    (link) => !(link.href === "/pricing" && pathname === "/pricing")
+  );
 
   return (
     <header className="sticky top-0 z-50 border-b border-emerald-100 bg-white/95 backdrop-blur-md">
@@ -117,7 +112,7 @@ export function Navbar() {
                 <SheetTitle className="text-left text-emerald-900">Menu</SheetTitle>
               </SheetHeader>
               <nav className="mt-6 flex flex-col gap-1">
-                {MARKETING_LINKS.map((link) => (
+                {marketingLinks.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
@@ -141,7 +136,7 @@ export function Navbar() {
         </div>
 
         <nav className="hidden items-center gap-8 md:flex">
-          {MARKETING_LINKS.map((link) => (
+          {marketingLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -154,7 +149,9 @@ export function Navbar() {
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {session?.user ? (
-            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+            <>
+              <NavQuickActions />
+              <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
               <DropdownMenuTrigger
                 className="rounded-full outline-none ring-emerald-600 focus-visible:ring-2"
                 aria-label="Open account menu"
@@ -172,11 +169,6 @@ export function Navbar() {
                   <AvatarFallback className="bg-emerald-100 text-emerald-800">
                     {getInitials(fullName, email)}
                   </AvatarFallback>
-                  {role === "TENANT" && savedCount > 0 ? (
-                    <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-semibold text-white ring-2 ring-white">
-                      {savedCount > 9 ? "9+" : savedCount}
-                    </span>
-                  ) : null}
                 </Avatar>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -200,11 +192,6 @@ export function Navbar() {
                   >
                     <span className="flex w-full items-center justify-between gap-2">
                       {item.label}
-                      {item.label === "Saved" && savedCount > 0 ? (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
-                          {savedCount}
-                        </span>
-                      ) : null}
                     </span>
                   </DropdownMenuItem>
                 ))}
@@ -222,7 +209,8 @@ export function Navbar() {
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+              </DropdownMenu>
+            </>
           ) : (
             <>
               <Button variant="ghost" size="sm" asChild className="text-emerald-800 hover:text-emerald-950">

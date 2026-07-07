@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getPostLoginRoute } from "@/lib/auth/permissions";
 import { Navbar } from "@/components/rentvest/navbar";
+import { MarketingSignedInExtras } from "@/components/marketing/marketing-signed-in-extras";
 
 export default async function MarketingLayout({
   children,
@@ -16,6 +17,7 @@ export default async function MarketingLayout({
     <>
       <Navbar />
       <main className="bg-white text-slate-900">{children}</main>
+      <MarketingSignedInExtras />
       <footer className="border-t border-emerald-100 bg-white py-12">
         <div className="mx-auto grid max-w-7xl gap-10 px-4 text-sm text-emerald-800/80 sm:px-6 md:grid-cols-4">
           <div className="md:col-span-2">

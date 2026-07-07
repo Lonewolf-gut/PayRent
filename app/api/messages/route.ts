@@ -33,5 +33,5 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
     session.user.id,
     parsed.data.content
   );
-  return apiResponse(message, 201);
+  return apiResponse({ ...message, conversationId }, 201);
 });

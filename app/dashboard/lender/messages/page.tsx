@@ -1,10 +1,12 @@
-import { MessagesPanel } from "@/components/dashboard/messages-panel";
+"use client";
+
+import { Suspense } from "react";
+import { MessagesInbox } from "@/components/dashboard/messaging/messages-inbox";
 
 export default function LenderMessagesPage() {
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Messages</h1>
-      <MessagesPanel />
-    </div>
+    <Suspense fallback={<p className="text-muted-foreground">Loading messages...</p>}>
+      <MessagesInbox />
+    </Suspense>
   );
 }
