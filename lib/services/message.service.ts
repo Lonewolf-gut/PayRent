@@ -4,7 +4,9 @@ import {
   mapMessageUser,
   MESSAGE_USER_SELECT,
 } from "@/lib/messaging/display";
-import type { ChatMessage, ConversationSummary } from "@/lib/messaging/types";
+import type { ChatMessage, ConversationSummary, TypingUser } from "@/lib/messaging/types";
+
+const TYPING_ACTIVE_MS = 4000;
 
 function mapConversation(
   conv: {
@@ -189,6 +191,42 @@ export class MessageService {
     );
 
     return counts.reduce((sum, count) => sum + count, 0);
+  }
+
+  async setTyping(conversationId: string, userId: string, isTyping: boolean) {
+    const participant = await prisma.conversationParticipant.findFirst({
+      where: { conversationId, userId },
+    });
+    if (!participant) throw new AppError("Not a participant");
+
+    await prisma.conversationParticipant.update({
+      where: { id: participant.id },
+      data: { typingAt: isTyping ? new Date() : null },
+    });
+  }
+
+  async getTypingUsers(conversationId: string, userId: string): Promise<TypingUser[]> {
+    const participant = await prisma.conversationParticipant.findFirst({
+      where: { conversationId, userId },
+    });
+    if (!participant) return [];
+
+    const cutoff = new Date(Date.now() - TYPING_ACTIVE_MS);
+    const typers = await prisma.conversationParticipant.findMany({
+      where: {
+        conversationId,
+        userId: { not: userId },
+        typingAt: { gte: cutoff },
+      },
+      include: {
+        user: { select: MESSAGE_USER_SELECT },
+      },
+    });
+
+    return typers.map((entry) => ({
+      id: entry.userId,
+      displayName: mapMessageUser(entry.user).displayName,
+    }));
   }
 }
 

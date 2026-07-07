@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { format } from "date-fns";
@@ -8,13 +8,80 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { conversationTitle } from "@/lib/messaging/display";
-import type { ChatMessage, ConversationSummary } from "@/lib/messaging/types";
+import type { ChatMessage, ConversationSummary, TypingUser } from "@/lib/messaging/types";
+import { TypingIndicator } from "@/components/dashboard/messaging/typing-indicator";
 import { toast } from "sonner";
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   return name.slice(0, 2).toUpperCase();
+}
+
+function useConversationTyping(activeId: string | null, content: string) {
+  const stopTypingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const setTyping = useCallback(
+    async (typing: boolean) => {
+      if (!activeId) return;
+      try {
+        await fetch(`/api/messages/${activeId}/typing`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ typing }),
+        });
+      } catch {
+        // Non-critical UI signal
+      }
+    },
+    [activeId]
+  );
+
+  useEffect(() => {
+    if (!activeId) return;
+
+    if (stopTypingRef.current) {
+      clearTimeout(stopTypingRef.current);
+      stopTypingRef.current = null;
+    }
+
+    if (!content.trim()) {
+      void setTyping(false);
+      return;
+    }
+
+    void setTyping(true);
+    stopTypingRef.current = setTimeout(() => {
+      void setTyping(false);
+    }, 3500);
+
+    return () => {
+      if (stopTypingRef.current) {
+        clearTimeout(stopTypingRef.current);
+      }
+    };
+  }, [activeId, content, setTyping]);
+
+  useEffect(() => {
+    return () => {
+      if (activeId) {
+        void setTyping(false);
+      }
+    };
+  }, [activeId, setTyping]);
+
+  const { data: typers = [] } = useQuery({
+    queryKey: ["typing", activeId],
+    queryFn: async () => {
+      const res = await fetch(`/api/messages/${activeId}/typing`);
+      const json = await res.json();
+      return (json.data?.typers ?? []) as TypingUser[];
+    },
+    enabled: !!activeId,
+    refetchInterval: 1500,
+  });
+
+  return typers;
 }
 
 export function useMessaging(startRecipientId?: string | null) {
@@ -87,14 +154,21 @@ export function useMessaging(startRecipientId?: string | null) {
     },
     onSuccess: () => {
       setContent("");
+      void fetch(`/api/messages/${activeId}/typing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ typing: false }),
+      });
       queryClient.invalidateQueries({ queryKey: ["messages", activeId] });
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       queryClient.invalidateQueries({ queryKey: ["messages-unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["typing", activeId] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
   const activeConversation = conversations.find((c) => c.id === activeId) ?? null;
+  const typers = useConversationTyping(activeId, content);
 
   return {
     currentUserId,
@@ -106,6 +180,7 @@ export function useMessaging(startRecipientId?: string | null) {
     content,
     setContent,
     sendMutation,
+    typers,
   };
 }
 
@@ -185,6 +260,7 @@ export function ChatThread({
   onContentChange,
   onSend,
   sending,
+  typers = [],
   heightClass = "h-[min(60vh,520px)]",
   showHeader = true,
 }: {
@@ -195,6 +271,7 @@ export function ChatThread({
   onContentChange: (value: string) => void;
   onSend: () => void;
   sending: boolean;
+  typers?: TypingUser[];
   heightClass?: string;
   showHeader?: boolean;
 }) {
@@ -261,6 +338,11 @@ export function ChatThread({
         ) : (
           <p className="text-sm text-muted-foreground">Start the conversation</p>
         )}
+        {typers.length > 0 ? (
+          <TypingIndicator
+            displayName={typers.map((user) => user.displayName).join(", ")}
+          />
+        ) : null}
       </div>
       <div className="flex gap-2 border-t p-3">
         <Input

@@ -28,6 +28,7 @@ export function MessagesInbox({
     content,
     setContent,
     sendMutation,
+    typers,
   } = useMessaging(startRecipientId);
 
   const filteredConversations = useMemo(() => {
@@ -122,6 +123,7 @@ export function MessagesInbox({
             onContentChange={setContent}
             onSend={() => sendMutation.mutate()}
             sending={sendMutation.isPending}
+            typers={typers}
             heightClass="min-h-0 flex-1"
           />
         ) : (

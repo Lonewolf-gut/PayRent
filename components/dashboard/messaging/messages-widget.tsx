@@ -43,6 +43,7 @@ export function MessagesWidget() {
     content,
     setContent,
     sendMutation,
+    typers,
   } = useMessaging();
 
   const { data: profile } = useQuery({
@@ -172,6 +173,7 @@ export function MessagesWidget() {
                   onContentChange={setContent}
                   onSend={() => sendMutation.mutate()}
                   sending={sendMutation.isPending}
+                  typers={typers}
                   heightClass="h-[calc(min(72vh,520px)-3.5rem)]"
                   showHeader={false}
                 />

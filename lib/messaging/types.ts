@@ -25,3 +25,8 @@ export type ChatMessage = {
   senderId: string;
   sender: MessageSender;
 };
+
+export type TypingUser = {
+  id: string;
+  displayName: string;
+};
