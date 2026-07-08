@@ -75,7 +75,7 @@ export const PLAN_CATALOG: Record<
       "Unlimited listings or assigned listings",
       "Unlimited cars and appliances",
       "Premium search placement",
-      "Priority affiliate promotion",
+      "Priority Affiliate promotion",
       "Priority support",
     ],
   },

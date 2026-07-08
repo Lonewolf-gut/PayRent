@@ -32,11 +32,13 @@ export function UpgradePlanPicker({
         return (
           <div
             key={planId}
+            data-plan-card={isHighlight ? "highlight" : "default"}
+            style={{ borderRadius: 0, ...(isHighlight ? {} : { backgroundColor: "#ffffff" }) }}
             className={cn(
-              "flex flex-col rounded-none border p-5",
+              "flex flex-col !rounded-none border p-5",
               isHighlight
                 ? "border-emerald-600 bg-gradient-to-b from-emerald-600 to-emerald-700"
-                : "border-slate-200 bg-white"
+                : "border-slate-200 !bg-white"
             )}
           >
             <div className="mb-3 flex min-h-[24px] items-center gap-2">
@@ -110,8 +112,9 @@ export function UpgradePlanPicker({
 
             <Button
               type="button"
+              style={{ borderRadius: 0 }}
               className={cn(
-                "mt-5 w-full rounded-none",
+                "mt-5 w-full !rounded-none",
                 isCurrent
                   ? "bg-slate-100 text-slate-400 hover:bg-slate-100"
                   : isHighlight

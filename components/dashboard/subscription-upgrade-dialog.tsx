@@ -48,7 +48,11 @@ export function SubscriptionUpgradeDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && closeUpgrade()}>
-      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto rounded-none border border-slate-200 bg-white p-0 text-slate-900 shadow-xl sm:max-w-5xl">
+      <DialogContent
+        data-surface="subscription-upgrade"
+        style={{ backgroundColor: "#ffffff", borderRadius: 0 }}
+        className="max-h-[90vh] max-w-5xl overflow-y-auto !rounded-none border border-slate-200 !bg-white p-0 text-slate-900 shadow-xl ring-slate-200 sm:max-w-5xl"
+      >
         <DialogHeader className="border-b border-slate-200 px-6 py-5 text-center">
           <DialogTitle className="text-2xl font-semibold text-slate-900">
             Adjust your plan

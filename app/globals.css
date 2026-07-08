@@ -211,4 +211,18 @@
     color: oklch(0.5 0.07 160) !important;
   }
 
+  [data-slot="dialog-content"][data-surface="subscription-upgrade"] {
+    background-color: #ffffff !important;
+    color: oklch(0.32 0.08 160) !important;
+    border-radius: 0 !important;
+  }
+
+  [data-slot="dialog-content"][data-surface="subscription-upgrade"] [data-plan-card] {
+    border-radius: 0 !important;
+  }
+
+  [data-slot="dialog-content"][data-surface="subscription-upgrade"] [data-plan-card="default"] {
+    background-color: #ffffff !important;
+  }
+
 }
