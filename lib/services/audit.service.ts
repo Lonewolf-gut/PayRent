@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 
 export class AuditService {
@@ -30,15 +31,34 @@ export class AuditService {
     userAgent?: string,
     email?: string
   ) {
-    return prisma.loginLog.create({
-      data: {
-        userId,
-        email: email?.trim().toLowerCase() ?? null,
-        success,
-        ipAddress: ip ?? null,
-        userAgent: userAgent ?? null,
-      },
-    });
+    const data: Prisma.LoginLogCreateInput = {
+      success,
+      ipAddress: ip ?? null,
+      userAgent: userAgent ?? null,
+      email: email?.trim().toLowerCase() ?? null,
+      ...(userId ? { user: { connect: { id: userId } } } : {}),
+    };
+
+    try {
+      return await prisma.loginLog.create({ data });
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[LoginLog] create failed:", error);
+      }
+
+      if (!userId) {
+        throw error;
+      }
+
+      return prisma.loginLog.create({
+        data: {
+          success,
+          ipAddress: ip ?? null,
+          userAgent: userAgent ?? null,
+          user: { connect: { id: userId } },
+        },
+      });
+    }
   }
 }
 

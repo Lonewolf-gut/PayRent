@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { recordFailedLoginAttempt } from "@/lib/admin/failed-login-stats";
 import { auditService } from "@/lib/services/audit.service";
 
 export type LoginRequestMeta = {
@@ -48,13 +49,33 @@ export async function logLoginAttempt(
   }
 
   try {
-    await auditService.logLogin(
+    if (success) {
+      await auditService.logLogin(
+        userId,
+        true,
+        meta.ip,
+        meta.userAgent,
+        email
+      );
+      return;
+    }
+
+    const logged = await recordFailedLoginAttempt({
       userId,
-      success,
-      meta.ip,
-      meta.userAgent,
-      email
-    );
+      email,
+      ipAddress: meta.ip ?? null,
+      userAgent: meta.userAgent ?? null,
+    });
+
+    if (!logged) {
+      await auditService.logLogin(
+        userId,
+        false,
+        meta.ip,
+        meta.userAgent,
+        email
+      );
+    }
   } catch {
     // Never block authentication when audit logging fails.
   }

@@ -101,6 +101,13 @@ export default function LoginForm({ adminMode = false }: LoginFormProps) {
           );
           return;
         }
+
+        void fetch("/api/auth/login-attempt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: data.email }),
+        }).catch(() => undefined);
+
         toast.error(getSignInErrorMessage(result.error, result.code), { id: toastId });
         return;
       }

@@ -34,6 +34,20 @@ export default function AdminDashboardPage() {
     refetchInterval: 30_000,
   });
 
+  const { data: failedLoginStats } = useQuery({
+    queryKey: ["admin-failed-logins"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/stats/failed-logins");
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error(json.message ?? "Could not load failed login stats");
+      }
+      return json.data as { failedLogins?: number };
+    },
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+  });
+
   const { data: revenueTrend, isLoading: revenueLoading } = useQuery({
     queryKey: ["admin-revenue", revenuePeriod],
     queryFn: async () => {
@@ -57,7 +71,7 @@ export default function AdminDashboardPage() {
         <StatCard title="Transactions" value={String(data?.transactions ?? "—")} icon={CreditCard} />
         <StatCard
           title="Failed logins (24h)"
-          value={String(data?.failedLogins ?? 0)}
+          value={String(failedLoginStats?.failedLogins ?? data?.failedLogins ?? 0)}
           icon={AlertTriangle}
           description="Fraud monitoring"
         />
