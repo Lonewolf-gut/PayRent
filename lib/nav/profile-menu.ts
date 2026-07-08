@@ -55,5 +55,6 @@ export const PROFILE_MENU_ITEMS: Record<UserRole, ProfileMenuItem[]> = {
     { href: "/compliance/kyc", label: "KYC review" },
     { href: "/compliance/monitoring", label: "Suspicious activity" },
     { href: "/compliance/reports", label: "Reports" },
+    { href: "/compliance/settings", label: "Settings" },
   ],
 };

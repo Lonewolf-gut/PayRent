@@ -8,6 +8,7 @@ const navItems = [
   { href: "/compliance/kyc", label: "KYC review", icon: "FileText" as const },
   { href: "/compliance/monitoring", label: "Suspicious activity", icon: "Shield" as const },
   { href: "/compliance/reports", label: "Reports", icon: "BarChart3" as const },
+  { href: "/compliance/settings", label: "Settings", icon: "Settings" as const },
 ];
 
 export default function ComplianceLayout({ children }: { children: React.ReactNode }) {

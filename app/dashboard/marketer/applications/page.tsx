@@ -1,1 +1,1 @@
-export { default } from "../../landlord/applications/page";
+export { default } from "../../merchant/applications/page";

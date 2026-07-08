@@ -1,5 +1,12 @@
 "use client";
 
-import TenantMessagesPage from "../../tenant/messages/page";
+import { Suspense } from "react";
+import { MessagesInbox } from "@/components/dashboard/messaging/messages-inbox";
 
-export default TenantMessagesPage;
+export default function MarketerMessagesPage() {
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Loading messages...</p>}>
+      <MessagesInbox />
+    </Suspense>
+  );
+}
