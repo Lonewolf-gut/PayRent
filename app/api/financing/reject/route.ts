@@ -16,7 +16,7 @@ export const POST = withAuth(
 
     const result = await financingService.rejectRequest(
       financingRequestId,
-      lender.id
+      session.user.id
     );
     return apiResponse(result);
   },

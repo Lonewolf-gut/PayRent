@@ -122,7 +122,7 @@ export class SettlementService {
     adminUserId: string,
     resolutionNote: string
   ) {
-    return prisma.reconciliationException.update({
+    const exception = await prisma.reconciliationException.update({
       where: { id: exceptionId },
       data: {
         status: "RESOLVED",
@@ -131,6 +131,20 @@ export class SettlementService {
         resolutionNote,
       },
     });
+
+    await auditService.log({
+      userId: adminUserId,
+      action: "DISPUTE_DECISION_RESOLVED",
+      entity: "ReconciliationException",
+      entityId: exceptionId,
+      metadata: {
+        resolutionNote,
+        relatedRecordType: exception.relatedRecordType,
+        relatedRecordId: exception.relatedRecordId,
+      },
+    });
+
+    return exception;
   }
 }
 

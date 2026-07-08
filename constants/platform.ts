@@ -29,7 +29,7 @@ export const ROLE_DESCRIPTIONS: Record<string, string> = {
   ADMIN:
     "Verify users, approve merchants and lenders, manage disputes, monitor transactions, configure fees, and generate reports.",
   COMPLIANCE_OFFICER:
-    "Review audit logs, verify KYC records, monitor suspicious activity, and export compliance reports.",
+    "Review consent records, fee disclosures, audit logs, KYC, suspicious activity, and export compliance reports.",
 };
 
 export const WORKFLOW_STEPS = [

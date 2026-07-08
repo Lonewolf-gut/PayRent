@@ -20,6 +20,12 @@ import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 import { getProfileDisplayName } from "@/lib/utils/display-name";
 import { SUPPORT_EMAIL, PLATFORM_NAME } from "@/constants/platform";
 import { sendEmail, buildEmailTemplate } from "@/lib/services/email.service";
+import { consentService } from "@/lib/services/consent.service";
+
+export type RegisterContext = {
+  ipAddress?: string;
+  userAgent?: string;
+};
 
 const SUBSCRIPTION_LIMITS = {
   FREE: { propertyViews: 3, financingRequests: 1 },
@@ -29,7 +35,7 @@ const SUBSCRIPTION_LIMITS = {
 };
 
 export class AuthService {
-  async register(input: RegisterInput) {
+  async register(input: RegisterInput, context?: RegisterContext) {
     const existing = await userRepository.findByEmail(input.email);
     if (existing) {
       throw new AppError(
@@ -196,6 +202,14 @@ export class AuthService {
       action: "USER_REGISTERED",
       entity: "User",
       entityId: user.id,
+      ipAddress: context?.ipAddress,
+      userAgent: context?.userAgent,
+    });
+
+    await consentService.recordRegistrationConsents(user.id, {
+      ipAddress: context?.ipAddress,
+      userAgent: context?.userAgent,
+      metadata: { role: input.role },
     });
 
     const { verificationReminderService } = await import(

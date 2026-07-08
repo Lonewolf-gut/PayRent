@@ -4,6 +4,8 @@ import { DashboardThemeProvider } from "@/components/dashboard/dashboard-theme-p
 
 const navItems = [
   { href: "/compliance", label: "Overview", icon: "Shield" as const },
+  { href: "/compliance/consents", label: "Consent records", icon: "FileText" as const },
+  { href: "/compliance/fee-disclosures", label: "Fee disclosures", icon: "FileText" as const },
   { href: "/compliance/audit-logs", label: "Audit logs", icon: "FileText" as const },
   { href: "/compliance/kyc", label: "KYC review", icon: "FileText" as const },
   { href: "/compliance/monitoring", label: "Suspicious activity", icon: "Shield" as const },

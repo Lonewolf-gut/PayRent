@@ -267,6 +267,19 @@ export class MandateExecutionService {
           deductionEventId: deductionEvent.id,
           reason: bankResponse.failureReason,
         });
+
+        await auditService.log({
+          userId: financingRequest.tenant.userId,
+          action: "DEDUCTION_FAILED",
+          entity: "DeductionEvent",
+          entityId: deductionEvent.id,
+          metadata: {
+            amount: amountDue.toString(),
+            mandateId,
+            reason: bankResponse.failureReason,
+            instalmentNumber: installment.instalmentNumber,
+          },
+        });
       } else if (deductionStatus === "RETRY_SCHEDULED") {
         logger.info("Deduction failed - retry scheduled", {
           requestId,

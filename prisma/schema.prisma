@@ -92,6 +92,12 @@ enum AdminReviewStatus {
   ESCALATED
 }
 
+enum ConsentType {
+  DATA_COLLECTION_PROCESSING
+  TERMS_OF_SERVICE
+  FINANCING_DATA_PROCESSING
+}
+
 enum DeductionStatus {
   PENDING
   IN_PROGRESS
@@ -322,6 +328,9 @@ model User {
   sessions          Session[]
   accounts          Account[]
   subscriptions     Subscription[]
+  dataConsents      DataConsent[]
+  feeDisclosuresAsTenant FeeDisclosureRecord[] @relation("FeeDisclosureTenant")
+  feeDisclosuresAsLender FeeDisclosureRecord[] @relation("FeeDisclosureLender")
 
   @@index([email])
   @@index([role])
@@ -742,6 +751,7 @@ model FinancingRequest {
   investment    Investment?
   repaymentPlan RepaymentPlan?
   settlements   SettlementRecord[]
+  feeDisclosure FeeDisclosureRecord?
 
   @@index([tenantId])
   @@index([status])
@@ -1121,4 +1131,50 @@ model AdminReviewRecord {
 
   @@index([reviewType, status])
   @@index([relatedEntityType, relatedEntityId])
+}
+
+model DataConsent {
+  id          String      @id @default(cuid())
+  userId      String
+  consentType ConsentType
+  version     String      @default("1.0")
+  granted     Boolean     @default(true)
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?
+  grantedAt   DateTime    @default(now())
+  revokedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([consentType])
+  @@index([grantedAt])
+}
+
+model FeeDisclosureRecord {
+  id                 String   @id @default(cuid())
+  financingRequestId String   @unique
+  tenantUserId       String
+  lenderUserId       String
+  principalAmount    Decimal  @db.Decimal(14, 2)
+  interestRate       Decimal  @db.Decimal(5, 2)
+  totalRepayable     Decimal  @db.Decimal(14, 2)
+  platformFee        Decimal  @default(0) @db.Decimal(14, 2)
+  agentCommission    Decimal  @default(0) @db.Decimal(14, 2)
+  durationMonths     Int
+  monthlyPayment     Decimal  @db.Decimal(14, 2)
+  disclosureVersion  String   @default("1.0")
+  acceptedAt         DateTime @default(now())
+  acceptedByUserId   String?
+  metadata           Json?
+  createdAt          DateTime @default(now())
+
+  financingRequest FinancingRequest @relation(fields: [financingRequestId], references: [id], onDelete: Cascade)
+  tenantUser       User             @relation("FeeDisclosureTenant", fields: [tenantUserId], references: [id], onDelete: Cascade)
+  lenderUser       User             @relation("FeeDisclosureLender", fields: [lenderUserId], references: [id], onDelete: Cascade)
+
+  @@index([tenantUserId])
+  @@index([lenderUserId])
+  @@index([acceptedAt])
 }

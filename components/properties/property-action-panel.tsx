@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { Wallet, CreditCard, MessageSquare, ShieldAlert } from "lucide-react";
@@ -62,6 +63,7 @@ export function PropertyActionPanel({
   contacts,
 }: PropertyActionPanelProps) {
   const router = useRouter();
+  const [financingConsent, setFinancingConsent] = useState(false);
 
   const applyMutation = useMutation({
     mutationFn: async () => {
@@ -86,6 +88,9 @@ export function PropertyActionPanel({
 
   const financeMutation = useMutation({
     mutationFn: async () => {
+      if (!financingConsent) {
+        throw new Error("You must consent to data collection and processing for financing.");
+      }
       const res = await fetch("/api/financing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -94,6 +99,7 @@ export function PropertyActionPanel({
           applicationId: approvedApplication?.id,
           requestedAmount: parseFloat(amount),
           durationMonths: parseInt(months, 10),
+          dataProcessingConsent: true,
         }),
       });
       const json = await res.json();
@@ -253,9 +259,25 @@ export function PropertyActionPanel({
                       onChange={(e) => setMonths(e.target.value)}
                     />
                   </div>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={financingConsent}
+                      onChange={(e) => setFinancingConsent(e.target.checked)}
+                    />
+                    <span>
+                      I consent to PayForMe collecting and processing my data for this financing
+                      request, including fee disclosure review. See our{" "}
+                      <Link href="/privacy" className="text-emerald-600 hover:underline">
+                        privacy policy
+                      </Link>
+                      .
+                    </span>
+                  </label>
                   <Button
                     className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
-                    disabled={!amount || financeMutation.isPending}
+                    disabled={!amount || !financingConsent || financeMutation.isPending}
                     onClick={() => financeMutation.mutate()}
                   >
                     Submit financing request

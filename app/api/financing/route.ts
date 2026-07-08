@@ -4,6 +4,7 @@ import { financingService } from "@/lib/services/financing.service";
 import { prisma } from "@/lib/db/prisma";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 import { getReferralAgentProfileId } from "@/lib/utils/agent-referral-request";
+import { consentService } from "@/lib/services/consent.service";
 export const GET = withAuth(
   async (req: NextRequest, _ctx, session) => {
     if (session.user.role === "LENDER") {
@@ -61,6 +62,18 @@ export const POST = withAuth(
       parsed.data.applicationId,
       referredAgentProfileId
     );
+
+    await consentService.recordFinancingConsent(session.user.id, request.id, {
+      ipAddress:
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+        req.headers.get("x-real-ip") ??
+        undefined,
+      userAgent: req.headers.get("user-agent") ?? undefined,
+      metadata: {
+        propertyId: parsed.data.propertyId,
+        requestedAmount: parsed.data.requestedAmount,
+      },
+    });
 
     return apiResponse(request, 201);
   },

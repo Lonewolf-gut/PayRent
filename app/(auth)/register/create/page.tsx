@@ -61,6 +61,7 @@ export default function RegisterCreatePage() {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
@@ -239,6 +240,52 @@ export default function RegisterCreatePage() {
             <PasswordRequirementsChecklist password={passwordValue} />
             {errors.password ? (
               <p className="text-xs text-destructive">{errors.password.message}</p>
+            ) : null}
+          </div>
+          <div className="space-y-3 rounded-md border border-slate-200 p-4 text-sm">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={watch("dataProcessingConsent") === true}
+                onChange={(e) =>
+                  setValue("dataProcessingConsent", e.target.checked ? true : (undefined as never), {
+                    shouldValidate: true,
+                  })
+                }
+              />
+              <span>
+                I consent to PayForMe collecting and processing my personal data as described in the{" "}
+                <Link href="/privacy" className="text-emerald-600 hover:underline">
+                  privacy policy
+                </Link>
+                .
+              </span>
+            </label>
+            {errors.dataProcessingConsent ? (
+              <p className="text-xs text-destructive">{errors.dataProcessingConsent.message}</p>
+            ) : null}
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={watch("termsAccepted") === true}
+                onChange={(e) =>
+                  setValue("termsAccepted", e.target.checked ? true : (undefined as never), {
+                    shouldValidate: true,
+                  })
+                }
+              />
+              <span>
+                I accept the PayForMe{" "}
+                <Link href="/terms" className="text-emerald-600 hover:underline">
+                  terms of service
+                </Link>
+                .
+              </span>
+            </label>
+            {errors.termsAccepted ? (
+              <p className="text-xs text-destructive">{errors.termsAccepted.message}</p>
             ) : null}
           </div>
           <Button

@@ -6,6 +6,9 @@ export const financingRequestSchema = z.object({
   requestedAmount: z.number().positive(),
   durationMonths: z.number().int().min(6).max(60),
   notes: z.string().max(500).optional(),
+  dataProcessingConsent: z.literal(true, {
+    error: "You must consent to data collection and processing for financing.",
+  }),
 });
 
 export const approveFinancingSchema = z.object({

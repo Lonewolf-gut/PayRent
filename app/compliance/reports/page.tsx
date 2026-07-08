@@ -6,10 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 
-export default function ComplianceReportsPage() {
-  const [exporting, setExporting] = useState<string | null>(null);
+type ReportType =
+  | "audit"
+  | "kyc"
+  | "login"
+  | "transactions"
+  | "repayments"
+  | "user-activity";
 
-  async function handleExport(type: "audit" | "kyc" | "login") {
+export default function ComplianceReportsPage() {
+  const [exporting, setExporting] = useState<ReportType | null>(null);
+
+  async function handleExport(type: ReportType) {
     setExporting(type);
     try {
       const res = await fetch(`/api/compliance/reports?type=${type}`);
@@ -29,19 +37,24 @@ export default function ComplianceReportsPage() {
     }
   }
 
-  const reports = [
-    { type: "audit" as const, title: "Audit log export", desc: "CSV of recent platform audit events" },
-    { type: "kyc" as const, title: "KYC queue export", desc: "Pending and recent KYC verification records" },
-    { type: "login" as const, title: "Login activity export", desc: "Failed and successful login attempts" },
+  const reports: { type: ReportType; title: string; desc: string }[] = [
+    { type: "audit", title: "Audit trail export", desc: "Approvals, product changes, repayments, and dispute decisions" },
+    { type: "transactions", title: "Transaction export", desc: "Wallet transactions across all user roles" },
+    { type: "repayments", title: "Repayment export", desc: "Installment schedules, payments, and failed deductions" },
+    { type: "user-activity", title: "User activity export", desc: "Property views, logins, and platform actions" },
+    { type: "kyc", title: "KYC queue export", desc: "Pending and recent KYC verification records" },
+    { type: "login", title: "Login activity export", desc: "Failed and successful login attempts" },
   ];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Compliance reports</h1>
-        <p className="text-sm text-muted-foreground">Export records for regulatory and internal review.</p>
+        <p className="text-sm text-muted-foreground">
+          Exportable transaction, repayment, and user activity reports for regulatory review.
+        </p>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {reports.map((report) => (
           <Card key={report.type} className="rounded-none">
             <CardHeader>

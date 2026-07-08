@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { propertyRepository } from "@/lib/repositories/property.repository";
 import { notifyUserInAppAndEmail } from "@/lib/services/verification-notifications";
+import { auditService } from "@/lib/services/audit.service";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 import type { PropertyStatus } from "@prisma/client";
 
@@ -65,7 +66,7 @@ export const GET = withAuth(
 );
 
 export const PATCH = withAuth(
-  async (req: NextRequest) => {
+  async (req: NextRequest, _ctx, session) => {
     const { propertyId, status, reason } = await req.json();
 
     if (!propertyId || !status) {
@@ -116,6 +117,19 @@ export const PATCH = withAuth(
         }: ${reasonText}`
       );
     }
+
+    await auditService.log({
+      userId: session.user.id,
+      action: `PROPERTY_STATUS_${status}`,
+      entity: "Property",
+      entityId: propertyId,
+      metadata: {
+        previousStatus: existing.status,
+        newStatus: status,
+        reason: typeof reason === "string" ? reason : undefined,
+        landlordUserId,
+      },
+    });
 
     return apiResponse(property);
   },

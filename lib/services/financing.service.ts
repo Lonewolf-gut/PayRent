@@ -8,6 +8,7 @@ import type { ApproveFinancingInput } from "@/lib/validations/financing";
 import { tenantFinancingDocService } from "@/lib/services/tenant-financing-doc.service";
 import { agentCommissionService } from "@/lib/services/agent-commission.service";
 import { calculateAgentCommission } from "@/lib/constants/agent-commission";
+import { auditService } from "@/lib/services/audit.service";
 
 export class FinancingService {
   private async assertEligibility(tenantId: string) {
@@ -228,6 +229,42 @@ export class FinancingService {
       return { investment, repaymentPlan };
     });
 
+    const platformFee = input.amount * 0.025;
+
+    await prisma.feeDisclosureRecord.create({
+      data: {
+        financingRequestId: request.id,
+        tenantUserId: request.tenant.userId,
+        lenderUserId: lender.user.id,
+        principalAmount: new Prisma.Decimal(input.amount),
+        interestRate: new Prisma.Decimal(input.interestRate),
+        totalRepayable: new Prisma.Decimal(totalWithInterest),
+        platformFee: new Prisma.Decimal(platformFee),
+        agentCommission: new Prisma.Decimal(agentCommission),
+        durationMonths: request.durationMonths,
+        monthlyPayment: new Prisma.Decimal(monthlyPayment),
+        acceptedByUserId: lender.user.id,
+        metadata: {
+          planType: input.planType,
+          propertyId: request.propertyId,
+          propertyName: request.property.name,
+        },
+      },
+    });
+
+    await auditService.log({
+      userId: lender.user.id,
+      action: "FINANCING_APPROVED",
+      entity: "FinancingRequest",
+      entityId: request.id,
+      metadata: {
+        amount: input.amount,
+        interestRate: input.interestRate,
+        durationMonths: request.durationMonths,
+        tenantUserId: request.tenant.userId,
+      },
+    });
+
     if (commissionAgent && agentCommission > 0) {
       await prisma.agentEarning.create({
         data: {
@@ -273,7 +310,7 @@ export class FinancingService {
     return result;
   }
 
-  async rejectRequest(financingRequestId: string, _lenderId: string) {
+  async rejectRequest(financingRequestId: string, lenderUserId: string) {
     const request = await prisma.financingRequest.update({
       where: {
         id: financingRequestId,
@@ -287,6 +324,17 @@ export class FinancingService {
       userId: request.tenant.userId,
       title: "Financing declined",
       body: `Your financing request for ${request.property.name} was not approved.`,
+    });
+
+    await auditService.log({
+      userId: lenderUserId,
+      action: "FINANCING_REJECTED",
+      entity: "FinancingRequest",
+      entityId: financingRequestId,
+      metadata: {
+        tenantUserId: request.tenant.userId,
+        propertyId: request.propertyId,
+      },
     });
 
     return request;
