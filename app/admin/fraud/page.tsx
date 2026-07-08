@@ -74,7 +74,7 @@ export default function AdminFraudPage() {
         </CardContent>
       </Card>
 
-      <LoginActivityPanel defaultFilter="failed" heightClass="h-[480px]" />
+      <LoginActivityPanel defaultFilter="all" heightClass="h-[480px]" />
     </div>
   );
 }

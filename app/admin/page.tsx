@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { Users, Building2, CreditCard, AlertTriangle } from "lucide-react";
-import { LoginActivityPanel } from "@/components/admin/login-activity-panel";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
