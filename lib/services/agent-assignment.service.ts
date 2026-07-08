@@ -12,15 +12,15 @@ export async function assertEligibleAgent(agentProfileId: string) {
   });
 
   if (!agent?.user.isActive || agent.user.role !== "MARKETER") {
-    throw new AppError("Agent not found or inactive", 404);
+    throw new AppError("Affiliate not found or inactive", 404);
   }
 
   const status = await kycService.getVerificationStatus(agent.user.id, "MARKETER");
   if (!status.identityVerified) {
-    throw new AppError("Selected agent must complete identity verification", 400);
+    throw new AppError("Selected Affiliate must complete identity verification", 400);
   }
   if (!agent.user.image) {
-    throw new AppError("Selected agent must upload a profile photo", 400);
+    throw new AppError("Selected Affiliate must upload a profile photo", 400);
   }
 
   return agent;
@@ -57,7 +57,7 @@ export async function assignAgentToProperty(
   landlordUserId: string
 ) {
   const landlord = await prisma.landlord.findUnique({ where: { userId: landlordUserId } });
-  if (!landlord) throw new AppError("Landlord profile required", 403);
+  if (!landlord) throw new AppError("Merchant profile required", 403);
 
   const property = await prisma.property.findFirst({
     where: { id: propertyId, landlordId: landlord.id },
@@ -65,7 +65,7 @@ export async function assignAgentToProperty(
   if (!property) throw new AppError("Property not found", 404);
 
   if (agentProfileId) {
-    await assertPlatformAccess(landlordUserId, "assign an agent to advertise listings");
+    await assertPlatformAccess(landlordUserId, "assign an Affiliate to advertise listings");
     const agent = await assertEligibleAgent(agentProfileId);
     await assertAgentAssignmentLimit(agent.user.id);
     await prisma.property.update({
@@ -77,7 +77,7 @@ export async function assignAgentToProperty(
     await notificationService.create({
       userId: agent.user.id,
       title: "Assigned to a listing",
-      body: `You were assigned as agent for "${property.name}". Buyers can contact you about this listing.`,
+      body: `You were assigned as an Affiliate for "${property.name}". Buyers can contact you about this listing.`,
       metadata: { propertyId },
     });
 

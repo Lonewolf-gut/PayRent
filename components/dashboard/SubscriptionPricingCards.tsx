@@ -11,7 +11,7 @@ const plans = [
   {
     id: "FREE",
     name: "Starter",
-    subtitle: "Free plan for small landlords",
+    subtitle: "Free plan for small merchants",
     price: "Free",
     period: null as string | null,
     highlight: false,
@@ -35,7 +35,7 @@ const plans = [
       "Priority financing review",
       "Premium placement in search",
       "Advanced support",
-      "Tenant & resident portal",
+      "Customer & resident portal",
     ],
   },
 ];

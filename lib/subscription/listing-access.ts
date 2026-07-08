@@ -12,7 +12,7 @@ export async function assertAgentAssignmentLimit(agentUserId: string) {
 
   if (access.trialExpired && !access.isPaid) {
     throw new AppError(
-      `This agent's ${TRIAL_DAYS}-day trial has ended. They must upgrade at /pricing before accepting new listing assignments.`,
+      `This Affiliate's ${TRIAL_DAYS}-day trial has ended. They must upgrade at /pricing before accepting new listing assignments.`,
       403,
       "TRIAL_EXPIRED"
     );
@@ -25,7 +25,7 @@ export async function assertAgentAssignmentLimit(agentUserId: string) {
     select: { id: true },
   });
   if (!agent) {
-    throw new AppError("Agent profile required", 403);
+    throw new AppError("Affiliate profile required", 403);
   }
 
   const limits = getPlanLimits(access.plan);
@@ -54,7 +54,7 @@ export async function assertAgentAssignmentLimit(agentUserId: string) {
 
   if (counts.total >= limits.total) {
     throw new AppError(
-      `This agent has reached their ${tierLabel} plan limit of ${limits.total} assigned listings. Ask them to upgrade for more capacity.`,
+      `This Affiliate has reached their ${tierLabel} plan limit of ${limits.total} assigned listings. Ask them to upgrade for more capacity.`,
       403
     );
   }
@@ -78,7 +78,7 @@ export async function assertLandlordListingLimit(
   if (!limits) return;
 
   const landlord = await prisma.landlord.findUnique({ where: { userId } });
-  if (!landlord) throw new AppError("Landlord profile required", 403);
+  if (!landlord) throw new AppError("Merchant profile required", 403);
 
   const existing = await prisma.property.findMany({
     where: { landlordId: landlord.id, status: { not: "INACTIVE" } },

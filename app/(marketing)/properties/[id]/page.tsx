@@ -259,7 +259,7 @@ export default function PropertyDetailPage() {
                     ) : null}
                     <div>
                       <p className="font-medium">{displayLandlord.name}</p>
-                      <p className="text-xs text-muted-foreground">Landlord</p>
+                      <p className="text-xs text-muted-foreground">Merchant</p>
                       {displayLandlord.phone ? (
                         <p className="flex items-center gap-1 text-sm text-muted-foreground">
                           <Phone className="h-3 w-3" /> {displayLandlord.phone}
@@ -286,7 +286,7 @@ export default function PropertyDetailPage() {
                     ) : null}
                     <div>
                       <p className="font-medium">{displayAgent.name}</p>
-                      <p className="text-xs text-muted-foreground">Agent</p>
+                      <p className="text-xs text-muted-foreground">Affiliate</p>
                       {displayAgent.phone ? (
                         <p className="flex items-center gap-1 text-sm text-muted-foreground">
                           <Phone className="h-3 w-3" /> {displayAgent.phone}

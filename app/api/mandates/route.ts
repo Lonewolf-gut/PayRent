@@ -34,7 +34,7 @@ export const POST = withAuth(
     const tenant = await prisma.tenant.findUnique({
       where: { userId: session.user.id },
     });
-    if (!tenant) return apiResponse(null, 403, "Tenant profile required.");
+    if (!tenant) return apiResponse(null, 403, "Customer profile required.");
 
     const mandate = await mandateService.create(
       tenant.id,
@@ -59,7 +59,7 @@ export const PATCH = withAuth(
     const tenant = await prisma.tenant.findUnique({
       where: { userId: session.user.id },
     });
-    if (!tenant) return apiResponse(null, 403, "Tenant profile required.");
+    if (!tenant) return apiResponse(null, 403, "Customer profile required.");
 
     const mandate = await mandateService.submit(
       mandateId,

@@ -33,33 +33,58 @@ export function UpgradePlanPicker({
           <div
             key={planId}
             className={cn(
-              "flex flex-col rounded-xl border p-5",
+              "flex flex-col rounded-none border p-5",
               isHighlight
-                ? "border-emerald-500 bg-gradient-to-b from-emerald-700 to-emerald-800"
-                : "border-zinc-700 bg-zinc-900"
+                ? "border-emerald-600 bg-gradient-to-b from-emerald-600 to-emerald-700"
+                : "border-slate-200 bg-white"
             )}
           >
             <div className="mb-3 flex min-h-[24px] items-center gap-2">
               {isHighlight ? (
-                <span className="rounded bg-emerald-300 px-2 py-0.5 text-[10px] font-bold tracking-wide text-emerald-950">
+                <span className="rounded-none bg-emerald-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-emerald-900">
                   MOST POPULAR
                 </span>
               ) : null}
               {isCurrent ? (
-                <span className="rounded border border-zinc-600 px-2 py-0.5 text-[10px] font-bold tracking-wide text-zinc-300">
+                <span className="rounded-none border border-slate-300 px-2 py-0.5 text-[10px] font-bold tracking-wide text-slate-600">
                   CURRENT PLAN
                 </span>
               ) : null}
             </div>
 
-            <h3 className="text-lg font-semibold text-white">{plan.name}</h3>
-            <p className={cn("mt-1 text-sm", isHighlight ? "text-emerald-50/90" : "text-zinc-400")}>
+            <h3
+              className={cn(
+                "text-lg font-semibold",
+                isHighlight ? "text-white" : "text-slate-900"
+              )}
+            >
+              {plan.name}
+            </h3>
+            <p
+              className={cn(
+                "mt-1 text-sm",
+                isHighlight ? "text-emerald-50/90" : "text-slate-600"
+              )}
+            >
               {plan.tagline}
             </p>
-            <p className="mt-4 text-2xl font-bold text-white">
+            <p
+              className={cn(
+                "mt-4 text-2xl font-bold",
+                isHighlight ? "text-white" : "text-slate-900"
+              )}
+            >
               {formatPrice(planId)}
               {planId !== "FREE" ? (
-                <span className="text-sm font-normal text-zinc-400"> /mo</span>
+                <span
+                  className={cn(
+                    "text-sm font-normal",
+                    isHighlight ? "text-emerald-100" : "text-slate-500"
+                  )}
+                >
+                  {" "}
+                  /mo
+                </span>
               ) : null}
             </p>
 
@@ -69,10 +94,15 @@ export function UpgradePlanPicker({
                   key={feature}
                   className={cn(
                     "flex items-start gap-2 text-xs leading-relaxed",
-                    isHighlight ? "text-emerald-50" : "text-zinc-300"
+                    isHighlight ? "text-emerald-50" : "text-slate-700"
                   )}
                 >
-                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <Check
+                    className={cn(
+                      "mt-0.5 h-3.5 w-3.5 shrink-0",
+                      isHighlight ? "text-emerald-100" : "text-emerald-600"
+                    )}
+                  />
                   <span>{feature}</span>
                 </li>
               ))}
@@ -81,12 +111,12 @@ export function UpgradePlanPicker({
             <Button
               type="button"
               className={cn(
-                "mt-5 w-full",
+                "mt-5 w-full rounded-none",
                 isCurrent
-                  ? "bg-zinc-800 text-zinc-400 hover:bg-zinc-800"
+                  ? "bg-slate-100 text-slate-400 hover:bg-slate-100"
                   : isHighlight
                     ? "bg-white text-emerald-800 hover:bg-emerald-50"
-                    : "bg-zinc-100 text-zinc-900 hover:bg-white"
+                    : "bg-slate-900 text-white hover:bg-slate-800"
               )}
               disabled={isCurrent}
               onClick={() => onSelectPlan(planId)}

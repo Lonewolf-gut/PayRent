@@ -9,9 +9,9 @@ export const SUPPORT_ADDRESS = "Accra, Ghana";
 export const EMAIL_DOMAIN = "payforme.com";
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  BUYER: "Buyer",
+  BUYER: "Customers",
   MERCHANT: "Merchant",
-  MARKETER: "Affiliate Marketer",
+  MARKETER: "Affiliate",
   LENDER: "Lender",
   ADMIN: "Administrator",
   COMPLIANCE_OFFICER: "Compliance Officer",

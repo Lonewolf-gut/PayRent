@@ -48,12 +48,12 @@ export function SubscriptionUpgradeDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && closeUpgrade()}>
-      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-0 text-white sm:max-w-5xl">
-        <DialogHeader className="border-b border-white/10 px-6 py-5 text-center">
-          <DialogTitle className="text-2xl font-semibold text-white">
+      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto rounded-none border border-slate-200 bg-white p-0 text-slate-900 shadow-xl sm:max-w-5xl">
+        <DialogHeader className="border-b border-slate-200 px-6 py-5 text-center">
+          <DialogTitle className="text-2xl font-semibold text-slate-900">
             Adjust your plan
           </DialogTitle>
-          <p className="text-sm text-zinc-400">Save 20% when billed annually on checkout</p>
+          <p className="text-sm text-slate-600">Save 20% when billed annually on checkout</p>
         </DialogHeader>
 
         <UpgradePlanPicker currentPlan={currentPlan} onSelectPlan={handlePlanSelect} />
@@ -100,7 +100,7 @@ export function SidebarUpgradeCard() {
     profile?.fullName?.trim() || session.user.email?.split("@")[0] || "Account";
 
   return (
-    <div className="mx-3 mb-4 rounded-xl border bg-muted/40 p-3">
+    <div className="mx-3 mb-4 rounded-none border bg-muted/40 p-3">
       <p className="truncate text-sm font-medium">{displayName}</p>
       <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
       <p className="mt-2 text-xs text-muted-foreground">
@@ -108,7 +108,7 @@ export function SidebarUpgradeCard() {
       </p>
       {!isPaidPlan(plan) ? (
         <Button
-          className="mt-3 w-full justify-start gap-2 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900"
+          className="mt-3 w-full justify-start gap-2 rounded-none bg-slate-900 text-white hover:bg-slate-800"
           onClick={() => openUpgrade()}
         >
           <Sparkles className="h-4 w-4" />

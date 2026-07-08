@@ -13,7 +13,7 @@ export class AgentPropertyService {
     const agent = await prisma.agentProfile.findUnique({
       where: { userId: agentUserId },
     });
-    if (!agent) throw new AppError("Agent profile required", 403);
+    if (!agent) throw new AppError("Affiliate profile required", 403);
 
     return prisma.property.findMany({
       where: { agentUserId: agent.id },
@@ -55,7 +55,7 @@ export class AgentPropertyService {
       where: { userId: agentUserId },
       include: { user: true },
     });
-    if (!agent) throw new AppError("Agent profile required", 403);
+    if (!agent) throw new AppError("Affiliate profile required", 403);
 
     await assertEligibleAgent(agent.id);
     await assertPlatformAccess(agentUserId, "claim listings to promote");
@@ -72,7 +72,7 @@ export class AgentPropertyService {
 
     if (!property) {
       throw new AppError(
-        "This listing is not available to claim. It may already have an agent or is inactive.",
+        "This listing is not available to claim. It may already have an Affiliate or is inactive.",
         400
       );
     }
@@ -86,13 +86,13 @@ export class AgentPropertyService {
     await notificationService.create({
       userId: agent.user.id,
       title: "Listing claimed for promotion",
-      body: `You are now promoting "${property.name}". Share your referral link to earn commission when tenants buy or request financing.`,
+      body: `You are now promoting "${property.name}". Share your referral link to earn commission when Customers buy or request financing.`,
       metadata: { propertyId },
     });
 
     await notificationService.create({
       userId: property.landlord.userId,
-      title: "Agent promoting your listing",
+      title: "Affiliate promoting your listing",
       body: `${agent.fullName} claimed "${property.name}" to promote on your behalf.`,
       metadata: { propertyId, agentProfileId: agent.id },
     });

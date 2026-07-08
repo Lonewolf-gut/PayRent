@@ -43,7 +43,7 @@ export default function AdminSettlementsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Settlements</h1>
-        <p className="text-sm text-muted-foreground">Landlord and platform payout records from financed rentals.</p>
+        <p className="text-sm text-muted-foreground">Merchant and platform payout records from financed rentals.</p>
       </div>
       <div className="flex gap-2">
         {(["PENDING", "COMPLETED", "ALL"] as const).map((s) => (

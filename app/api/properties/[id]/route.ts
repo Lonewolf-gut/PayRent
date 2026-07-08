@@ -75,7 +75,7 @@ export const PATCH = withAuth(
     });
 
     if (!landlord) {
-      return apiError(new AppError("Landlord profile required", 403));
+      return apiError(new AppError("Merchant profile required", 403));
     }
 
     const property = await prisma.property.findUnique({ where: { id } });
@@ -153,7 +153,7 @@ export const DELETE = withAuth(
     });
 
     if (!landlord) {
-      return apiError(new AppError("Landlord profile required", 403));
+      return apiError(new AppError("Merchant profile required", 403));
     }
 
     const property = await prisma.property.findUnique({ where: { id } });

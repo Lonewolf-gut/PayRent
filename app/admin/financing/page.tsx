@@ -46,7 +46,7 @@ export default function AdminFinancingPage() {
               <div>
                 <CardTitle className="text-base">{r.property?.name ?? "Property"}</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Tenant {r.tenant?.user?.email ?? "—"} · GHS {Number(r.requestedAmount).toLocaleString()}
+                  Customer {r.tenant?.user?.email ?? "—"} · GHS {Number(r.requestedAmount).toLocaleString()}
                 </p>
               </div>
               <StatusBadge status={r.status} label={FINANCING_STATUS_LABELS[r.status] ?? r.status} />

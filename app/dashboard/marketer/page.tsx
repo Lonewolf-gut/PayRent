@@ -40,9 +40,9 @@ export default function AgentDashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Agent dashboard</h1>
+        <h1 className="text-2xl font-bold">Affiliate dashboard</h1>
         <p className="text-muted-foreground">
-          Promote listings, track leads, and earn commission when tenants buy or request financing through your referrals.
+          Promote listings, track leads, and earn commission when customers buy or request financing through your referrals.
         </p>
       </div>
 

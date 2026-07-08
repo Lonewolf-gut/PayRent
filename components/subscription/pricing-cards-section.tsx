@@ -58,7 +58,7 @@ export function PricingCardsSection({
                 isCheckout ? "text-emerald-800/75" : "text-emerald-100/75"
               }`}
             >
-              Plans for landlords and agents. Tenants and lenders use PayForMe for free.
+              Plans for merchants and Affiliates. Customers and lenders use PayForMe for free.
             </p>
           </div>
         ) : null}

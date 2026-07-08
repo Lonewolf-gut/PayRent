@@ -78,7 +78,7 @@ export function formatRoleLabel(role: UserRole | string) {
   const labels: Record<string, string> = {
     BUYER: "Buyer",
     MERCHANT: "Merchant",
-    MARKETER: "Affiliate Marketer",
+    MARKETER: "Affiliate",
     LENDER: "Investor",
     ADMIN: "Admin",
     COMPLIANCE_OFFICER: "Compliance Officer",

@@ -8,7 +8,7 @@ export const GET = withAuth(
     const agent = await prisma.agentProfile.findUnique({
       where: { userId: session.user.id },
     });
-    if (!agent) return apiResponse({ error: "Agent profile required" }, 403);
+    if (!agent) return apiResponse({ error: "Affiliate profile required" }, 403);
 
     const data = await agentCommissionService.listEarnings(agent.id);
     return apiResponse(data);

@@ -113,7 +113,7 @@ export default function AgentPromotePage() {
       <div>
         <h1 className="text-2xl font-bold">Promote & earn commission</h1>
         <p className="text-muted-foreground">
-          Verified agents can claim available listings or promote assigned ones. When someone applies, buys, or requests financing through your link, you earn commission.
+          Verified affiliates can claim available listings or promote assigned ones. When someone applies, buys, or requests financing through your link, you earn commission.
         </p>
       </div>
 
@@ -178,7 +178,7 @@ export default function AgentPromotePage() {
               value={selectedPropertyId}
               onChange={(e) => setSelectedPropertyId(e.target.value)}
             >
-              <option value="">General agent profile link</option>
+              <option value="">General Affiliate profile link</option>
               {promotableListings.map((listing) => (
                 <option key={listing.id} value={listing.id}>
                   {listing.name}

@@ -110,9 +110,9 @@ export default function AdminFinancingDocumentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Tenant financing documents</h1>
+        <h1 className="text-2xl font-bold">Customer financing documents</h1>
         <p className="text-muted-foreground">
-          Review payslips and bank statements grouped by tenant. Each profile shows linked KYC
+          Review payslips and bank statements grouped by Customer. Each profile shows linked KYC
           verification status and previously approved identity documents.
         </p>
       </div>

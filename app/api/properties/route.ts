@@ -193,7 +193,7 @@ export const POST = withAuth(
       where: { userId: session.user.id },
     });
     if (!landlord) {
-      return apiResponse({ error: "Landlord profile required" }, 403);
+      return apiResponse({ error: "Merchant profile required" }, 403);
     }
 
     await assertListingLimit(

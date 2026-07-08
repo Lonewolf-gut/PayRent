@@ -10,7 +10,7 @@ export const POST = withAuth(
     const tenant = await prisma.tenant.findUnique({
       where: { userId: session.user.id },
     });
-    if (!tenant) return apiResponse(null, 403, "Tenant profile required.");
+    if (!tenant) return apiResponse(null, 403, "Customer profile required.");
 
     const formData = await req.formData();
     const file = formData.get("document");

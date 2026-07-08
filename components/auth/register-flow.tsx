@@ -28,7 +28,7 @@ const entityOptions: {
   {
     value: "INDIVIDUAL",
     title: "Individual",
-    description: "I'm signing up for myself — tenant, landlord, or personal use.",
+    description: "I'm signing up for myself — customer, merchant, or personal use.",
     icon: UserRound,
   },
   {

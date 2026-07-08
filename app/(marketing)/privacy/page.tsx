@@ -15,7 +15,7 @@ export default function PrivacyPage() {
           <h2 className="text-xl font-semibold text-emerald-950">1. Introduction</h2>
           <p className="mt-3 leading-relaxed">
             {PLATFORM_NAME} (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) operates a rental
-            finance marketplace connecting tenants, landlords, agents, and lenders in Ghana. This
+            finance marketplace connecting Customers, merchants, Affiliates, and lenders in Ghana. This
             Privacy Policy explains how we collect, use, store, and protect your personal
             information when you use our website, mobile experiences, and related services
             (collectively, the &quot;Platform&quot;).
@@ -91,7 +91,7 @@ export default function PrivacyPage() {
           <ul className="mt-3 list-disc space-y-2 pl-6">
             <li>
               <strong>Other platform users</strong> where necessary for marketplace workflows
-              (e.g., landlords reviewing tenant applications, agents assigned to listings).
+              (e.g., merchants reviewing Customer applications, Affiliates assigned to listings).
             </li>
             <li>
               <strong>Service providers</strong> including payment processors (Paystack, Hubtel),

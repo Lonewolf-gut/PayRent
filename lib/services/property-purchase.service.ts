@@ -15,7 +15,7 @@ export class PropertyPurchaseService {
     referredAgentProfileId?: string | null
   ) {
     const tenant = await prisma.tenant.findUnique({ where: { userId: tenantUserId } });
-    if (!tenant) throw new AppError("Tenant profile required", 403);
+    if (!tenant) throw new AppError("Customer profile required", 403);
 
     const property = await prisma.property.findUnique({
       where: { id: propertyId },

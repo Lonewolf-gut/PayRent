@@ -92,7 +92,7 @@ export class FinancingService {
       await notificationService.create({
         userId: notifyAgentId.userId,
         title: "Financing request from your promotion",
-        body: `A tenant requested financing for ${request.property.name} through your referral.`,
+        body: `A Customer requested financing for ${request.property.name} through your referral.`,
         metadata: { propertyId, financingRequestId: request.id },
       });
     }

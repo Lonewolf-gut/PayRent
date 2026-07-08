@@ -29,9 +29,9 @@ export default function TermsPage() {
           <h2 className="text-xl font-semibold text-emerald-950">2. About the Platform</h2>
           <p className="mt-3 leading-relaxed">
             {PLATFORM_NAME} is a technology marketplace that facilitates connections between
-            tenants, landlords, agents, and lenders for rental listings, applications, rent
+            Customers, merchants, Affiliates, and lenders for rental listings, applications, rent
             financing, mandates, payments, and related services. We provide the infrastructure and
-            workflows; we are not a landlord, lender, estate agent, or financial institution unless
+            workflows; we are not a merchant, lender, estate Affiliate, or financial institution unless
             explicitly stated otherwise.
           </p>
         </section>
@@ -50,15 +50,15 @@ export default function TermsPage() {
           <h2 className="text-xl font-semibold text-emerald-950">4. User roles and responsibilities</h2>
           <ul className="mt-3 list-disc space-y-2 pl-6">
             <li>
-              <strong>Tenants</strong> must provide truthful application information and honour
+              <strong>Customers</strong> must provide truthful application information and honour
               approved rental and repayment obligations.
             </li>
             <li>
-              <strong>Landlords</strong> must list assets they are authorised to offer and respond
+              <strong>Merchants</strong> must list assets they are authorised to offer and respond
               to applications in good faith.
             </li>
             <li>
-              <strong>Agents</strong> must act within the scope of their assignments and applicable
+              <strong>Affiliates</strong> must act within the scope of their assignments and applicable
               agency regulations.
             </li>
             <li>
@@ -77,8 +77,8 @@ export default function TermsPage() {
           <p className="mt-3 leading-relaxed">
             Listings are subject to review and must not contain false, misleading, discriminatory,
             or unlawful content. {PLATFORM_NAME} may remove or suspend listings that violate these
-            Terms or applicable law. Application and approval decisions between tenants and
-            landlords (or their agents) are made by those parties; the Platform facilitates the
+            Terms or applicable law. Application and approval decisions between Customers and
+            merchants (or their Affiliates) are made by those parties; the Platform facilitates the
             process but does not guarantee approval or availability of any listing.
           </p>
         </section>
@@ -90,7 +90,7 @@ export default function TermsPage() {
             applicable documentation requirements. Approval, funding amounts, interest terms, and
             repayment schedules are determined by the relevant lender and documented in the
             financing workflow. {PLATFORM_NAME} does not guarantee financing approval or specific
-            terms. Tenants remain responsible for repayments according to agreed schedules.
+            terms. Customers remain responsible for repayments according to agreed schedules.
           </p>
         </section>
 
@@ -145,7 +145,7 @@ export default function TermsPage() {
             The Platform is provided on an &quot;as is&quot; and &quot;as available&quot; basis. To
             the fullest extent permitted by law, {PLATFORM_NAME} disclaims warranties regarding
             listing accuracy, financing outcomes, uninterrupted service, or fitness for a particular
-            purpose. We do not guarantee that any tenant, landlord, agent, or lender will complete a
+            purpose. We do not guarantee that any Customer, merchant, Affiliate, or lender will complete a
             transaction.
           </p>
         </section>

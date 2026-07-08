@@ -26,21 +26,21 @@ import { StatsBar } from "@/components/marketing/stats-bar";
 const whoItsFor = [
   {
     number: "01",
-    title: "Tenants",
+    title: "Customers",
     description:
       "Browse homes, cars, and appliances. Apply for listings and request rent financing from verified lenders.",
   },
   {
     number: "02",
-    title: "Landlords",
+    title: "Merchants",
     description:
       "List properties, cars, and appliances. Review applications and track settlements from one dashboard.",
   },
   {
     number: "03",
-    title: "Agents",
+    title: "Affiliates",
     description:
-      "Advocate listings, support tenants and landlords, and close deals with transparent workflows.",
+      "Advocate listings, support Customers and merchants, and close deals with transparent workflows.",
   },
   {
     number: "04",
@@ -64,15 +64,15 @@ const testimonials = [
     quote:
       "PayForme made finding and financing my apartment smooth. I felt supported at every step.",
     name: "Ama Boateng",
-    role: "Tenant",
+    role: "Customer",
     image:
       "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&h=400&q=80",
   },
   {
     quote:
-      "Our listings now reach more verified tenants, and the admin tools keep everything under control.",
+      "Our listings now reach more verified Customers, and the admin tools keep everything under control.",
     name: "Kwame Mensah",
-    role: "Landlord",
+    role: "Merchant",
     image:
       "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&h=400&q=80",
   },
@@ -86,9 +86,9 @@ const testimonials = [
   },
   {
     quote:
-      "Managing applications for multiple landlords is so much easier. The dashboard keeps every deal transparent.",
+      "Managing applications for multiple merchants is so much easier. The dashboard keeps every deal transparent.",
     name: "Efua Koranteng",
-    role: "Agent",
+    role: "Affiliate",
     image:
       "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&h=400&q=80",
   },
@@ -96,7 +96,7 @@ const testimonials = [
     quote:
       "The subscription model is fair — I started free and upgraded when my portfolio grew. No surprises.",
     name: "Kofi Adom",
-    role: "Landlord",
+    role: "Merchant",
     image:
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80",
   },
@@ -131,7 +131,7 @@ export default function HomePage() {
               <span className="text-emerald-600"> rental finance in Ghana</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
-              PayForMe brings tenants, landlords, agents, and lenders together to list assets,
+              PayForMe brings Customers, merchants, Affiliates, and lenders together to list assets,
               review applications, and manage rent financing with transparent payments and
               verified workflows.
             </p>
@@ -319,7 +319,7 @@ export default function HomePage() {
                 {
                   icon: Building2,
                   title: "Listings & applications",
-                  text: "Publication workflow with landlord and agent review queues.",
+                  text: "Publication workflow with merchant and Affiliate review queues.",
                 },
                 {
                   icon: Users,
@@ -357,7 +357,7 @@ export default function HomePage() {
               Trusted across Ghana
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-slate-500">
-              Hear from tenants, landlords, agents, and lenders using {PLATFORM_NAME} every day.
+              Hear from Customers, merchants, Affiliates, and lenders using {PLATFORM_NAME} every day.
             </p>
           </div>
 
@@ -440,7 +440,7 @@ export default function HomePage() {
           <p className="mt-3 text-emerald-800/80">
             {isSignedIn
               ? "Browse verified listings for homes, vehicles, and appliances across Ghana."
-              : "Create your account as a tenant, landlord, agent, or lender and access your role-specific dashboard."}
+              : "Create your account as a Customer, merchant, Affiliate, or lender and access your role-specific dashboard."}
           </p>
           <Button asChild size="lg" className="mt-6 bg-emerald-600 hover:bg-emerald-700">
             <Link href={isSignedIn ? "/properties" : "/register"}>

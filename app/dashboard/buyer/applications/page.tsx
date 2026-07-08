@@ -23,7 +23,7 @@ export default function TenantApplicationsPage() {
         <div>
           <h1 className="text-2xl font-bold">Property applications</h1>
           <p className="text-muted-foreground">
-            Track your rental applications and landlord decisions.
+            Track your applications and merchant decisions.
           </p>
         </div>
         <Button asChild className="bg-emerald-600 hover:bg-emerald-700">

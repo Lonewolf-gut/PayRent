@@ -53,15 +53,15 @@ export class ApplicationService {
 
     await notificationService.create({
       userId: property.landlord.userId,
-      title: "New tenant application",
-      body: `A tenant applied for ${property.name}.`,
+      title: "New Customer application",
+      body: `A Customer applied for ${property.name}.`,
     });
 
     if (property.assignedAgent?.user.id) {
       await notificationService.create({
         userId: property.assignedAgent.user.id,
         title: "New inquiry on your listing",
-        body: `A tenant applied for ${property.name}, which you represent as agent.`,
+        body: `A Customer applied for ${property.name}, which you represent as an Affiliate.`,
         metadata: { propertyId: property.id, applicationId: application.id },
       });
     }

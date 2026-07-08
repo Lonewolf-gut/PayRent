@@ -45,7 +45,7 @@ export function PropertyLocationFields({ value, onChange, disabled }: Props) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Structured location helps tenants find your listing and appears on the property detail page.
+        Structured location helps Customers find your listing and appears on the property detail page.
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">

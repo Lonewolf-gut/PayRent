@@ -37,7 +37,7 @@ export default function AgentListingsPage() {
         <div>
           <h1 className="text-2xl font-bold">My listings</h1>
           <p className="text-muted-foreground">
-            Properties assigned to you or claimed for promotion. Earn commission when tenants buy or request financing through your links.
+            Properties assigned to you or claimed for promotion. Earn commission when customers buy or request financing through your links.
           </p>
         </div>
         <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
@@ -50,7 +50,7 @@ export default function AgentListingsPage() {
       ) : !listings?.length ? (
         <Card>
           <CardContent className="space-y-4 py-12 text-center text-muted-foreground">
-            <p>No listings yet. Ask a landlord to assign you, or claim available listings to promote.</p>
+            <p>No listings yet. Ask a merchant to assign you, or claim available listings to promote.</p>
             <Button asChild variant="outline">
               <Link href="/dashboard/marketer/promote">Browse available listings</Link>
             </Button>
@@ -86,7 +86,7 @@ export default function AgentListingsPage() {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {listing._count?.applications ?? 0} application(s)
-                    {listing.landlord ? ` · Landlord: ${listing.landlord.fullName}` : ""}
+                    {listing.landlord ? ` · Merchant: ${listing.landlord.fullName}` : ""}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="outline">

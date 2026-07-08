@@ -42,7 +42,7 @@ export default function LandlordAgentsPage() {
     queryFn: async () => {
       const res = await fetch("/api/merchant/agents");
       const json = await res.json();
-      if (!json.success) throw new Error(json.message ?? "Failed to load agents");
+      if (!json.success) throw new Error(json.message ?? "Failed to load Affiliates");
       return json.data as {
         properties: PropertyRow[];
         availableAgents: AgentOption[];
@@ -67,7 +67,7 @@ export default function LandlordAgentsPage() {
       if (!json.success) throw new Error(json.message ?? "Assignment failed");
     },
     onSuccess: () => {
-      toast.success("Agent assignment updated");
+      toast.success("Affiliate assignment updated");
       queryClient.invalidateQueries({ queryKey: ["landlord-agents"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -79,9 +79,9 @@ export default function LandlordAgentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Manage agents</h1>
+        <h1 className="text-2xl font-bold">Manage Affiliates</h1>
         <p className="text-muted-foreground">
-          Assign registered agents to your property listings.
+          Assign registered Affiliates to your property listings.
         </p>
       </div>
 
@@ -102,7 +102,7 @@ export default function LandlordAgentsPage() {
                 <p className="text-sm text-muted-foreground">
                   {property.assignedAgent
                     ? `Assigned: ${property.assignedAgent.fullName} (${property.assignedAgent.user.email})`
-                    : "No agent assigned"}
+                    : "No Affiliate assigned"}
                 </p>
               </div>
               <StatusBadge status={property.status} />
@@ -120,10 +120,10 @@ export default function LandlordAgentsPage() {
                   disabled={assignMutation.isPending || !agents.length}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select agent" />
+                    <SelectValue placeholder="Select Affiliate" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No agent</SelectItem>
+                    <SelectItem value="none">No Affiliate</SelectItem>
                     {agents.map((agent) => (
                       <SelectItem key={agent.id} value={agent.id}>
                         {agent.fullName}
@@ -145,7 +145,7 @@ export default function LandlordAgentsPage() {
                     })
                   }
                 >
-                  Remove agent
+                  Remove Affiliate
                 </Button>
               ) : null}
             </CardContent>

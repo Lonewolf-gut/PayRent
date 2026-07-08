@@ -14,7 +14,7 @@ import {
 export class TenantFinancingDocService {
   async listForTenant(userId: string) {
     const tenant = await prisma.tenant.findUnique({ where: { userId } });
-    if (!tenant) throw new AppError("Tenant profile required", 403);
+    if (!tenant) throw new AppError("Customer profile required", 403);
 
     const requiredTypes = getRequiredFinancingDocTypes(tenant.entityType);
     const docs = await prisma.tenantFinancingDocument.findMany({
@@ -43,7 +43,7 @@ export class TenantFinancingDocService {
       where: { userId },
       include: { user: { select: { email: true } } },
     });
-    if (!tenant) throw new AppError("Tenant profile required", 403);
+    if (!tenant) throw new AppError("Customer profile required", 403);
 
     if (!tenant.kycVerified) {
       throw new AppError(
@@ -174,7 +174,7 @@ export class TenantFinancingDocService {
 
   async assertFinancingDocsApproved(tenantId: string) {
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant) throw new AppError("Tenant profile required", 403);
+    if (!tenant) throw new AppError("Customer profile required", 403);
 
     const requiredTypes = getRequiredFinancingDocTypes(tenant.entityType);
     const docs = await prisma.tenantFinancingDocument.findMany({

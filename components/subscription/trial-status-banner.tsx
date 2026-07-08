@@ -124,7 +124,7 @@ export function TrialStatusBanner({
               </button>{" "}
               {role === "MARKETER"
                 ? "to support more assigned listings after your trial."
-                : "to keep listings visible and assign agents after your trial."}
+                : "to keep listings visible and assign affiliates after your trial."}
             </p>
           </div>
           <Button
@@ -157,7 +157,7 @@ export function TrialStatusBanner({
             <p className="mt-1 text-amber-900/75 dark:text-amber-200/80">
               {role === "MARKETER"
                 ? "New listing assignments are paused until you upgrade. Existing assignments remain in your dashboard. "
-                : "Listings are hidden (not deleted), and agent advertising is paused until you upgrade. "}
+                : "Listings are hidden (not deleted), and affiliate advertising is paused until you upgrade. "}
               <button
                 type="button"
                 onClick={() => openUpgrade()}

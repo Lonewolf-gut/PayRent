@@ -35,7 +35,7 @@ export default function AgentEarningsPage() {
       <div>
         <h1 className="text-2xl font-bold">Commissions & earnings</h1>
         <p className="text-muted-foreground">
-          Commission is your main income as an agent — earned when tenants buy or get financing through your promotion.
+          Commission is your main income as an affiliate — earned when customers buy or get financing through your promotion.
         </p>
       </div>
 

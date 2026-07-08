@@ -561,7 +561,7 @@ export default function AdminPropertiesPage() {
                     id="reject-reason"
                     value={rejectReason}
                     onChange={(e) => setRejectReason(e.target.value)}
-                    placeholder="Explain what the landlord should fix…"
+                    placeholder="Explain what the merchant should fix…"
                     className="rounded-none"
                   />
                   <Button

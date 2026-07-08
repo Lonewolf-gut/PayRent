@@ -12,25 +12,25 @@ const STEPS: Step[] = [
     number: "01",
     title: "Add your property",
     description:
-      "Create your property, add units, set rent amounts and due dates. Invite your agent if you have one — they get free access.",
+      "Create your property, add units, set rent amounts and due dates. Invite your Affiliate if you have one — they get free access.",
   },
   {
     number: "02",
-    title: "Add tenants & send leases",
+    title: "Add Customers & send leases",
     description:
-      "Add a tenant's name and phone. The platform generates a Ghana-law lease and sends it to them via WhatsApp. They sign digitally — no app needed.",
+      "Add a Customer's name and phone. The platform generates a Ghana-law lease and sends it to them via WhatsApp. They sign digitally — no app needed.",
   },
   {
     number: "03",
     title: "Collect rent automatically",
     description:
-      "Tenants pay via MoMo, card, or bank transfer. Rent goes directly to your account — never through an agent. Receipts sent instantly to both parties.",
+      "Customers pay via MoMo, card, or bank transfer. Rent goes directly to your account — never through an Affiliate. Receipts sent instantly to both parties.",
   },
   {
     number: "04",
     title: "Stay in control",
     description:
-      "See all units, payments, maintenance, agent commission, and expiring leases on one dashboard. Everything documented, everything searchable.",
+      "See all units, payments, maintenance, Affiliate commission, and expiring leases on one dashboard. Everything documented, everything searchable.",
   },
 ];
 

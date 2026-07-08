@@ -14,11 +14,11 @@ const faqSections = [
     items: [
       {
         q: `What is ${PLATFORM_NAME}?`,
-        a: `${PLATFORM_NAME} is a rental finance marketplace in Ghana that connects tenants, landlords, agents, and lenders. You can browse and list properties, vehicles, and appliances; submit applications; request rent financing; and manage payments through verified workflows.`,
+        a: `${PLATFORM_NAME} is a rental finance marketplace in Ghana that connects Customers, merchants, Affiliates, and lenders. You can browse and list properties, vehicles, and appliances; submit applications; request rent financing; and manage payments through verified workflows.`,
       },
       {
         q: "Who can create an account?",
-        a: "Tenants, landlords, agents, and lenders can register. Each role gets a dedicated dashboard with tools tailored to their part in the rental and financing chain. Administrator accounts are created internally by the platform team.",
+        a: "Customers, merchants, Affiliates, and lenders can register. Each role gets a dedicated dashboard with tools tailored to their part in the rental and financing chain. Administrator accounts are created internally by the platform team.",
       },
       {
         q: "How do I register?",
@@ -55,16 +55,16 @@ const faqSections = [
     title: "Listings & applications",
     items: [
       {
-        q: "How do landlords publish listings?",
-        a: "Landlords create a listing from their dashboard, add photos and details, and submit for review. Once approved, the listing appears on the public properties page for tenants to browse and apply.",
+        q: "How do merchants publish listings?",
+        a: "Merchants create a listing from their dashboard, add photos and details, and submit for review. Once approved, the listing appears on the public properties page for Customers to browse and apply.",
       },
       {
-        q: "How do tenants apply for a listing?",
-        a: "Browse published listings, open a property you are interested in, and submit an application with the required details. The landlord (or assigned agent) reviews your application and approves or requests clarification.",
+        q: "How do Customers apply for a listing?",
+        a: "Browse published listings, open a property you are interested in, and submit an application with the required details. The merchant (or assigned Affiliate) reviews your application and approves or requests clarification.",
       },
       {
-        q: "Can agents manage listings for landlords?",
-        a: "Yes. Landlords can assign agents to their listings. Agents can support application review, tenant communication, and listing management within their assigned scope.",
+        q: "Can Affiliates manage listings for merchants?",
+        a: "Yes. Merchants can assign Affiliates to their listings. Affiliates can support application review, Customer communication, and listing management within their assigned scope.",
       },
       {
         q: "What listing categories are supported?",
@@ -77,15 +77,15 @@ const faqSections = [
     items: [
       {
         q: "How does Pay for Rent financing work?",
-        a: "After a tenant's application is approved, they can request financing for the rental amount. The tenant sets up a repayment mandate, lenders review eligible requests, and upon approval funds are disbursed according to the agreed schedule.",
+        a: "After a Customer's application is approved, they can request financing for the rental amount. The Customer sets up a repayment mandate, lenders review eligible requests, and upon approval funds are disbursed according to the agreed schedule.",
       },
       {
         q: "Who can request financing?",
-        a: "Tenants with verified accounts and approved applications can request financing. Eligibility depends on KYC status, mandate setup, and lender review criteria.",
+        a: "Customers with verified accounts and approved applications can request financing. Eligibility depends on KYC status, mandate setup, and lender review criteria.",
       },
       {
         q: "What is a repayment mandate?",
-        a: "A mandate authorises scheduled deductions from the tenant's bank account or mobile money wallet to repay the financed amount. Mandates go through submission, admin review, and bank processing before becoming active.",
+        a: "A mandate authorises scheduled deductions from the Customer's bank account or mobile money wallet to repay the financed amount. Mandates go through submission, admin review, and bank processing before becoming active.",
       },
       {
         q: "How do lenders participate?",
@@ -97,20 +97,20 @@ const faqSections = [
     title: "Subscriptions & billing",
     items: [
       {
-        q: "Do tenants or lenders need a subscription?",
-        a: "No. Tenant and lender accounts are free. Browse listings, apply, request financing (tenants), and review the full financing queue (lenders) without a monthly plan. Subscriptions apply to landlords and agents.",
+        q: "Do Customers or lenders need a subscription?",
+        a: "No. Customer and lender accounts are free. Browse listings, apply, request financing (Customers), and review the full financing queue (lenders) without a monthly plan. Subscriptions apply to merchants and Affiliates.",
       },
       {
-        q: "How do landlord and agent subscriptions work?",
-        a: "Landlords and agents start with a 7-day trial with full access. After trial, the Free plan applies listing or assignment limits. Upgrade to Pro or Max from the Pricing page via wallet or Paystack.",
+        q: "How do merchant and Affiliate subscriptions work?",
+        a: "Merchants and Affiliates start with a 7-day trial with full access. After trial, the Free plan applies listing or assignment limits. Upgrade to Pro or Max from the Pricing page via wallet or Paystack.",
       },
       {
         q: "What are the Free plan limits after trial?",
-        a: "Landlords can have 1 residential listing, 1 car, and 1 appliance (3 total). Agents can be assigned to the same limits. Pro and Max unlock higher or unlimited capacity.",
+        a: "Merchants can have 1 residential listing, 1 car, and 1 appliance (3 total). Affiliates can be assigned to the same limits. Pro and Max unlock higher or unlimited capacity.",
       },
       {
         q: "Can I cancel my subscription?",
-        a: "Landlords and agents can cancel from the pricing page or subscription settings. When a paid plan expires, your account reverts to Free plan limits.",
+        a: "Merchants and Affiliates can cancel from the pricing page or subscription settings. When a paid plan expires, your account reverts to Free plan limits.",
       },
     ],
   },
@@ -131,7 +131,7 @@ const faqSections = [
       },
       {
         q: "What are settlements?",
-        a: "Settlements are payouts to landlords, agents, or other parties after successful tenant payments or financing disbursements. Settlement status is tracked in your dashboard.",
+        a: "Settlements are payouts to merchants, Affiliates, or other parties after successful Customer payments or financing disbursements. Settlement status is tracked in your dashboard.",
       },
     ],
   },

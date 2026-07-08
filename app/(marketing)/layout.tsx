@@ -24,9 +24,9 @@ export default async function MarketingLayout({
           <div className="md:col-span-2">
             <p className="text-base font-semibold text-emerald-950">PayForMe</p>
             <p className="mt-3 max-w-md leading-relaxed">
-              A marketplace for rental finance in Ghana — connecting tenants,
-              landlords, agents, and lenders. Landlords and agents subscribe to list;
-              tenants and lenders join free.
+              A marketplace for rental finance in Ghana — connecting Customers,
+              merchants, Affiliates, and lenders. Merchants and Affiliates subscribe to list;
+              Customers and lenders join free.
             </p>
           </div>
           <div>

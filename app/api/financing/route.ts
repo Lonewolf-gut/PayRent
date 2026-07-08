@@ -48,7 +48,7 @@ export const POST = withAuth(
     const tenant = await prisma.tenant.findUnique({
       where: { userId: session.user.id },
     });
-    if (!tenant) return apiResponse({ error: "Tenant profile required" }, 403);
+    if (!tenant) return apiResponse({ error: "Customer profile required" }, 403);
 
     const referredAgentProfileId = await getReferralAgentProfileId(req);
 

@@ -181,7 +181,7 @@ export function PropertyActionPanel({
                   className="rounded-none"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Tell the landlord about yourself"
+                  placeholder="Tell the merchant about yourself"
                 />
               </div>
               <Button
@@ -284,7 +284,7 @@ export function PropertyActionPanel({
                   onChat(contacts.landlord!.userId, contacts.landlord!.name)
                 }
               >
-                Chat with landlord
+                Chat with merchant
               </Button>
             ) : null}
             {contacts.agent?.userId ? (
@@ -293,7 +293,7 @@ export function PropertyActionPanel({
                 className="w-full rounded-none justify-start"
                 onClick={() => onChat(contacts.agent!.userId!, contacts.agent!.name)}
               >
-                Chat with agent
+                Chat with Affiliate
               </Button>
             ) : null}
           </CardContent>

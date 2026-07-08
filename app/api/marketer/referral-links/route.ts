@@ -14,7 +14,7 @@ export const GET = withAuth(
     const agent = await prisma.agentProfile.findUnique({
       where: { userId: session.user.id },
     });
-    if (!agent) return apiResponse({ error: "Agent profile required" }, 403);
+    if (!agent) return apiResponse({ error: "Affiliate profile required" }, 403);
 
     const links = await agentReferralService.listLinks(agent.id);
     const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -32,7 +32,7 @@ export const POST = withAuth(
     const agent = await prisma.agentProfile.findUnique({
       where: { userId: session.user.id },
     });
-    if (!agent) return apiResponse({ error: "Agent profile required" }, 403);
+    if (!agent) return apiResponse({ error: "Affiliate profile required" }, 403);
 
     const body = await req.json();
     const parsed = createLinkSchema.safeParse(body);

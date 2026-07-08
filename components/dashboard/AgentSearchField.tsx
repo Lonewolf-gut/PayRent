@@ -61,7 +61,7 @@ export function AgentSearchField({ value, onChange, className }: AgentSearchFiel
 
   return (
     <div className={cn("space-y-2", className)}>
-      <Label>Agent (optional)</Label>
+      <Label>Affiliate (optional)</Label>
       <Input
         value={query}
         onChange={(e) => {
@@ -71,10 +71,10 @@ export function AgentSearchField({ value, onChange, className }: AgentSearchFiel
             onChange(null, null);
           }
         }}
-        placeholder="Search verified agent by name"
+        placeholder="Search verified Affiliate by name"
       />
       <p className="text-xs text-muted-foreground">
-        Agent must be signed in, verified, and have a profile photo. They will receive
+        Affiliate must be signed in, verified, and have a profile photo. They will receive
         notifications and can be contacted by buyers.
       </p>
       {loading ? <p className="text-xs text-muted-foreground">Searching...</p> : null}
@@ -115,7 +115,7 @@ export function AgentSearchField({ value, onChange, className }: AgentSearchFiel
           className="text-xs text-emerald-700 hover:underline"
           onClick={clearAgent}
         >
-          Clear agent selection
+          Clear Affiliate selection
         </button>
       )}
     </div>

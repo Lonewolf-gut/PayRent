@@ -10,7 +10,7 @@ export const GET = withAuth(
     const landlord = await prisma.landlord.findUnique({
       where: { userId: session.user.id },
     });
-    if (!landlord) return apiResponse({ error: "Landlord profile required" }, 403);
+    if (!landlord) return apiResponse({ error: "Merchant profile required" }, 403);
 
     const [properties, agents] = await Promise.all([
       prisma.property.findMany({
@@ -65,10 +65,10 @@ export const PATCH = withAuth(
     const landlord = await prisma.landlord.findUnique({
       where: { userId: session.user.id },
     });
-    if (!landlord) return apiResponse({ error: "Landlord profile required" }, 403);
+    if (!landlord) return apiResponse({ error: "Merchant profile required" }, 403);
 
     if (parsed.data.agentProfileId) {
-      await assertPlatformAccess(session.user.id, "assign an agent to advertise listings");
+      await assertPlatformAccess(session.user.id, "assign an Affiliate to advertise listings");
     }
 
     const updated = await assignAgentToProperty(
@@ -94,7 +94,7 @@ export const PATCH = withAuth(
       },
     });
 
-    return apiResponse(property, 200, "Agent assignment updated.");
+    return apiResponse(property, 200, "Affiliate assignment updated.");
   },
   { roles: ["MERCHANT"], permission: "marketer:manage" }
 );

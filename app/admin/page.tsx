@@ -123,7 +123,7 @@ export default function AdminDashboardPage() {
           { href: "/admin/users", label: "Users", desc: "Suspend, unlock, delete" },
           { href: "/admin/properties", label: "Listings", desc: "Approve, reject, suspend" },
           { href: "/admin/financing", label: "Financing", desc: "Track rent-to-own requests" },
-          { href: "/admin/settlements", label: "Settlements", desc: "Mark landlord payouts" },
+          { href: "/admin/settlements", label: "Settlements", desc: "Mark merchant payouts" },
           { href: "/admin/withdrawals", label: "Withdrawals", desc: "Review payout queue" },
           { href: "/admin/fraud", label: "Fraud & security", desc: "Login logs & locked accounts" },
         ].map((item) => (

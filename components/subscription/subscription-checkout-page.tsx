@@ -175,7 +175,7 @@ export function SubscriptionCheckoutPage() {
         <h1 className="text-3xl font-bold text-emerald-950">No subscription required</h1>
         <p className="mt-4 text-muted-foreground">
           {role === "BUYER"
-            ? "Tenant accounts have free access to browse listings, apply for properties, and request rent financing."
+            ? "Customer accounts have free access to browse listings, apply for products, and request pay-for-me financing."
             : "Lender accounts have free access to the full financing pipeline — review, approve, and monitor deals at no monthly cost."}
         </p>
         <Button asChild className="mt-8 bg-emerald-600 hover:bg-emerald-700">
