@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 
 import { AdminLayoutGate } from "@/components/admin/admin-layout-gate";
@@ -57,7 +58,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <DashboardThemeProvider className="flex min-h-screen w-full">
-      <AdminLayoutGate navItems={navItems}>{children}</AdminLayoutGate>
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen w-full flex-1 items-center justify-center text-sm text-muted-foreground">
+            Loading admin portal…
+          </div>
+        }
+      >
+        <AdminLayoutGate navItems={navItems}>{children}</AdminLayoutGate>
+      </Suspense>
     </DashboardThemeProvider>
   );
 

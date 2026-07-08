@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -32,7 +32,11 @@ export default function LoginForm({ adminMode = false }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [needs2Fa, setNeeds2Fa] = useState(false);
   const [twoFaCode, setTwoFaCode] = useState("");
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const rawCallbackUrl = searchParams.get("callbackUrl");
+  const callbackUrl =
+    rawCallbackUrl && !rawCallbackUrl.startsWith("/admin/login")
+      ? rawCallbackUrl
+      : "/";
   const role = (adminMode ? "ADMIN" : (searchParams.get("role") ?? "TENANT")) as
     | "TENANT"
     | "LANDLORD"
@@ -59,17 +63,22 @@ export default function LoginForm({ adminMode = false }: LoginFormProps) {
   }, []);
 
   useEffect(() => {
-    if (!adminMode || loading) return;
+    if (!adminMode) return;
 
-    fetch("/api/auth/session")
-      .then((res) => res.json())
+    getSession()
       .then((session) => {
         if (session?.user?.role === "ADMIN") {
-          router.replace(ADMIN_HOME_PATH);
+          window.location.assign(
+            rawCallbackUrl &&
+              rawCallbackUrl.startsWith("/admin") &&
+              rawCallbackUrl !== "/admin/login"
+              ? rawCallbackUrl
+              : ADMIN_HOME_PATH
+          );
         }
       })
       .catch(() => undefined);
-  }, [adminMode, router]);
+  }, [adminMode, rawCallbackUrl]);
 
   const onSubmit = async (data: LoginInput) => {
     setLoading(true);
@@ -96,15 +105,36 @@ export default function LoginForm({ adminMode = false }: LoginFormProps) {
         return;
       }
 
-      const res = await fetch("/api/auth/session");
-      const session = await res.json();
+      const session = await getSession();
+      if (!session?.user) {
+        toast.error("Signed in, but the session could not be loaded. Please try again.", {
+          id: toastId,
+        });
+        return;
+      }
+
       toast.success("Signed in successfully.", { id: toastId });
       sessionStorage.setItem("fresh-dashboard-login", "1");
-      const destination = adminMode
-        ? ADMIN_HOME_PATH
-        : session?.user?.role
-          ? getPostLoginRoute(session.user.role as UserRole)
-          : callbackUrl;
+
+      if (adminMode) {
+        if (session.user.role !== "ADMIN") {
+          toast.error("This account does not have administrator access.", { id: toastId });
+          return;
+        }
+
+        const destination =
+          rawCallbackUrl &&
+          rawCallbackUrl.startsWith("/admin") &&
+          rawCallbackUrl !== "/admin/login"
+            ? rawCallbackUrl
+            : ADMIN_HOME_PATH;
+        window.location.assign(destination);
+        return;
+      }
+
+      const destination = session.user.role
+        ? getPostLoginRoute(session.user.role as UserRole)
+        : callbackUrl;
       router.push(destination);
       router.refresh();
     } catch (error) {

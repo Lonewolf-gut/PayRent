@@ -1,13 +1,25 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { AdminDashboardHeader } from "@/components/dashboard/dashboard-header";
+import { ADMIN_HOME_PATH } from "@/lib/auth/route-guards";
 import type { NavItem } from "@/components/dashboard/sidebar";
 
 const ADMIN_ROLES = new Set(["ADMIN"]);
+
+function resolveAdminCallback(callbackUrl: string | null) {
+  if (
+    callbackUrl &&
+    callbackUrl.startsWith("/admin") &&
+    callbackUrl !== "/admin/login"
+  ) {
+    return callbackUrl;
+  }
+  return ADMIN_HOME_PATH;
+}
 
 export function AdminLayoutGate({
   children,
@@ -18,17 +30,28 @@ export function AdminLayoutGate({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const isLoginPage = pathname === "/admin/login";
+  const isAdmin =
+    status === "authenticated" &&
+    !!session?.user?.role &&
+    ADMIN_ROLES.has(session.user.role);
 
   useEffect(() => {
-    if (isLoginPage || status === "loading") return;
+    if (status === "loading") return;
 
-    const role = session?.user?.role;
-    if (!session?.user || !role || !ADMIN_ROLES.has(role)) {
+    if (isLoginPage) {
+      if (isAdmin) {
+        router.replace(resolveAdminCallback(searchParams.get("callbackUrl")));
+      }
+      return;
+    }
+
+    if (status === "unauthenticated" || !isAdmin) {
       router.replace(`/admin/login?callbackUrl=${encodeURIComponent(pathname)}`);
     }
-  }, [isLoginPage, pathname, router, session, status]);
+  }, [isAdmin, isLoginPage, pathname, router, searchParams, session, status]);
 
   if (isLoginPage) {
     return <div className="flex min-h-screen w-full flex-1 flex-col">{children}</div>;
@@ -42,7 +65,7 @@ export function AdminLayoutGate({
     );
   }
 
-  if (!session?.user?.role || !ADMIN_ROLES.has(session.user.role)) {
+  if (!isAdmin) {
     return null;
   }
 
