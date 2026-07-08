@@ -57,7 +57,12 @@ function runSql(sql, { ignoreMissing = false } = {}) {
     return true;
   } catch (error) {
     const message = String(error.stderr ?? error.stdout ?? error.message ?? error);
-    if (ignoreMissing && /does not exist/i.test(message)) {
+    if (
+      ignoreMissing &&
+      (/does not exist/i.test(message) ||
+        /is not an existing enum label/i.test(message) ||
+        /already exists/i.test(message))
+    ) {
       return false;
     }
     throw new Error(message);
@@ -120,7 +125,12 @@ for (const step of steps) {
 console.log("\nUpdated UserRole values:", showEnumValues("UserRole").join(", ") || "(none)");
 
 const userRole = showEnumValues("UserRole");
-if (userRole.includes("TENANT") || userRole.includes("LANDLORD") || userRole.includes("AGENT")) {
+const hasOldUserRoles =
+  userRole.includes("TENANT") ||
+  userRole.includes("LANDLORD") ||
+  userRole.includes("AGENT");
+
+if (hasOldUserRoles) {
   console.error(
     "\nOld enum values still present. Do NOT run `prisma db push` with data-loss yet.\n" +
       "Contact support or reset the dev database if this persists."
