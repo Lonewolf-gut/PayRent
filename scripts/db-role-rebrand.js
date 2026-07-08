@@ -13,26 +13,47 @@ const fs = require("fs");
 const path = require("path");
 
 const sqlPath = path.join(__dirname, "..", "prisma", "sql", "role-rebrand-migration.sql");
+const DOCKER_TIMEOUT_MS = 45_000;
+
+console.log("Role rebrand: checking Docker Postgres (usually < 30s)…");
+
+function dockerExec(command, options = {}) {
+  return execSync(command, {
+    encoding: "utf8",
+    timeout: DOCKER_TIMEOUT_MS,
+    ...options,
+  });
+}
 
 function containerRunning(name) {
   try {
-    const out = execSync(`docker inspect -f "{{.State.Running}}" ${name}`, {
-      encoding: "utf8",
+    const out = dockerExec(`docker inspect -f "{{.State.Running}}" ${name}`, {
       stdio: ["pipe", "pipe", "pipe"],
     }).trim();
     return out === "true";
-  } catch {
+  } catch (error) {
+    if (error.killed || /ETIMEDOUT|timed out/i.test(String(error.message))) {
+      console.error(
+        "\nDocker is not responding (timed out after 45s).\n" +
+          "Open Docker Desktop, wait until it says 'Running', then try again:\n" +
+          "  npm run docker:up\n" +
+          "  npm run db:role-rebrand"
+      );
+      process.exit(1);
+    }
     return false;
   }
 }
 
 function runSql(sql, { ignoreMissing = false } = {}) {
   try {
-    execSync("docker exec -i rentvest-postgres psql -U rentvest -d rentvest -v ON_ERROR_STOP=1", {
-      input: sql,
-      stdio: ["pipe", "pipe", "pipe"],
-      encoding: "utf8",
-    });
+    dockerExec(
+      "docker exec -i rentvest-postgres psql -U rentvest -d rentvest -v ON_ERROR_STOP=1",
+      {
+        input: sql,
+        stdio: ["pipe", "pipe", "pipe"],
+      }
+    );
     return true;
   } catch (error) {
     const message = String(error.stderr ?? error.stdout ?? error.message ?? error);
@@ -45,9 +66,8 @@ function runSql(sql, { ignoreMissing = false } = {}) {
 
 function showEnumValues(enumName) {
   try {
-    const out = execSync(
-      `docker exec rentvest-postgres psql -U rentvest -d rentvest -t -A -c "SELECT enumlabel FROM pg_enum e JOIN pg_type t ON e.enumtypid = t.oid WHERE t.typname = '${enumName}' ORDER BY e.enumsortorder;"`,
-      { encoding: "utf8" }
+    const out = dockerExec(
+      `docker exec rentvest-postgres psql -U rentvest -d rentvest -t -A -c "SELECT enumlabel FROM pg_enum e JOIN pg_type t ON e.enumtypid = t.oid WHERE t.typname = '${enumName}' ORDER BY e.enumsortorder;"`
     );
     return out
       .split("\n")
@@ -60,13 +80,16 @@ function showEnumValues(enumName) {
 
 if (!containerRunning("rentvest-postgres")) {
   console.error(
-    "Postgres container 'rentvest-postgres' is not running.\n" +
-      "Start it first: npm run docker:up\n" +
-      "Then run: npm run db:role-rebrand"
+    "\nPostgres container 'rentvest-postgres' is not running.\n" +
+      "Start it first:\n" +
+      "  npm run docker:up\n" +
+      "Then run:\n" +
+      "  npm run db:role-rebrand"
   );
   process.exit(1);
 }
 
+console.log("Docker OK. Reading current enum values…");
 console.log("Current UserRole values:", showEnumValues("UserRole").join(", ") || "(none)");
 
 const steps = [
@@ -81,6 +104,7 @@ const steps = [
   `ALTER TYPE "BeneficiaryType" RENAME VALUE 'AGENT' TO 'MARKETER';`,
 ];
 
+console.log("Applying enum renames…");
 for (const step of steps) {
   const label = step.replace(/\s+/g, " ").trim();
   try {
