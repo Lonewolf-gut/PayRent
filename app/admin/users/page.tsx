@@ -37,7 +37,7 @@ const ROLE_FILTERS: { value: RoleFilter; label: string }[] = [
   { value: "ALL", label: "All" },
   { value: "MERCHANT", label: "Merchants" },
   { value: "BUYER", label: "Buyers" },
-  { value: "MARKETER", label: "Marketers" },
+  { value: "MARKETER", label: "Affiliates" },
   { value: "LENDER", label: "Lenders" },
   { value: "COMPLIANCE_OFFICER", label: "Compliance" },
 ];

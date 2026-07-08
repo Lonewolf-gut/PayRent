@@ -113,7 +113,7 @@ export default function AgentPromotePage() {
       <div>
         <h1 className="text-2xl font-bold">Promote & earn commission</h1>
         <p className="text-muted-foreground">
-          Verified affiliates can claim available listings or promote assigned ones. When someone applies, buys, or requests financing through your link, you earn commission.
+          Verified Affiliates can claim available listings or promote assigned ones. When someone applies, buys, or requests financing through your link, you earn commission.
         </p>
       </div>
 

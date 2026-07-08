@@ -141,10 +141,10 @@ async function main() {
 
   await prisma.agentProfile.upsert({
     where: { userId: agentUser.id },
-    update: { fullName: "Demo Marketer" },
+    update: { fullName: "Demo Affiliate" },
     create: {
       userId: agentUser.id,
-      fullName: "Demo Marketer",
+      fullName: "Demo Affiliate",
       agencyName: "Accra Property Partners",
       region: "Greater Accra",
       profileStatus: "PROFILE_COMPLETED",

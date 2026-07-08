@@ -21,6 +21,7 @@ import {
   getRegisterErrorMessage,
 } from "@/lib/utils/auth-toast-messages";
 import { toast } from "sonner";
+import { ROLE_LABELS } from "@/constants/platform";
 
 const roleImages: Record<"BUYER" | "MERCHANT" | "MARKETER" | "LENDER", string> = {
   BUYER:
@@ -33,18 +34,11 @@ const roleImages: Record<"BUYER" | "MERCHANT" | "MARKETER" | "LENDER", string> =
     "https://images.unsplash.com/photo-1554224154-26032ffc0d07?auto=format&fit=crop&w=1400&q=80",
 };
 
-const roleLabels: Record<string, string> = {
-  BUYER: "buyer",
+const roleLabels: Record<"BUYER" | "MERCHANT" | "MARKETER" | "LENDER", string> = {
+  BUYER: "Customer",
   MERCHANT: "merchant",
-  MARKETER: "marketer",
+  MARKETER: "Affiliate",
   LENDER: "investor",
-};
-
-const roleDisplayNames: Record<string, string> = {
-  BUYER: "Buyer",
-  MERCHANT: "Merchant",
-  MARKETER: "Affiliate Marketer",
-  LENDER: "Investor",
 };
 
 export default function RegisterCreatePage() {
@@ -165,7 +159,7 @@ export default function RegisterCreatePage() {
               {entityType === "COMPANY" ? "Business" : "Individual"}
             </Badge>
             <Badge className="rounded-full bg-emerald-600 hover:bg-emerald-600">
-              {roleDisplayNames[role]}
+              {ROLE_LABELS[role]}
             </Badge>
           </div>
           <h1 className="mt-4 text-2xl font-semibold text-slate-900">Create your account</h1>
