@@ -3,13 +3,24 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { signOut, useSession } from "next-auth/react";
-import { LogOut, Menu } from "lucide-react";
+import { LogOut, Menu, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { NotificationsPopover } from "@/components/dashboard/notifications-popover";
 import { NavQuickActions } from "@/components/dashboard/nav-quick-actions";
 import { AccountVerificationBadge } from "@/components/dashboard/account-verification-badge";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
+import { isPaidPlan, normalizeSubscriptionPlan } from "@/lib/subscription/plans";
+import { roleRequiresSubscription } from "@/lib/subscription/roles";
 import { getTimeGreeting } from "@/lib/utils/greeting";
 import {
   Sheet,
@@ -44,8 +55,10 @@ export function DashboardHeader({
   sidebarTitle = "Dashboard",
 }: DashboardHeaderProps) {
   const { data: session } = useSession();
+  const { openUpgrade } = useSubscriptionUpgrade();
   const greeting = getTimeGreeting();
   const [menuOpen, setMenuOpen] = useState(false);
+  const role = session?.user?.role;
 
   const { data: profile } = useQuery({
     queryKey: ["dashboard-profile"],
@@ -60,6 +73,22 @@ export function DashboardHeader({
     },
     enabled: !!session?.user?.id,
   });
+
+  const { data: subscriptionData } = useQuery({
+    queryKey: ["subscription"],
+    queryFn: async () => {
+      const res = await fetch("/api/subscriptions");
+      const json = await res.json();
+      return json.data;
+    },
+    enabled: !!session?.user && !!role && roleRequiresSubscription(role),
+  });
+
+  const currentPlan = normalizeSubscriptionPlan(
+    subscriptionData?.subscription?.plan ?? "FREE"
+  );
+  const showUpgradeInMenu =
+    !!role && roleRequiresSubscription(role) && !isPaidPlan(currentPlan);
 
   const email = session?.user?.email ?? profile?.email ?? "";
   const fullName = profile?.fullName?.trim();
@@ -117,21 +146,46 @@ export function DashboardHeader({
           <ThemeToggle />
           <NavQuickActions />
           <NotificationsPopover />
-          <div className="flex min-w-0 items-center gap-2.5 rounded-full border border-border/60 bg-muted/30 py-1 pl-1 pr-3">
-            <Avatar size="lg" className="size-11">
-              {avatarImage ? (
-                <AvatarImage
-                  key={avatarImage}
-                  src={avatarImage}
-                  alt="Profile photo"
-                />
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="flex min-w-0 items-center gap-2.5 rounded-full border border-border/60 bg-muted/30 py-1 pl-1 pr-3 outline-none ring-emerald-600 focus-visible:ring-2"
+              aria-label="Open account menu"
+            >
+                <Avatar size="lg" className="size-11">
+                  {avatarImage ? (
+                    <AvatarImage
+                      key={avatarImage}
+                      src={avatarImage}
+                      alt="Profile photo"
+                    />
+                  ) : null}
+                  <AvatarFallback className="text-sm">{getInitials(fullName, email)}</AvatarFallback>
+                </Avatar>
+                <span className="hidden sm:inline">
+                  <AccountVerificationBadge />
+                </span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-normal">
+                <p className="truncate text-sm font-medium">{displayName}</p>
+                <p className="truncate text-xs text-muted-foreground">{email}</p>
+              </DropdownMenuLabel>
+              {showUpgradeInMenu ? (
+                <DropdownMenuItem className="cursor-pointer" onClick={() => openUpgrade()}>
+                  <Sparkles className="size-4" />
+                  Upgrade
+                </DropdownMenuItem>
               ) : null}
-              <AvatarFallback className="text-sm">{getInitials(fullName, email)}</AvatarFallback>
-            </Avatar>
-            <span className="hidden sm:inline">
-              <AccountVerificationBadge />
-            </span>
-          </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => signOut({ callbackUrl: "/" })}
+              >
+                <LogOut className="size-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="outline"
             size="sm"

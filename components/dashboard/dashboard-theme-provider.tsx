@@ -4,7 +4,8 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
+  useLayoutEffect,
+  useMemo,
   useState,
 } from "react";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,21 @@ const DashboardThemeContext = createContext<DashboardThemeContextValue | null>(
   null
 );
 
+function applyThemeClass(theme: DashboardTheme) {
+  const root = document.documentElement;
+  if (theme === "dark") {
+    root.classList.add("dark");
+  } else {
+    root.classList.remove("dark");
+  }
+}
+
+function readStoredTheme(): DashboardTheme {
+  if (typeof window === "undefined") return "light";
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return stored === "dark" ? "dark" : "light";
+}
+
 export function DashboardThemeProvider({
   children,
   className,
@@ -31,52 +47,39 @@ export function DashboardThemeProvider({
   className?: string;
 }) {
   const [theme, setThemeState] = useState<DashboardTheme>("light");
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "dark" || stored === "light") {
-      setThemeState(stored);
-    }
-    setMounted(true);
+  useLayoutEffect(() => {
+    const stored = readStoredTheme();
+    setThemeState(stored);
+    applyThemeClass(stored);
   }, []);
-
-  // Portaled UI (popovers, dialogs) renders on document.body outside the provider
-  // wrapper, so sync the theme class to <html> for correct dark-mode tokens.
-  useEffect(() => {
-    if (!mounted) return;
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-    return () => {
-      root.classList.remove("dark");
-    };
-  }, [theme, mounted]);
 
   const setTheme = useCallback((next: DashboardTheme) => {
     setThemeState(next);
     localStorage.setItem(STORAGE_KEY, next);
+    applyThemeClass(next);
   }, []);
 
   const toggleTheme = useCallback(() => {
     setThemeState((current) => {
       const next = current === "dark" ? "light" : "dark";
       localStorage.setItem(STORAGE_KEY, next);
+      applyThemeClass(next);
       return next;
     });
   }, []);
 
+  const value = useMemo(
+    () => ({ theme, setTheme, toggleTheme }),
+    [theme, setTheme, toggleTheme]
+  );
+
   return (
-    <DashboardThemeContext.Provider
-      value={{ theme: mounted ? theme : "light", setTheme, toggleTheme }}
-    >
+    <DashboardThemeContext.Provider value={value}>
       <div
         className={cn(
           className,
-          mounted && theme === "dark" ? "dark min-h-screen bg-background" : "min-h-screen bg-background"
+          theme === "dark" ? "dark min-h-screen bg-background" : "min-h-screen bg-background"
         )}
       >
         {children}

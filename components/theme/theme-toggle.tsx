@@ -1,20 +1,14 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useDashboardTheme } from "@/components/dashboard/dashboard-theme-provider";
 
 export function ThemeToggle() {
   const dashboardTheme = useDashboardTheme();
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => setMounted(true), []);
-
-  if (!mounted || !dashboardTheme) {
-    return (
-      <Button variant="outline" size="icon-sm" className="shrink-0" aria-hidden disabled />
-    );
+  if (!dashboardTheme) {
+    return null;
   }
 
   const isDark = dashboardTheme.theme === "dark";

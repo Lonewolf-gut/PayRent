@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Edit, MoreHorizontal, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { conversationTitle } from "@/lib/messaging/display";
 import { cn } from "@/lib/utils";
 import { ChatThread, ConversationList, useMessaging } from "./messaging-shared";
@@ -52,25 +51,15 @@ export function MessagesInbox({
     : "Select a conversation";
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] min-h-[560px] overflow-hidden rounded-xl border bg-card shadow-sm">
+    <div className="-mx-4 -mb-4 flex h-[calc(100dvh-7.5rem)] min-h-[520px] overflow-hidden border-t bg-card sm:-mx-6 sm:-mb-6 lg:mx-0 lg:mb-0 lg:h-[calc(100dvh-8.5rem)] lg:rounded-xl lg:border">
       <aside
         className={cn(
-          "flex w-full flex-col border-r bg-card transition-all duration-300 md:w-[360px] md:shrink-0",
-          activeId ? "hidden md:flex" : "flex"
+          "flex w-full flex-col border-r lg:w-[min(360px,38%)] lg:shrink-0",
+          activeId ? "hidden lg:flex" : "flex"
         )}
       >
-        <div className="border-b px-4 py-4">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">Messaging</h2>
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon-sm" aria-label="More options">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon-sm" aria-label="Compose message">
-                <Edit className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+        <div className="shrink-0 border-b px-4 py-4">
+          <h2 className="text-lg font-semibold">Messaging</h2>
           <div className="relative mt-3">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -98,7 +87,7 @@ export function MessagesInbox({
             ))}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           <ConversationList
             conversations={filteredConversations}
             activeId={activeId}
@@ -110,8 +99,8 @@ export function MessagesInbox({
 
       <section
         className={cn(
-          "min-w-0 flex-1 transition-all duration-300",
-          activeId ? "flex flex-col" : "hidden md:flex md:flex-col"
+          "min-w-0 flex-1 flex-col",
+          activeId ? "flex" : "hidden lg:flex"
         )}
       >
         {activeId ? (

@@ -69,7 +69,7 @@ export function SubscriptionStatusBanner() {
           <Button
             size="sm"
             className="bg-emerald-600 hover:bg-emerald-700"
-            onClick={() => openUpgrade("PRO")}
+            onClick={() => openUpgrade()}
           >
             <Crown className="mr-1.5 h-4 w-4" />
             Upgrade now

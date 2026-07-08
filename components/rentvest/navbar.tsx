@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, Menu } from "lucide-react";
+import { LogOut, Menu, Sparkles } from "lucide-react";
 import { RentVestLogo } from "./logo";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -27,6 +27,9 @@ import {
 } from "@/components/ui/sheet";
 import { PROFILE_MENU_ITEMS } from "@/lib/nav/profile-menu";
 import { NavQuickActions } from "@/components/dashboard/nav-quick-actions";
+import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
+import { isPaidPlan, normalizeSubscriptionPlan } from "@/lib/subscription/plans";
+import { roleRequiresSubscription } from "@/lib/subscription/roles";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@prisma/client";
 
@@ -89,6 +92,23 @@ export function Navbar() {
   const avatarImage = profile?.image ?? session?.user?.image ?? null;
   const role = session?.user?.role as UserRole | undefined;
   const menuItems = role ? PROFILE_MENU_ITEMS[role] ?? [] : [];
+  const { openUpgrade } = useSubscriptionUpgrade();
+
+  const { data: subscriptionData } = useQuery({
+    queryKey: ["subscription"],
+    queryFn: async () => {
+      const res = await fetch("/api/subscriptions");
+      const json = await res.json();
+      return json.data;
+    },
+    enabled: !!session?.user && !!role && roleRequiresSubscription(role),
+  });
+
+  const currentPlan = normalizeSubscriptionPlan(
+    subscriptionData?.subscription?.plan ?? "FREE"
+  );
+  const showUpgradeInMenu =
+    !!role && roleRequiresSubscription(role) && !isPaidPlan(currentPlan);
   const marketingLinks = MARKETING_LINKS.filter(
     (link) => !(link.href === "/pricing" && pathname === "/pricing")
   );
@@ -183,6 +203,15 @@ export function Navbar() {
                   </p>
                   <p className="truncate text-xs text-muted-foreground">{email}</p>
                 </DropdownMenuLabel>
+                {showUpgradeInMenu ? (
+                  <DropdownMenuItem
+                    className="cursor-pointer rounded-none"
+                    onClick={() => openUpgrade()}
+                  >
+                    <Sparkles className="size-4" />
+                    Upgrade
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuSeparator />
                 {menuItems.map((item) => (
                   <DropdownMenuItem

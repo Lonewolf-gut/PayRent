@@ -10,7 +10,7 @@ import {
 import { getSubscriptionPrice } from "@/lib/subscription/pricing";
 
 type PricingCardsSectionProps = {
-  mode?: "marketing" | "checkout";
+  mode?: "marketing" | "checkout" | "modal";
   selectedPlan?: CheckoutPlanId | null;
   currentPlan?: CheckoutPlanId;
   onSelectPlan?: (plan: CheckoutPlanId) => void;
@@ -33,6 +33,8 @@ export function PricingCardsSection({
   compact = false,
 }: PricingCardsSectionProps) {
   const isCheckout = mode === "checkout";
+  const isModal = mode === "modal";
+  const isDarkSurface = mode === "marketing" || isModal;
 
   return (
     <section
@@ -40,7 +42,9 @@ export function PricingCardsSection({
       className={
         isCheckout
           ? `bg-gradient-to-b from-emerald-100 via-emerald-50 to-emerald-100 text-emerald-950 ${compact ? "py-12" : "py-20"}`
-          : `bg-emerald-950 text-white ${compact ? "py-12" : "py-20"}`
+          : isModal
+            ? `bg-zinc-950 text-white ${compact ? "py-8" : "py-12"}`
+            : `bg-emerald-950 text-white ${compact ? "py-12" : "py-20"}`
       }
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -84,9 +88,13 @@ export function PricingCardsSection({
                     ? plan.highlight
                       ? "border border-emerald-500 bg-gradient-to-b from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-900/15"
                       : "border border-emerald-200 bg-white/90 shadow-sm backdrop-blur-sm"
-                    : plan.highlight
-                      ? "border border-emerald-400 bg-gradient-to-b from-emerald-600 to-emerald-700 shadow-[0_20px_40px_rgba(16,185,129,0.25)]"
-                      : "border border-emerald-800/60 bg-emerald-900/40 backdrop-blur-sm"
+                    : isDarkSurface
+                      ? plan.highlight
+                        ? "border border-emerald-400 bg-gradient-to-b from-emerald-600 to-emerald-700 shadow-[0_20px_40px_rgba(16,185,129,0.25)]"
+                        : isModal
+                          ? "border border-zinc-700 bg-zinc-900/80"
+                          : "border border-emerald-800/60 bg-emerald-900/40 backdrop-blur-sm"
+                      : ""
                 }`}
               >
                 <div className="mb-6 flex min-h-[26px] flex-wrap items-center gap-2">
@@ -103,7 +111,7 @@ export function PricingCardsSection({
                   ) : (
                     <span className="block h-[26px]" aria-hidden />
                   )}
-                  {isCurrent && mode === "checkout" ? (
+                  {isCurrent && (mode === "checkout" || isModal) ? (
                     <span
                       className={`inline-flex rounded-sm border px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] ${
                         isCheckout
@@ -124,9 +132,13 @@ export function PricingCardsSection({
                         ? plan.highlight
                           ? "text-emerald-50/90"
                           : "text-emerald-800/70"
-                        : plan.highlight
-                          ? "text-emerald-50/90"
-                          : "text-emerald-100/60"
+                        : isDarkSurface
+                          ? plan.highlight
+                            ? "text-emerald-50/90"
+                            : isModal
+                              ? "text-zinc-400"
+                              : "text-emerald-100/60"
+                          : ""
                     }`}
                   >
                     {plan.tagline}
@@ -140,9 +152,13 @@ export function PricingCardsSection({
                             ? plan.highlight
                               ? "text-emerald-50/80"
                               : "text-emerald-700/60"
-                            : plan.highlight
-                              ? "text-emerald-50/80"
-                              : "text-emerald-100/50"
+                            : isDarkSurface
+                              ? plan.highlight
+                                ? "text-emerald-50/80"
+                                : isModal
+                                  ? "text-zinc-500"
+                                  : "text-emerald-100/50"
+                              : ""
                         }`}
                       >
                         {" "}
@@ -158,9 +174,13 @@ export function PricingCardsSection({
                       ? plan.highlight
                         ? "border-emerald-400/40"
                         : "border-emerald-200"
-                      : plan.highlight
-                        ? "border-emerald-400/40"
-                        : "border-emerald-800/60"
+                      : isDarkSurface
+                        ? plan.highlight
+                          ? "border-emerald-400/40"
+                          : isModal
+                            ? "border-zinc-700"
+                            : "border-emerald-800/60"
+                        : ""
                   }`}
                 />
 
@@ -240,7 +260,13 @@ export function PricingCardsSection({
                     }`}
                     onClick={() => onSelectPlan?.(planId)}
                   >
-                    {planId === "FREE" ? "Use Free plan" : `Get ${plan.name} plan`}
+                    {planId === "FREE"
+                      ? "Use Free plan"
+                      : isModal
+                        ? isCurrent
+                          ? "Your current plan"
+                          : "Choose plan"
+                        : `Get ${plan.name} plan`}
                   </button>
                 )}
               </div>

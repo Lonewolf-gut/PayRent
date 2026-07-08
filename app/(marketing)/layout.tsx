@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { getPostLoginRoute } from "@/lib/auth/permissions";
 import { Navbar } from "@/components/rentvest/navbar";
 import { MarketingSignedInExtras } from "@/components/marketing/marketing-signed-in-extras";
+import { MarketingSubscriptionShell } from "@/components/marketing/marketing-subscription-shell";
 
 export default async function MarketingLayout({
   children,
@@ -14,7 +15,7 @@ export default async function MarketingLayout({
   }
 
   return (
-    <>
+    <MarketingSubscriptionShell>
       <Navbar />
       <main className="bg-white text-slate-900">{children}</main>
       <MarketingSignedInExtras />
@@ -94,6 +95,6 @@ export default async function MarketingLayout({
           &copy; {new Date().getFullYear()} PayForMe. All rights reserved.
         </div>
       </footer>
-    </>
+    </MarketingSubscriptionShell>
   );
 }

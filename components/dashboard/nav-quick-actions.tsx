@@ -4,13 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
-import { Bookmark, MessageSquare, Wallet } from "lucide-react";
+import { Bookmark, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  getMessagesPath,
-  getSavedPath,
-  getWalletPath,
-} from "@/lib/nav/dashboard-quick-links";
+import { getMessagesPath, getSavedPath } from "@/lib/nav/dashboard-quick-links";
 import { cn } from "@/lib/utils";
 
 function formatBadgeCount(count: number) {
@@ -58,7 +54,6 @@ export function NavQuickActions({ className }: { className?: string }) {
   const role = session?.user?.role;
 
   const savedPath = getSavedPath(role);
-  const walletPath = getWalletPath(role);
   const messagesPath = getMessagesPath(role);
 
   const { data: savedCount = 0 } = useQuery({
@@ -97,13 +92,6 @@ export function NavQuickActions({ className }: { className?: string }) {
           <Bookmark className="h-4 w-4" />
         </NavIconButton>
       ) : null}
-      <NavIconButton
-        href={walletPath}
-        label="Wallet"
-        active={pathname === walletPath}
-      >
-        <Wallet className="h-4 w-4" />
-      </NavIconButton>
       <NavIconButton
         href={messagesPath}
         label="Messages"

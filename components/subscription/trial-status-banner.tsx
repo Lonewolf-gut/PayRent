@@ -117,7 +117,7 @@ export function TrialStatusBanner({
                 : "You currently have full platform access. "}
               <button
                 type="button"
-                onClick={() => openUpgrade("PRO")}
+                onClick={() => openUpgrade()}
                 className="font-medium text-emerald-800 underline underline-offset-2 dark:text-emerald-300"
               >
                 Upgrade anytime
@@ -160,7 +160,7 @@ export function TrialStatusBanner({
                 : "Listings are hidden (not deleted), and agent advertising is paused until you upgrade. "}
               <button
                 type="button"
-                onClick={() => openUpgrade("PRO")}
+                onClick={() => openUpgrade()}
                 className="font-medium text-amber-900 underline underline-offset-2 dark:text-amber-300"
               >
                 Choose a plan
