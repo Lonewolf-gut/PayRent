@@ -60,7 +60,7 @@ export const authConfig: NextAuthConfig = {
         password: { label: "Password", type: "password" },
         otp: { label: "OTP", type: "text" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) {
           throw new MissingCredentialsError();
         }
@@ -82,17 +82,17 @@ export const authConfig: NextAuthConfig = {
         }
 
         if (!user) {
-          await logLoginAttempt(null, false, email);
+          await logLoginAttempt(null, false, email, request);
           throw new EmailNotFoundError();
         }
 
         if (!user.isActive) {
-          await logLoginAttempt(user.id, false);
+          await logLoginAttempt(user.id, false, undefined, request);
           throw new AccountSuspendedError();
         }
 
         if (user.lockedUntil && user.lockedUntil > new Date()) {
-          await logLoginAttempt(user.id, false);
+          await logLoginAttempt(user.id, false, undefined, request);
           throw new AccountLockedError();
         }
 
@@ -109,7 +109,7 @@ export const authConfig: NextAuthConfig = {
                   : undefined,
             },
           });
-          await logLoginAttempt(user.id, false);
+          await logLoginAttempt(user.id, false, undefined, request);
           if (failedCount >= 5) {
             throw new AccountLockedError();
           }
@@ -125,7 +125,7 @@ export const authConfig: NextAuthConfig = {
           try {
             await twoFactorService.validateToken(user.id, String(credentials.otp));
           } catch {
-            await logLoginAttempt(user.id, false);
+            await logLoginAttempt(user.id, false, undefined, request);
             throw new InvalidTwoFactorError();
           }
         }
@@ -135,7 +135,7 @@ export const authConfig: NextAuthConfig = {
           data: { failedLoginCount: 0, lockedUntil: null },
         });
 
-        await logLoginAttempt(user.id, true);
+        await logLoginAttempt(user.id, true, undefined, request);
 
         return {
           id: user.id,

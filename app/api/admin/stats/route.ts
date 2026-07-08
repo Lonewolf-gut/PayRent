@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { analyticsService } from "@/lib/services/analytics.service";
+import { countFailedLoginsLast24h } from "@/lib/admin/failed-login-stats";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 
 export const GET = withAuth(
@@ -20,9 +21,7 @@ export const GET = withAuth(
       analyticsService.getCeoDashboard(),
     ]);
 
-    const failedLogins = await prisma.loginLog.count({
-      where: { success: false, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
-    });
+    const failedLogins = await countFailedLoginsLast24h();
 
     return apiResponse({
       users,

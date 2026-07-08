@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { countFailedLoginsLast24h } from "@/lib/admin/failed-login-stats";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 
 export const GET = withAuth(
@@ -49,12 +50,7 @@ export const GET = withAuth(
       }),
     ]);
 
-    const failedLast24h = await prisma.loginLog.count({
-      where: {
-        success: false,
-        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-      },
-    });
+    const failedLast24h = await countFailedLoginsLast24h();
 
     return apiResponse({ logs, total, page, limit, lockedUsers, failedLast24h });
   },

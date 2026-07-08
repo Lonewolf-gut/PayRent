@@ -32,11 +32,11 @@ export class AuditService {
   ) {
     return prisma.loginLog.create({
       data: {
-        userId: userId ?? undefined,
-        email: email?.trim().toLowerCase(),
+        userId,
+        email: email?.trim().toLowerCase() ?? null,
         success,
-        ipAddress: ip,
-        userAgent,
+        ipAddress: ip ?? null,
+        userAgent: userAgent ?? null,
       },
     });
   }
