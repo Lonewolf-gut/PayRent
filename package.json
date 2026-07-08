@@ -20,6 +20,7 @@
     "db:push": "prisma db push",
     "db:sync-docker": "node scripts/db-sync-docker.js",
     "db:role-rebrand": "node scripts/db-role-rebrand.js",
+    "db:migrate-roles": "node scripts/db-migrate-roles.js",
     "db:migrate": "prisma migrate dev",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",
