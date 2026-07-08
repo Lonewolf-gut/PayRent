@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChevronDown,
+  ChevronLeft,
   ChevronUp,
   Edit,
   MoreHorizontal,
@@ -93,14 +94,28 @@ export function MessagesWidget() {
       <div className="pointer-events-auto flex flex-col items-end gap-0 pb-4">
         <div
           className={cn(
-            "flex w-[min(92vw,360px)] origin-bottom flex-col overflow-hidden rounded-t-xl border border-b-0 bg-card shadow-2xl transition-all duration-300 ease-out",
+            "origin-bottom flex flex-col overflow-hidden rounded-t-xl border border-b-0 bg-card shadow-2xl transition-all duration-300 ease-out",
+            state === "chat" ? "w-[min(92vw,400px)]" : "w-[min(92vw,360px)]",
             isExpanded
               ? "translate-y-0 opacity-100"
               : "pointer-events-none max-h-0 translate-y-full opacity-0"
           )}
         >
-          <div className="flex items-center justify-between border-b px-3 py-2">
-            <p className="text-sm font-semibold">
+          <div className="flex items-center gap-2 border-b px-3 py-2">
+            {state === "chat" ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Back to conversations"
+                onClick={() => {
+                  setActiveId(null);
+                  setState("list");
+                }}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            ) : null}
+            <p className="min-w-0 flex-1 truncate text-sm font-semibold">
               {state === "chat" ? title : "Messaging"}
             </p>
             <div className="flex items-center gap-1">
@@ -132,17 +147,17 @@ export function MessagesWidget() {
 
           <div
             className={cn(
-              "flex min-h-0 transition-[height] duration-300",
+              "relative min-h-0 overflow-hidden transition-[height] duration-300",
               state === "chat" ? "h-[min(72vh,520px)]" : "h-[min(60vh,420px)]"
             )}
           >
             <div
               className={cn(
-                "border-r transition-all duration-300 ease-in-out",
-                state === "chat" ? "w-[38%] min-w-[38%]" : "w-full"
+                "flex h-full w-[200%] transition-transform duration-300 ease-in-out",
+                state === "chat" ? "-translate-x-1/2" : "translate-x-0"
               )}
             >
-              <div className="h-full overflow-y-auto">
+              <div className="h-full w-1/2 shrink-0 overflow-y-auto">
                 <ConversationList
                   conversations={conversations}
                   activeId={activeId}
@@ -154,30 +169,23 @@ export function MessagesWidget() {
                   compact
                 />
               </div>
-            </div>
 
-            <div
-              className={cn(
-                "min-w-0 flex-1 transition-all duration-300 ease-in-out",
-                state === "chat" && activeId
-                  ? "translate-x-0 opacity-100"
-                  : "w-0 translate-x-4 opacity-0"
-              )}
-            >
-              {state === "chat" && activeId ? (
-                <ChatThread
-                  messages={messages}
-                  currentUserId={currentUserId}
-                  title={title}
-                  content={content}
-                  onContentChange={setContent}
-                  onSend={() => sendMutation.mutate()}
-                  sending={sendMutation.isPending}
-                  typers={typers}
-                  heightClass="h-[calc(min(72vh,520px)-3.5rem)]"
-                  showHeader={false}
-                />
-              ) : null}
+              <div className="flex h-full w-1/2 shrink-0 flex-col">
+                {activeId ? (
+                  <ChatThread
+                    messages={messages}
+                    currentUserId={currentUserId}
+                    title={title}
+                    content={content}
+                    onContentChange={setContent}
+                    onSend={() => sendMutation.mutate()}
+                    sending={sendMutation.isPending}
+                    typers={typers}
+                    compact
+                    showHeader={false}
+                  />
+                ) : null}
+              </div>
             </div>
           </div>
         </div>

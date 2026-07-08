@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { conversationTitle } from "@/lib/messaging/display";
 import type { ChatMessage, ConversationSummary, TypingUser } from "@/lib/messaging/types";
 import { TypingIndicator } from "@/components/dashboard/messaging/typing-indicator";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 function getInitials(name: string) {
@@ -263,6 +264,7 @@ export function ChatThread({
   typers = [],
   heightClass = "h-[min(60vh,520px)]",
   showHeader = true,
+  compact = false,
 }: {
   messages: ChatMessage[];
   currentUserId: string;
@@ -274,7 +276,11 @@ export function ChatThread({
   typers?: TypingUser[];
   heightClass?: string;
   showHeader?: boolean;
+  compact?: boolean;
 }) {
+  const scrollClass = compact ? "flex-1 min-h-0 overflow-y-auto p-3" : `flex-1 space-y-3 overflow-y-auto p-4 ${heightClass}`;
+  const bubbleMaxClass = compact ? "max-w-[82%]" : "max-w-[60%]";
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       {showHeader ? (
@@ -282,7 +288,7 @@ export function ChatThread({
           <p className="font-medium">{title}</p>
         </div>
       ) : null}
-      <div className={`flex-1 space-y-3 overflow-y-auto p-4 ${heightClass}`}>
+      <div className={`space-y-3 ${scrollClass}`}>
         {messages.length ? (
           messages.map((message) => {
             const isOwn = message.senderId === currentUserId;
@@ -292,7 +298,7 @@ export function ChatThread({
                 className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}
               >
                 {!isOwn ? (
-                  <Avatar className="mt-1 size-8 shrink-0">
+                  <Avatar className={cn("mt-1 shrink-0", compact ? "size-7" : "size-8")}>
                     {message.sender.image ? (
                       <AvatarImage src={message.sender.image} alt={message.sender.displayName} />
                     ) : null}
@@ -302,11 +308,11 @@ export function ChatThread({
                   </Avatar>
                 ) : null}
                 <div
-                  className={`max-w-[60%] w-fit rounded-2xl px-3 py-2 text-sm ${
-                    isOwn
-                      ? "bg-emerald-600 text-white"
-                      : "bg-muted text-foreground"
-                  }`}
+                  className={cn(
+                    "w-fit rounded-2xl px-3 py-2 text-sm",
+                    bubbleMaxClass,
+                    isOwn ? "bg-emerald-600 text-white" : "bg-muted text-foreground"
+                  )}
                 >
                   {!isOwn ? (
                     <p className="mb-1 text-xs font-medium opacity-80">
@@ -323,7 +329,7 @@ export function ChatThread({
                   </p>
                 </div>
                 {isOwn ? (
-                  <Avatar className="mt-1 size-8 shrink-0">
+                  <Avatar className={cn("mt-1 shrink-0", compact ? "size-7" : "size-8")}>
                     {message.sender.image ? (
                       <AvatarImage src={message.sender.image} alt={message.sender.displayName} />
                     ) : null}
@@ -344,7 +350,7 @@ export function ChatThread({
           />
         ) : null}
       </div>
-      <div className="flex gap-2 border-t p-3">
+      <div className={cn("flex gap-2 border-t", compact ? "p-2.5" : "p-3")}>
         <Input
           placeholder="Type a message..."
           value={content}
