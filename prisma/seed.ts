@@ -1,7 +1,47 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+
+async function upsertDemoUser(params: {
+  email: string;
+  role: UserRole;
+  passwordHash: string;
+  phone?: string;
+}) {
+  if (params.phone) {
+    await prisma.user.updateMany({
+      where: {
+        phone: params.phone,
+        NOT: { email: params.email },
+      },
+      data: { phone: null, phoneVerified: null },
+    });
+  }
+
+  return prisma.user.upsert({
+    where: { email: params.email },
+    update: {
+      role: params.role,
+      passwordHash: params.passwordHash,
+      emailVerified: new Date(),
+      isActive: true,
+      ...(params.phone
+        ? { phone: params.phone, phoneVerified: new Date() }
+        : {}),
+    },
+    create: {
+      email: params.email,
+      passwordHash: params.passwordHash,
+      role: params.role,
+      emailVerified: new Date(),
+      isActive: true,
+      ...(params.phone
+        ? { phone: params.phone, phoneVerified: new Date() }
+        : {}),
+    },
+  });
+}
 
 async function main() {
   const passwordHash = await bcrypt.hash("Password123!", 12);
@@ -17,37 +57,26 @@ async function main() {
     },
   });
 
-  const admin = await prisma.user.upsert({
-    where: { email: "admin@payforme.com" },
-    update: {},
-    create: {
-      email: "admin@payforme.com",
-      passwordHash,
-      role: "ADMIN",
-      emailVerified: new Date(),
-      isActive: true,
-    },
+  const admin = await upsertDemoUser({
+    email: "admin@payforme.com",
+    role: "ADMIN",
+    passwordHash,
+    phone: "+233201000001",
   });
 
-  const tenantUser = await prisma.user.upsert({
-    where: { email: "tenant@payforme.com" },
-    update: {},
-    create: {
-      email: "tenant@payforme.com",
-      passwordHash,
-      role: "BUYER",
-      emailVerified: new Date(),
-      phone: "+233200000001",
-      phoneVerified: new Date(),
-    },
+  const tenantUser = await upsertDemoUser({
+    email: "tenant@payforme.com",
+    role: "BUYER",
+    passwordHash,
+    phone: "+233201000002",
   });
 
   const tenant = await prisma.tenant.upsert({
     where: { userId: tenantUser.id },
-    update: {},
+    update: { fullName: "Demo Buyer" },
     create: {
       userId: tenantUser.id,
-      fullName: "Demo Tenant",
+      fullName: "Demo Buyer",
       employmentStatus: "EMPLOYED",
       monthlyIncome: 5000,
       kycVerified: true,
@@ -56,7 +85,7 @@ async function main() {
 
   await prisma.subscription.upsert({
     where: { id: "demo-sub" },
-    update: {},
+    update: { userId: tenantUser.id, status: "ACTIVE" },
     create: {
       id: "demo-sub",
       userId: tenantUser.id,
@@ -66,41 +95,33 @@ async function main() {
     },
   });
 
-  const landlordUser = await prisma.user.upsert({
-    where: { email: "landlord@payforme.com" },
-    update: {},
-    create: {
-      email: "landlord@payforme.com",
-      passwordHash,
-      role: "MERCHANT",
-      emailVerified: new Date(),
-    },
+  const landlordUser = await upsertDemoUser({
+    email: "landlord@payforme.com",
+    role: "MERCHANT",
+    passwordHash,
+    phone: "+233201000003",
   });
 
   const landlord = await prisma.landlord.upsert({
     where: { userId: landlordUser.id },
-    update: {},
+    update: { fullName: "Demo Merchant" },
     create: {
       userId: landlordUser.id,
-      fullName: "Demo Landlord",
+      fullName: "Demo Merchant",
       identityVerified: true,
     },
   });
 
-  const lenderUser = await prisma.user.upsert({
-    where: { email: "lender@payforme.com" },
-    update: {},
-    create: {
-      email: "lender@payforme.com",
-      passwordHash,
-      role: "LENDER",
-      emailVerified: new Date(),
-    },
+  const lenderUser = await upsertDemoUser({
+    email: "lender@payforme.com",
+    role: "LENDER",
+    passwordHash,
+    phone: "+233201000004",
   });
 
   await prisma.lender.upsert({
     where: { userId: lenderUser.id },
-    update: {},
+    update: { fullName: "Demo Lender" },
     create: {
       userId: lenderUser.id,
       fullName: "Demo Lender",
@@ -111,20 +132,16 @@ async function main() {
     },
   });
 
-  const agentUser = await prisma.user.upsert({
-    where: { email: "agent@payforme.com" },
-    update: {},
-    create: {
-      email: "agent@payforme.com",
-      passwordHash,
-      role: "MARKETER",
-      emailVerified: new Date(),
-    },
+  const agentUser = await upsertDemoUser({
+    email: "agent@payforme.com",
+    role: "MARKETER",
+    passwordHash,
+    phone: "+233201000005",
   });
 
   await prisma.agentProfile.upsert({
     where: { userId: agentUser.id },
-    update: {},
+    update: { fullName: "Demo Marketer" },
     create: {
       userId: agentUser.id,
       fullName: "Demo Marketer",
@@ -134,16 +151,11 @@ async function main() {
     },
   });
 
-  const complianceUser = await prisma.user.upsert({
-    where: { email: "compliance@payforme.com" },
-    update: { role: "COMPLIANCE_OFFICER" },
-    create: {
-      email: "compliance@payforme.com",
-      passwordHash,
-      role: "COMPLIANCE_OFFICER",
-      emailVerified: new Date(),
-      isActive: true,
-    },
+  const complianceUser = await upsertDemoUser({
+    email: "compliance@payforme.com",
+    role: "COMPLIANCE_OFFICER",
+    passwordHash,
+    phone: "+233201000006",
   });
 
   for (const [userId, type] of [
