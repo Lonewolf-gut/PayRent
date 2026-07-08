@@ -7,32 +7,32 @@ export type ProfileMenuItem = {
 };
 
 export const PROFILE_MENU_ITEMS: Record<UserRole, ProfileMenuItem[]> = {
-  TENANT: [
-    { href: "/dashboard/tenant", label: "Overview" },
-    { href: "/dashboard/tenant/wallet", label: "Wallet" },
-    { href: "/dashboard/tenant/properties", label: "Saved" },
-    { href: "/dashboard/tenant/applications", label: "Applications" },
-    { href: "/dashboard/tenant/financing", label: "Pay for Rent" },
-    { href: "/dashboard/tenant/settings", label: "Settings" },
-    { href: "/dashboard/tenant/kyc", label: "Profile & KYC" },
+  BUYER: [
+    { href: "/dashboard/buyer", label: "Overview" },
+    { href: "/dashboard/buyer/wallet", label: "Wallet" },
+    { href: "/dashboard/buyer/properties", label: "Saved" },
+    { href: "/dashboard/buyer/applications", label: "Applications" },
+    { href: "/dashboard/buyer/financing", label: "Pay for Me" },
+    { href: "/dashboard/buyer/settings", label: "Settings" },
+    { href: "/dashboard/buyer/kyc", label: "Profile & KYC" },
   ],
-  LANDLORD: [
-    { href: "/dashboard/landlord", label: "Overview" },
-    { href: "/dashboard/landlord/properties", label: "My Listings" },
-    { href: "/dashboard/landlord/wallet", label: "Wallet" },
-    { href: SUBSCRIPTION_ROUTES.LANDLORD, label: "Subscription" },
-    { href: "/dashboard/landlord/applications", label: "Applications" },
-    { href: "/dashboard/landlord/settings", label: "Settings" },
-    { href: "/dashboard/landlord/kyc", label: "Profile & KYC" },
+  MERCHANT: [
+    { href: "/dashboard/merchant", label: "Overview" },
+    { href: "/dashboard/merchant/properties", label: "My Listings" },
+    { href: "/dashboard/merchant/wallet", label: "Wallet" },
+    { href: SUBSCRIPTION_ROUTES.MERCHANT, label: "Subscription" },
+    { href: "/dashboard/merchant/applications", label: "Applications" },
+    { href: "/dashboard/merchant/settings", label: "Settings" },
+    { href: "/dashboard/merchant/kyc", label: "Profile & KYC" },
   ],
-  AGENT: [
-    { href: "/dashboard/agent", label: "Overview" },
-    { href: "/dashboard/agent/listings", label: "Assigned Listings" },
-    { href: "/dashboard/agent/wallet", label: "Wallet" },
-    { href: SUBSCRIPTION_ROUTES.AGENT, label: "Subscription" },
-    { href: "/dashboard/agent/applications", label: "Applications" },
-    { href: "/dashboard/agent/settings", label: "Settings" },
-    { href: "/dashboard/agent/kyc", label: "Profile & KYC" },
+  MARKETER: [
+    { href: "/dashboard/marketer", label: "Overview" },
+    { href: "/dashboard/marketer/listings", label: "Assigned Listings" },
+    { href: "/dashboard/marketer/wallet", label: "Wallet" },
+    { href: SUBSCRIPTION_ROUTES.MARKETER, label: "Subscription" },
+    { href: "/dashboard/marketer/applications", label: "Applications" },
+    { href: "/dashboard/marketer/settings", label: "Settings" },
+    { href: "/dashboard/marketer/kyc", label: "Profile & KYC" },
   ],
   LENDER: [
     { href: "/dashboard/lender", label: "Overview" },
@@ -48,5 +48,12 @@ export const PROFILE_MENU_ITEMS: Record<UserRole, ProfileMenuItem[]> = {
     { href: "/admin/users", label: "Users" },
     { href: "/admin/properties", label: "Listings" },
     { href: "/admin/settings", label: "Settings" },
+  ],
+  COMPLIANCE_OFFICER: [
+    { href: "/compliance", label: "Overview" },
+    { href: "/compliance/audit-logs", label: "Audit logs" },
+    { href: "/compliance/kyc", label: "KYC review" },
+    { href: "/compliance/monitoring", label: "Suspicious activity" },
+    { href: "/compliance/reports", label: "Reports" },
   ],
 };

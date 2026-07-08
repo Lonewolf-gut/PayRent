@@ -28,7 +28,7 @@ describe("registerSchema date of birth", () => {
     email: "user@example.com",
     password: "SecurePass1!",
     fullName: "Test User",
-    role: "TENANT" as const,
+    role: "BUYER" as const,
     entityType: "INDIVIDUAL" as const,
   };
 

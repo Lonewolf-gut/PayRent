@@ -5,30 +5,30 @@ import { RentVestLogo } from "@/components/rentvest/logo";
 import { AuthSplitLayout } from "@/components/rentvest/auth-split-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserRound, Building2, HandCoins, UserCog } from "lucide-react";
-import { ROLE_DESCRIPTIONS } from "@/constants/platform";
+import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/constants/platform";
 
 const roles = [
   {
-    key: "TENANT",
-    title: "Tenant",
+    key: "BUYER",
+    title: ROLE_LABELS.BUYER,
     icon: UserRound,
-    description: ROLE_DESCRIPTIONS.TENANT,
+    description: ROLE_DESCRIPTIONS.BUYER,
   },
   {
-    key: "LANDLORD",
-    title: "Landlord",
+    key: "MERCHANT",
+    title: ROLE_LABELS.MERCHANT,
     icon: Building2,
-    description: ROLE_DESCRIPTIONS.LANDLORD,
+    description: ROLE_DESCRIPTIONS.MERCHANT,
   },
   {
-    key: "AGENT",
-    title: "Agent",
+    key: "MARKETER",
+    title: ROLE_LABELS.MARKETER,
     icon: UserCog,
-    description: ROLE_DESCRIPTIONS.AGENT,
+    description: ROLE_DESCRIPTIONS.MARKETER,
   },
   {
     key: "LENDER",
-    title: "Lender",
+    title: ROLE_LABELS.LENDER,
     icon: HandCoins,
     description: ROLE_DESCRIPTIONS.LENDER,
   },

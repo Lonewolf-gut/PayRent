@@ -6,7 +6,7 @@ import { apiResponse, withAuth } from "@/lib/api/handler";
 
 export const GET = withAuth(
   async (_req, _ctx, session) => {
-    if (session.user.role === "TENANT") {
+    if (session.user.role === "BUYER") {
       const tenant = await prisma.tenant.findUnique({
         where: { userId: session.user.id },
       });
@@ -22,7 +22,7 @@ export const GET = withAuth(
 
     return apiResponse([]);
   },
-  { roles: ["TENANT", "ADMIN"] }
+  { roles: ["BUYER", "ADMIN"] }
 );
 
 export const POST = withAuth(
@@ -44,7 +44,7 @@ export const POST = withAuth(
 
     return apiResponse(mandate, 201, "Mandate created.");
   },
-  { roles: ["TENANT"], permission: "mandate:create" }
+  { roles: ["BUYER"], permission: "mandate:create" }
 );
 
 export const PATCH = withAuth(
@@ -70,5 +70,5 @@ export const PATCH = withAuth(
 
     return apiResponse(mandate, 200, "Mandate submitted.");
   },
-  { roles: ["TENANT"], permission: "mandate:create" }
+  { roles: ["BUYER"], permission: "mandate:create" }
 );

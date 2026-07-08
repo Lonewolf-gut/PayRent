@@ -21,7 +21,7 @@ export const POST = withAuth(
           {
             error: error.message,
             code: "INSUFFICIENT_FUNDS",
-            depositUrl: `/dashboard/tenant/wallet`,
+            depositUrl: `/dashboard/buyer/wallet`,
           },
           400
         );
@@ -29,5 +29,5 @@ export const POST = withAuth(
       throw error;
     }
   },
-  { roles: ["TENANT"] }
+  { roles: ["BUYER"] }
 );

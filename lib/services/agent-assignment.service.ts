@@ -11,11 +11,11 @@ export async function assertEligibleAgent(agentProfileId: string) {
     include: { user: { select: { id: true, role: true, isActive: true, email: true, phone: true, image: true } } },
   });
 
-  if (!agent?.user.isActive || agent.user.role !== "AGENT") {
+  if (!agent?.user.isActive || agent.user.role !== "MARKETER") {
     throw new AppError("Agent not found or inactive", 404);
   }
 
-  const status = await kycService.getVerificationStatus(agent.user.id, "AGENT");
+  const status = await kycService.getVerificationStatus(agent.user.id, "MARKETER");
   if (!status.identityVerified) {
     throw new AppError("Selected agent must complete identity verification", 400);
   }

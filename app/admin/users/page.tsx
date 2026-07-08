@@ -30,14 +30,16 @@ import type { AdminUserExportRow } from "@/lib/admin/users-query";
 import { toast } from "sonner";
 import { Download, FileSpreadsheet } from "lucide-react";
 import type { UserRole } from "@prisma/client";
+import { ROLE_LABELS } from "@/constants/platform";
 
 type RoleFilter = "ALL" | UserRole;
 const ROLE_FILTERS: { value: RoleFilter; label: string }[] = [
   { value: "ALL", label: "All" },
-  { value: "LANDLORD", label: "Landlords" },
-  { value: "TENANT", label: "Tenants" },
-  { value: "AGENT", label: "Agents" },
+  { value: "MERCHANT", label: "Merchants" },
+  { value: "BUYER", label: "Buyers" },
+  { value: "MARKETER", label: "Marketers" },
   { value: "LENDER", label: "Lenders" },
+  { value: "COMPLIANCE_OFFICER", label: "Compliance" },
 ];
 const DELETE_COUNTDOWN = 20;
 
@@ -49,6 +51,7 @@ export default function AdminUsersPage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
+  const [assignRole, setAssignRole] = useState<UserRole | "">("");
   const [exporting, setExporting] = useState<"excel" | "pdf" | null>(null);
 
   function buildExportParams(format?: "csv" | "json") {
@@ -162,7 +165,9 @@ export default function AdminUsersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">User management</h1>
-        <p className="text-sm text-muted-foreground">{data?.total ?? 0} users</p>
+        <p className="text-sm text-muted-foreground">
+          {data?.total ?? 0} users · Assign the Compliance Officer role from user detail
+        </p>
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -300,7 +305,36 @@ export default function AdminUsersPage() {
           {detail ? (
             <div className="space-y-4 text-sm">
               <p><strong>Email:</strong> {detail.email}</p>
-              <p><strong>Role:</strong> {detail.role}</p>
+              <p><strong>Role:</strong> {ROLE_LABELS[detail.role as UserRole] ?? detail.role}</p>
+              {detail.role !== "ADMIN" ? (
+                <div className="flex flex-wrap items-end gap-2 border border-slate-200 p-3">
+                  <div className="space-y-1">
+                    <p className="font-medium">Assign role</p>
+                    <select
+                      className="h-9 rounded-none border border-slate-200 bg-white px-2 text-sm"
+                      value={assignRole || detail.role}
+                      onChange={(e) => setAssignRole(e.target.value as UserRole)}
+                    >
+                      {(["BUYER", "MERCHANT", "MARKETER", "LENDER", "COMPLIANCE_OFFICER"] as UserRole[]).map((role) => (
+                        <option key={role} value={role}>
+                          {ROLE_LABELS[role]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-none"
+                    disabled={!assignRole || assignRole === detail.role}
+                    onClick={() =>
+                      patchMutation.mutate({ userId: detail.id, role: assignRole || detail.role })
+                    }
+                  >
+                    Save role
+                  </Button>
+                </div>
+              ) : null}
               <p><strong>Phone:</strong> {detail.phone ?? "—"}</p>
               <p><strong>Status:</strong> {detail.isActive ? "Active" : "Suspended"}</p>
               <p><strong>2FA:</strong> {detail.twoFactorEnabled ? "Enabled" : "Off"}</p>

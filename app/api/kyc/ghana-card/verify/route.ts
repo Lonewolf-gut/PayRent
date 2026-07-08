@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { kycService } from "@/lib/services/kyc.service";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 
-const KYC_ROLES = ["TENANT", "LANDLORD", "LENDER", "AGENT"] as const;
+const KYC_ROLES = ["BUYER", "MERCHANT", "LENDER", "MARKETER"] as const;
 
 export const POST = withAuth(
   async (_req: NextRequest, _ctx, session) => {

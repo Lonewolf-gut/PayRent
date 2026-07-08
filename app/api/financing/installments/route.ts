@@ -40,7 +40,7 @@ export const GET = withAuth(
 
     return apiResponse(installments);
   },
-  { roles: ["TENANT"] }
+  { roles: ["BUYER"] }
 );
 
 export const POST = withAuth(
@@ -55,5 +55,5 @@ export const POST = withAuth(
     );
     return apiResponse(result);
   },
-  { roles: ["TENANT"], permission: "wallet:pay" }
+  { roles: ["BUYER"], permission: "wallet:pay" }
 );

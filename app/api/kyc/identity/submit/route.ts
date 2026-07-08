@@ -77,5 +77,5 @@ export const POST = withAuth(
 
     return apiResponse(result, 200, "Identity documents submitted for administrator review.");
   },
-  { roles: ["TENANT", "LANDLORD", "LENDER", "AGENT"], permission: "kyc:manage" }
+  { roles: ["BUYER", "MERCHANT", "LENDER", "MARKETER"], permission: "kyc:manage" }
 );

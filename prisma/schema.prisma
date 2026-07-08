@@ -8,11 +8,12 @@ datasource db {
 }
 
 enum UserRole {
-  TENANT
-  LANDLORD
-  AGENT
+  BUYER
+  MERCHANT
+  MARKETER
   LENDER
   ADMIN
+  COMPLIANCE_OFFICER
 }
 
 enum ApplicationStatus {
@@ -58,8 +59,8 @@ enum SettlementStatus {
 }
 
 enum BeneficiaryType {
-  LANDLORD
-  AGENT
+  MERCHANT
+  MARKETER
   LENDER
   PLATFORM
 }
@@ -210,10 +211,10 @@ enum InstallmentStatus {
 }
 
 enum WalletType {
-  TENANT
+  BUYER
   LENDER
-  LANDLORD
-  AGENT
+  MERCHANT
+  MARKETER
   PLATFORM
 }
 

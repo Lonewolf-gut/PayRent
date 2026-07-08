@@ -23,7 +23,7 @@ export const registerSchema = z.object({
   password: passwordSchema,
   fullName: z.string().min(2, "Please enter your full name"),
   phone: z.string().min(10, "Please enter a valid phone number").optional(),
-  role: z.enum(["TENANT", "LANDLORD", "AGENT", "LENDER"]),
+  role: z.enum(["BUYER", "MERCHANT", "MARKETER", "LENDER"]),
   entityType: z.enum(["INDIVIDUAL", "COMPANY"]).optional(),
   companyName: z.string().min(2).optional(),
   dateOfBirth: z.string().optional(),

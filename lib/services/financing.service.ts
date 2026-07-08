@@ -158,7 +158,7 @@ export class FinancingService {
       lender.userId,
       "LENDER",
       landlordUserId,
-      "LANDLORD",
+      "MERCHANT",
       landlordNet,
       `Financing disbursement for ${request.property.name}`
     );
@@ -166,9 +166,9 @@ export class FinancingService {
     if (commissionAgent && agentCommission > 0) {
       await walletService.transfer(
         landlordUserId,
-        "LANDLORD",
+        "MERCHANT",
         commissionAgent.user.id,
-        "AGENT",
+        "MARKETER",
         agentCommission,
         `Agent commission for financing: ${request.property.name}`
       );
@@ -334,7 +334,7 @@ export class FinancingService {
 
     await walletService.transfer(
       tenantUserId,
-      "TENANT",
+      "BUYER",
       lenderUserId,
       "LENDER",
       amount,

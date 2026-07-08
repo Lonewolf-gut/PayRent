@@ -26,7 +26,7 @@ export class SettlementService {
         data: {
           financingRequestId,
           beneficiaryUserId: financing.property.landlord.userId,
-          beneficiaryType: "LANDLORD",
+          beneficiaryType: "MERCHANT",
           grossAmount: new Prisma.Decimal(grossAmount),
           feeAmount: new Prisma.Decimal(platformFee),
           netAmount: new Prisma.Decimal(netLandlord),
@@ -63,7 +63,7 @@ export class SettlementService {
   }
 
   async listForUser(userId: string, role: string) {
-    if (role === "LANDLORD") {
+    if (role === "MERCHANT") {
       return prisma.settlementRecord.findMany({
         where: { beneficiaryUserId: userId },
         include: {

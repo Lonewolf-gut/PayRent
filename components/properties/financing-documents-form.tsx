@@ -25,7 +25,7 @@ export function FinancingDocumentsForm() {
   const { data, isLoading } = useQuery({
     queryKey: ["tenant-financing-docs"],
     queryFn: async () => {
-      const res = await fetch("/api/tenant/financing-documents");
+      const res = await fetch("/api/buyer/financing-documents");
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? "Failed to load documents");
       return json.data as {
@@ -52,7 +52,7 @@ export function FinancingDocumentsForm() {
       const formData = new FormData();
       formData.append("documentType", documentType);
       formData.append("document", file);
-      const res = await fetch("/api/tenant/financing-documents", {
+      const res = await fetch("/api/buyer/financing-documents", {
         method: "POST",
         body: formData,
       });
@@ -83,7 +83,7 @@ export function FinancingDocumentsForm() {
             Complete identity verification before uploading financing documents.
           </p>
           <Button className="rounded-none" asChild>
-            <Link href="/dashboard/tenant/kyc">Go to verification</Link>
+            <Link href="/dashboard/buyer/kyc">Go to verification</Link>
           </Button>
         </div>
       ) : null}

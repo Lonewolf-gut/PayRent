@@ -10,7 +10,7 @@ function TrackerInner() {
   useEffect(() => {
     if (!ref) return;
     const params = new URLSearchParams({ ref });
-    fetch(`/api/agent/referral/track?${params.toString()}`, {
+    fetch(`/api/marketer/referral/track?${params.toString()}`, {
       method: "POST",
     }).catch(() => undefined);
   }, [ref]);

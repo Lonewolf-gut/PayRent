@@ -45,6 +45,7 @@ export const PATCH = withAuth(
     const userId = body?.userId as string | undefined;
     const isActive = body?.isActive as boolean | undefined;
     const unlock = body?.unlock as boolean | undefined;
+    const role = body?.role as UserRole | undefined;
 
     if (!userId) {
       return apiResponse({ error: "User id is required" }, 400, "User id is required");
@@ -75,11 +76,32 @@ export const PATCH = withAuth(
       );
     }
 
-    const data: { isActive?: boolean; lockedUntil?: null; failedLoginCount?: number } = {};
+    if (role && role !== target.role) {
+      const assignableRoles: UserRole[] = ["COMPLIANCE_OFFICER", "BUYER", "MERCHANT", "MARKETER", "LENDER"];
+      if (!assignableRoles.includes(role)) {
+        return apiResponse({ error: "This role cannot be assigned here" }, 400, "Invalid role");
+      }
+      if (target.role === "ADMIN") {
+        return apiResponse({ error: "Admin role cannot be changed" }, 403, "Admin role cannot be changed");
+      }
+      if (userId === session.user.id) {
+        return apiResponse({ error: "You cannot change your own role" }, 400, "You cannot change your own role");
+      }
+    }
+
+    const data: {
+      isActive?: boolean;
+      lockedUntil?: null;
+      failedLoginCount?: number;
+      role?: UserRole;
+    } = {};
     if (typeof isActive === "boolean") data.isActive = isActive;
     if (unlock) {
       data.lockedUntil = null;
       data.failedLoginCount = 0;
+    }
+    if (role && role !== target.role) {
+      data.role = role;
     }
 
     if (!Object.keys(data).length) {

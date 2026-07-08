@@ -59,7 +59,7 @@ export default function PropertyDetailPage() {
       const json = await res.json();
       return json.data;
     },
-    enabled: !!session?.user && session.user.role === "TENANT",
+    enabled: !!session?.user && session.user.role === "BUYER",
   });
 
   const { data: kycStatus } = useQuery({
@@ -69,17 +69,17 @@ export default function PropertyDetailPage() {
       const json = await res.json();
       return json.data;
     },
-    enabled: session?.user?.role === "TENANT",
+    enabled: session?.user?.role === "BUYER",
   });
 
   const { data: financingDocs } = useQuery({
     queryKey: ["tenant-financing-docs"],
     queryFn: async () => {
-      const res = await fetch("/api/tenant/financing-documents");
+      const res = await fetch("/api/buyer/financing-documents");
       const json = await res.json();
       return json.data;
     },
-    enabled: session?.user?.role === "TENANT",
+    enabled: session?.user?.role === "BUYER",
   });
 
   const { data: applications } = useQuery({
@@ -89,7 +89,7 @@ export default function PropertyDetailPage() {
       const json = await res.json();
       return json.data ?? [];
     },
-    enabled: session?.user?.role === "TENANT",
+    enabled: session?.user?.role === "BUYER",
   });
 
   const chatMutation = useMutation({
@@ -113,7 +113,7 @@ export default function PropertyDetailPage() {
       return json.data;
     },
     onSuccess: () => {
-      router.push("/dashboard/tenant/messages");
+      router.push("/dashboard/buyer/messages");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -310,7 +310,7 @@ export default function PropertyDetailPage() {
         <div className="space-y-4">
           <PropertySaveButton propertyId={id} variant="button" />
           {session ? (
-            session.user.role === "TENANT" ? (
+            session.user.role === "BUYER" ? (
               <PropertyActionPanel
                 propertyId={id}
                 propertyName={property.name}
@@ -381,7 +381,7 @@ export default function PropertyDetailPage() {
               Cancel
             </Button>
             <Button asChild className="rounded-none bg-emerald-600 hover:bg-emerald-700">
-              <Link href="/dashboard/tenant/wallet">Deposit to wallet</Link>
+              <Link href="/dashboard/buyer/wallet">Deposit to wallet</Link>
             </Button>
           </DialogFooter>
         </DialogContent>

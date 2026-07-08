@@ -76,11 +76,12 @@ export async function getUserDisplayName(userId: string): Promise<string> {
 
 export function formatRoleLabel(role: UserRole | string) {
   const labels: Record<string, string> = {
-    TENANT: "Tenant",
-    LANDLORD: "Landlord",
-    AGENT: "Agent",
+    BUYER: "Buyer",
+    MERCHANT: "Merchant",
+    MARKETER: "Affiliate Marketer",
     LENDER: "Investor",
     ADMIN: "Admin",
+    COMPLIANCE_OFFICER: "Compliance Officer",
   };
   return labels[role] ?? role;
 }

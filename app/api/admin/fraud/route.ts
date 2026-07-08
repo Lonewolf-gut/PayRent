@@ -54,5 +54,5 @@ export const GET = withAuth(
 
     return apiResponse({ logs, total, page, limit, lockedUsers, failedLast24h });
   },
-  { roles: ["ADMIN"], permission: "admin:fraud" }
+  { roles: ["ADMIN", "COMPLIANCE_OFFICER"], permissions: ["admin:fraud", "compliance:monitor"] }
 );

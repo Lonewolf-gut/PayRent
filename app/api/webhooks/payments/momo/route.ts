@@ -156,7 +156,7 @@ export const POST = async (req: NextRequest) => {
 
     // 7. Get or create wallet for user
     const wallet = await prisma.wallet.findFirst({
-      where: { userId: user.id, type: "TENANT" }, // MoMo deposits go to tenant wallet
+      where: { userId: user.id, type: "BUYER" }, // MoMo deposits go to tenant wallet
     });
 
     if (!wallet) {

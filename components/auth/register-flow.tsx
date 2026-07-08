@@ -14,10 +14,10 @@ import {
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { AuthBackLink, AuthSplitLayout } from "@/components/rentvest/auth-split-layout";
 import { cn } from "@/lib/utils";
-import { ROLE_DESCRIPTIONS } from "@/constants/platform";
+import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/constants/platform";
 
 type EntityType = "INDIVIDUAL" | "COMPANY";
-type SignUpRole = "TENANT" | "LANDLORD" | "AGENT" | "LENDER";
+type SignUpRole = "BUYER" | "MERCHANT" | "MARKETER" | "LENDER";
 
 const entityOptions: {
   value: EntityType;
@@ -46,21 +46,21 @@ const roleOptions: {
   icon: typeof House;
 }[] = [
   {
-    value: "LANDLORD",
-    title: "Landlord",
-    description: ROLE_DESCRIPTIONS.LANDLORD,
+    value: "MERCHANT",
+    title: ROLE_LABELS.MERCHANT,
+    description: ROLE_DESCRIPTIONS.MERCHANT,
     icon: Building2,
   },
   {
-    value: "TENANT",
-    title: "Tenant",
-    description: ROLE_DESCRIPTIONS.TENANT,
+    value: "BUYER",
+    title: ROLE_LABELS.BUYER,
+    description: ROLE_DESCRIPTIONS.BUYER,
     icon: House,
   },
   {
-    value: "AGENT",
-    title: "Agent",
-    description: ROLE_DESCRIPTIONS.AGENT,
+    value: "MARKETER",
+    title: ROLE_LABELS.MARKETER,
+    description: ROLE_DESCRIPTIONS.MARKETER,
     icon: UserCog,
   },
   {

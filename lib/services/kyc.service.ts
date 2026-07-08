@@ -198,7 +198,7 @@ export class KycService {
           }
         : {};
 
-    if (role === "TENANT") {
+    if (role === "BUYER") {
       const updated = await prisma.tenant.update({
         where: { userId },
         data: {
@@ -222,7 +222,7 @@ export class KycService {
       return updated;
     }
 
-    if (role === "LANDLORD") {
+    if (role === "MERCHANT") {
       const updated = await prisma.landlord.update({
         where: { userId },
         data: {
@@ -268,7 +268,7 @@ export class KycService {
       return updated;
     }
 
-    if (role === "AGENT") {
+    if (role === "MARKETER") {
       const updated = await prisma.agentProfile.update({
         where: { userId },
         data: {
@@ -446,7 +446,7 @@ export class KycService {
       },
     });
 
-    if (role === "TENANT") {
+    if (role === "BUYER") {
       await prisma.tenant.update({
         where: { userId },
         data: {
@@ -458,7 +458,7 @@ export class KycService {
           profileStatus: "KYC_PENDING",
         },
       });
-    } else if (role === "LANDLORD") {
+    } else if (role === "MERCHANT") {
       await prisma.landlord.update({
         where: { userId },
         data: {
@@ -676,12 +676,12 @@ export class KycService {
   ) {
     const status = "KYC_PENDING";
 
-    if (role === "TENANT") {
+    if (role === "BUYER") {
       await prisma.tenant.update({
         where: { userId },
         data: { nationalId, profileStatus: status, entityType: "INDIVIDUAL" },
       });
-    } else if (role === "LANDLORD") {
+    } else if (role === "MERCHANT") {
       await prisma.landlord.update({
         where: { userId },
         data: { nationalId, profileStatus: status, entityType: "INDIVIDUAL" },
@@ -691,7 +691,7 @@ export class KycService {
         where: { userId },
         data: { nationalId, profileStatus: status },
       });
-    } else if (role === "AGENT") {
+    } else if (role === "MARKETER") {
       await prisma.agentProfile.update({
         where: { userId },
         data: { profileStatus: status },
@@ -882,27 +882,27 @@ export class KycService {
       ]);
 
     const profile =
-      role === "TENANT"
+      role === "BUYER"
         ? tenant
-        : role === "LANDLORD"
+        : role === "MERCHANT"
           ? landlord
           : role === "LENDER"
             ? lender
             : agent;
 
     const entityType =
-      role === "TENANT"
+      role === "BUYER"
         ? tenant?.entityType ?? "INDIVIDUAL"
-        : role === "LANDLORD"
+        : role === "MERCHANT"
           ? landlord?.entityType ?? "INDIVIDUAL"
           : "INDIVIDUAL";
 
     const identityVerified =
-      role === "TENANT"
+      role === "BUYER"
         ? (tenant?.kycVerified ?? false)
         : role === "LENDER"
           ? (lender?.identityVerified ?? false) || (lender?.kycVerified ?? false)
-          : role === "LANDLORD"
+          : role === "MERCHANT"
             ? (landlord?.identityVerified ?? false)
             : profile?.profileStatus === "KYC_VERIFIED";
 
@@ -914,9 +914,9 @@ export class KycService {
         entityType,
         fullName: profile?.fullName ?? null,
         companyName:
-          role === "TENANT"
+          role === "BUYER"
             ? tenant?.companyName
-            : role === "LANDLORD"
+            : role === "MERCHANT"
               ? landlord?.companyName
               : null,
       }),
@@ -924,113 +924,113 @@ export class KycService {
       profileStatus: profile?.profileStatus ?? "INCOMPLETE",
       entityType,
       employmentStatus:
-        role === "TENANT"
+        role === "BUYER"
           ? tenant?.employmentStatus ?? null
-          : role === "LANDLORD"
+          : role === "MERCHANT"
             ? landlord?.employmentStatus ?? null
             : role === "LENDER"
               ? lender?.employmentStatus ?? null
               : agent?.employmentStatus ?? null,
       dateOfBirth:
-        role === "TENANT" && tenant?.dateOfBirth
+        role === "BUYER" && tenant?.dateOfBirth
           ? tenant.dateOfBirth.toISOString().slice(0, 10)
-          : role === "LANDLORD" && landlord?.dateOfBirth
+          : role === "MERCHANT" && landlord?.dateOfBirth
             ? landlord.dateOfBirth.toISOString().slice(0, 10)
             : role === "LENDER" && lender?.dateOfBirth
               ? lender.dateOfBirth.toISOString().slice(0, 10)
-              : role === "AGENT" && agent?.dateOfBirth
+              : role === "MARKETER" && agent?.dateOfBirth
                 ? agent.dateOfBirth.toISOString().slice(0, 10)
                 : null,
       occupation:
-        role === "TENANT"
+        role === "BUYER"
           ? tenant?.occupation ?? null
-          : role === "LANDLORD"
+          : role === "MERCHANT"
             ? landlord?.occupation ?? null
             : role === "LENDER"
               ? lender?.lenderType ?? null
               : null,
       employerName:
-        role === "TENANT"
+        role === "BUYER"
           ? tenant?.employerName ?? null
-          : role === "LANDLORD"
+          : role === "MERCHANT"
             ? landlord?.employerName ?? null
             : role === "LENDER"
               ? lender?.institutionName ?? null
               : null,
       monthlyIncome:
-        role === "TENANT" && tenant?.monthlyIncome != null
+        role === "BUYER" && tenant?.monthlyIncome != null
           ? Number(tenant.monthlyIncome)
-          : role === "LANDLORD" && landlord?.monthlyIncome != null
+          : role === "MERCHANT" && landlord?.monthlyIncome != null
             ? Number(landlord.monthlyIncome)
             : null,
       residentialAddress:
-        role === "TENANT"
+        role === "BUYER"
           ? tenant?.residentialAddress ?? null
-          : role === "LANDLORD"
+          : role === "MERCHANT"
             ? landlord?.residentialAddress ?? null
-            : role === "AGENT"
+            : role === "MARKETER"
               ? agent?.officeAddress ?? null
               : null,
-      agencyName: role === "AGENT" ? agent?.agencyName ?? null : null,
-      licenceNumber: role === "AGENT" ? agent?.licenceNumber ?? null : null,
-      region: role === "AGENT" ? agent?.region ?? null : null,
+      agencyName: role === "MARKETER" ? agent?.agencyName ?? null : null,
+      licenceNumber: role === "MARKETER" ? agent?.licenceNumber ?? null : null,
+      region: role === "MARKETER" ? agent?.region ?? null : null,
       institutionName: role === "LENDER" ? lender?.institutionName ?? null : null,
       lenderType: role === "LENDER" ? lender?.lenderType ?? null : null,
       licenceReference: role === "LENDER" ? lender?.licenceReference ?? null : null,
       companyName:
-        role === "TENANT"
+        role === "BUYER"
           ? tenant?.companyName
-          : role === "LANDLORD"
+          : role === "MERCHANT"
             ? landlord?.companyName
             : null,
       companyRegistrationNumber:
-        role === "TENANT"
+        role === "BUYER"
           ? tenant?.companyRegistrationNumber
-          : role === "LANDLORD"
+          : role === "MERCHANT"
             ? landlord?.companyRegistrationNumber
             : null,
       companyRegisteredAddress:
-        role === "TENANT"
+        role === "BUYER"
           ? tenant?.companyRegisteredAddress
-          : role === "LANDLORD"
+          : role === "MERCHANT"
             ? landlord?.companyRegisteredAddress
             : null,
       companyTin:
-        role === "TENANT"
+        role === "BUYER"
           ? tenant?.companyTin
-          : role === "LANDLORD"
+          : role === "MERCHANT"
             ? landlord?.companyTin
             : null,
       kycVerified: identityVerified,
       identityVerified,
       staffId:
-        role === "TENANT"
+        role === "BUYER"
           ? tenant?.staffId ?? null
-          : role === "LANDLORD"
+          : role === "MERCHANT"
             ? landlord?.staffId ?? null
             : role === "LENDER"
               ? lender?.staffId ?? null
               : agent?.staffId ?? null,
       nationalId:
-        role === "TENANT"
+        role === "BUYER"
           ? tenant?.nationalId ?? null
-          : role === "LANDLORD"
+          : role === "MERCHANT"
             ? landlord?.nationalId ?? null
             : role === "LENDER"
               ? lender?.nationalId ?? null
               : null,
       employmentVerified:
-        role === "TENANT"
+        role === "BUYER"
           ? (tenant?.employmentVerified ?? false)
-          : role === "LANDLORD"
+          : role === "MERCHANT"
             ? (landlord?.employmentVerified ?? false)
             : role === "LENDER"
               ? (lender?.employmentVerified ?? false)
               : (agent?.employmentVerified ?? false),
       addressVerified:
-        role === "TENANT"
+        role === "BUYER"
           ? (tenant?.addressVerified ?? false)
-          : role === "LANDLORD"
+          : role === "MERCHANT"
             ? (landlord?.addressVerified ?? false)
             : role === "LENDER"
               ? (lender?.addressVerified ?? false)
@@ -1039,9 +1039,9 @@ export class KycService {
         entityType,
         fullName: profile?.fullName ?? null,
         companyName:
-          role === "TENANT"
+          role === "BUYER"
             ? tenant?.companyName
-            : role === "LANDLORD"
+            : role === "MERCHANT"
               ? landlord?.companyName
               : null,
       }),
@@ -1278,7 +1278,7 @@ export class KycService {
     nationalId?: string,
     entityType: EntityType = "INDIVIDUAL"
   ) {
-    if (role === "TENANT") {
+    if (role === "BUYER") {
       await prisma.tenant.update({
         where: { userId },
         data: {
@@ -1288,7 +1288,7 @@ export class KycService {
           profileStatus: "KYC_VERIFIED",
         },
       });
-    } else if (role === "LANDLORD") {
+    } else if (role === "MERCHANT") {
       await prisma.landlord.update({
         where: { userId },
         data: {
@@ -1308,7 +1308,7 @@ export class KycService {
           profileStatus: "KYC_VERIFIED",
         },
       });
-    } else if (role === "AGENT") {
+    } else if (role === "MARKETER") {
       await prisma.agentProfile.update({
         where: { userId },
         data: { profileStatus: "KYC_VERIFIED" },
@@ -1345,8 +1345,8 @@ export class KycService {
   }
 
   private async getRoleProfile(userId: string, role: UserRole) {
-    if (role === "TENANT") return prisma.tenant.findUnique({ where: { userId } });
-    if (role === "LANDLORD") return prisma.landlord.findUnique({ where: { userId } });
+    if (role === "BUYER") return prisma.tenant.findUnique({ where: { userId } });
+    if (role === "MERCHANT") return prisma.landlord.findUnique({ where: { userId } });
     if (role === "LENDER") return prisma.lender.findUnique({ where: { userId } });
     return prisma.agentProfile.findUnique({ where: { userId } });
   }
@@ -1373,9 +1373,9 @@ export class KycService {
       companyRegisteredAddress?: string;
     }
   ) {
-    if (role === "TENANT") {
+    if (role === "BUYER") {
       await prisma.tenant.update({ where: { userId }, data });
-    } else if (role === "LANDLORD") {
+    } else if (role === "MERCHANT") {
       await prisma.landlord.update({ where: { userId }, data });
     } else if (role === "LENDER") {
       await prisma.lender.update({
@@ -1385,7 +1385,7 @@ export class KycService {
           residentialAddress: data.residentialAddress,
         },
       });
-    } else if (role === "AGENT") {
+    } else if (role === "MARKETER") {
       await prisma.agentProfile.update({
         where: { userId },
         data: {
@@ -1402,26 +1402,26 @@ export class KycService {
     staffId?: string
   ) {
     const data = { employmentVerified: true, ...(staffId ? { staffId } : {}) };
-    if (role === "TENANT") {
+    if (role === "BUYER") {
       await prisma.tenant.update({ where: { userId }, data });
-    } else if (role === "LANDLORD") {
+    } else if (role === "MERCHANT") {
       await prisma.landlord.update({ where: { userId }, data });
     } else if (role === "LENDER") {
       await prisma.lender.update({ where: { userId }, data });
-    } else if (role === "AGENT") {
+    } else if (role === "MARKETER") {
       await prisma.agentProfile.update({ where: { userId }, data });
     }
   }
 
   private async markAddressApproved(userId: string, role: UserRole) {
     const data = { addressVerified: true };
-    if (role === "TENANT") {
+    if (role === "BUYER") {
       await prisma.tenant.update({ where: { userId }, data });
-    } else if (role === "LANDLORD") {
+    } else if (role === "MERCHANT") {
       await prisma.landlord.update({ where: { userId }, data });
     } else if (role === "LENDER") {
       await prisma.lender.update({ where: { userId }, data });
-    } else if (role === "AGENT") {
+    } else if (role === "MARKETER") {
       await prisma.agentProfile.update({ where: { userId }, data });
     }
   }

@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getPostLoginRoute } from "@/lib/auth/permissions";
-import { ADMIN_HOME_PATH } from "@/lib/auth/route-guards";
+import { ADMIN_HOME_PATH, COMPLIANCE_HOME_PATH } from "@/lib/auth/route-guards";
 import { stripSensitiveQueryParams } from "@/lib/utils/api-message";
 import { getSignInErrorMessage } from "@/lib/utils/auth-toast-messages";
 import type { UserRole } from "@prisma/client";
@@ -23,9 +23,10 @@ import { toast } from "sonner";
 
 interface LoginFormProps {
   adminMode?: boolean;
+  complianceMode?: boolean;
 }
 
-export default function LoginForm({ adminMode = false }: LoginFormProps) {
+export default function LoginForm({ adminMode = false, complianceMode = false }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -37,16 +38,21 @@ export default function LoginForm({ adminMode = false }: LoginFormProps) {
     rawCallbackUrl && !rawCallbackUrl.startsWith("/admin/login")
       ? rawCallbackUrl
       : "/";
-  const role = (adminMode ? "ADMIN" : (searchParams.get("role") ?? "TENANT")) as
-    | "TENANT"
-    | "LANDLORD"
-    | "AGENT"
+  const role = (adminMode || complianceMode
+    ? adminMode
+      ? "ADMIN"
+      : "COMPLIANCE_OFFICER"
+    : (searchParams.get("role") ?? "BUYER")) as
+    | "BUYER"
+    | "MERCHANT"
+    | "MARKETER"
     | "LENDER"
-    | "ADMIN";
+    | "ADMIN"
+    | "COMPLIANCE_OFFICER";
   const roleImage =
-    role === "LANDLORD"
+    role === "MERCHANT"
       ? "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=1400&q=80"
-      : role === "AGENT"
+      : role === "MARKETER"
         ? "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1400&q=80"
         : role === "LENDER"
           ? "https://images.unsplash.com/photo-1554224154-26032ffc0d07?auto=format&fit=crop&w=1400&q=80"
@@ -63,11 +69,11 @@ export default function LoginForm({ adminMode = false }: LoginFormProps) {
   }, []);
 
   useEffect(() => {
-    if (!adminMode) return;
+    if (!adminMode && !complianceMode) return;
 
     getSession()
       .then((session) => {
-        if (session?.user?.role === "ADMIN") {
+        if (adminMode && session?.user?.role === "ADMIN") {
           window.location.assign(
             rawCallbackUrl &&
               rawCallbackUrl.startsWith("/admin") &&
@@ -76,9 +82,18 @@ export default function LoginForm({ adminMode = false }: LoginFormProps) {
               : ADMIN_HOME_PATH
           );
         }
+        if (complianceMode && session?.user?.role === "COMPLIANCE_OFFICER") {
+          window.location.assign(
+            rawCallbackUrl &&
+              rawCallbackUrl.startsWith("/compliance") &&
+              rawCallbackUrl !== "/compliance/login"
+              ? rawCallbackUrl
+              : COMPLIANCE_HOME_PATH
+          );
+        }
       })
       .catch(() => undefined);
-  }, [adminMode, rawCallbackUrl]);
+  }, [adminMode, complianceMode, rawCallbackUrl]);
 
   const onSubmit = async (data: LoginInput) => {
     setLoading(true);
@@ -135,6 +150,22 @@ export default function LoginForm({ adminMode = false }: LoginFormProps) {
           rawCallbackUrl !== "/admin/login"
             ? rawCallbackUrl
             : ADMIN_HOME_PATH;
+        window.location.assign(destination);
+        return;
+      }
+
+      if (complianceMode) {
+        if (session.user.role !== "COMPLIANCE_OFFICER") {
+          toast.error("This account does not have compliance officer access.", { id: toastId });
+          return;
+        }
+
+        const destination =
+          rawCallbackUrl &&
+          rawCallbackUrl.startsWith("/compliance") &&
+          rawCallbackUrl !== "/compliance/login"
+            ? rawCallbackUrl
+            : COMPLIANCE_HOME_PATH;
         window.location.assign(destination);
         return;
       }
@@ -261,6 +292,25 @@ export default function LoginForm({ adminMode = false }: LoginFormProps) {
       </div>
     </div>
   );
+
+  if (complianceMode) {
+    return (
+      <div className="flex min-h-screen w-full flex-col bg-slate-50">
+        <div className="flex w-full flex-1 items-center justify-center px-4 py-12">
+          <div className="mx-auto w-full max-w-md space-y-6">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-slate-900">Compliance Portal</h1>
+              <p className="mt-2 text-sm text-slate-600">Secure compliance officer access</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+              {formContent}
+            </div>
+          </div>
+        </div>
+        <AuthFooter />
+      </div>
+    );
+  }
 
   if (adminMode) {
     return (

@@ -150,8 +150,8 @@ export class ApplicationService {
     });
 
     const canReview =
-      (reviewer?.role === "LANDLORD" && reviewer.landlord?.id === property.landlordId) ||
-      (reviewer?.role === "AGENT" && property.agentUserId === reviewer.agentProfile?.id) ||
+      (reviewer?.role === "MERCHANT" && reviewer.landlord?.id === property.landlordId) ||
+      (reviewer?.role === "MARKETER" && property.agentUserId === reviewer.agentProfile?.id) ||
       reviewer?.role === "ADMIN";
 
     if (!canReview) {

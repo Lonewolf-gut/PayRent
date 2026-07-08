@@ -1,7 +1,7 @@
 import type { UserRole } from "@prisma/client";
 
 /** Roles that require a paid subscription after the trial period. */
-export const SUBSCRIPTION_ELIGIBLE_ROLES = ["LANDLORD", "AGENT"] as const satisfies readonly UserRole[];
+export const SUBSCRIPTION_ELIGIBLE_ROLES = ["MERCHANT", "MARKETER"] as const satisfies readonly UserRole[];
 
 export type SubscriptionEligibleRole = (typeof SUBSCRIPTION_ELIGIBLE_ROLES)[number];
 

@@ -9,18 +9,18 @@ import { Button } from "@/components/ui/button";
 import type { UserRole } from "@prisma/client";
 
 const WALLET_PATH: Partial<Record<UserRole, string>> = {
-  TENANT: "/dashboard/tenant/wallet",
-  LANDLORD: "/dashboard/landlord/wallet",
+  BUYER: "/dashboard/buyer/wallet",
+  MERCHANT: "/dashboard/merchant/wallet",
   LENDER: "/dashboard/lender/wallet",
-  AGENT: "/dashboard/agent/wallet",
+  MARKETER: "/dashboard/marketer/wallet",
   ADMIN: "/admin/wallet",
 };
 
 const SETTINGS_PATH: Partial<Record<UserRole, string>> = {
-  TENANT: "/dashboard/tenant/settings",
-  LANDLORD: "/dashboard/landlord/settings",
+  BUYER: "/dashboard/buyer/settings",
+  MERCHANT: "/dashboard/merchant/settings",
   LENDER: "/dashboard/lender/settings",
-  AGENT: "/dashboard/agent/settings",
+  MARKETER: "/dashboard/marketer/settings",
   ADMIN: "/admin/settings",
 };
 

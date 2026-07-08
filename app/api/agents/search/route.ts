@@ -16,7 +16,7 @@ export const GET = withPublicHandler(async (req: NextRequest) => {
         { agencyName: { contains: q, mode: "insensitive" } },
         { user: { email: { contains: q, mode: "insensitive" } } },
       ],
-      user: { role: "AGENT", isActive: true },
+      user: { role: "MARKETER", isActive: true },
     },
     include: {
       user: { select: { id: true, email: true, phone: true, image: true } },
@@ -27,7 +27,7 @@ export const GET = withPublicHandler(async (req: NextRequest) => {
 
   const eligible = [];
   for (const agent of agents) {
-    const status = await kycService.getVerificationStatus(agent.user.id, "AGENT");
+    const status = await kycService.getVerificationStatus(agent.user.id, "MARKETER");
     if (status.identityVerified && agent.user.image) {
       eligible.push({
         id: agent.id,

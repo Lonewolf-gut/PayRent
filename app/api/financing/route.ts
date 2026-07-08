@@ -34,7 +34,7 @@ export const GET = withAuth(
     });
     return apiResponse(requests);
   },
-  { roles: ["TENANT", "LENDER"] }
+  { roles: ["BUYER", "LENDER"] }
 );
 
 export const POST = withAuth(
@@ -64,5 +64,5 @@ export const POST = withAuth(
 
     return apiResponse(request, 201);
   },
-  { roles: ["TENANT"], permission: "financing:create" }
+  { roles: ["BUYER"], permission: "financing:create" }
 );

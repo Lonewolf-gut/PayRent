@@ -20,5 +20,5 @@ export const POST = withAuth(
 
     return apiResponse(application, 200, "Application reviewed.");
   },
-  { roles: ["LANDLORD", "AGENT"], permission: "application:review" }
+  { roles: ["MERCHANT", "MARKETER"], permission: "application:review" }
 );

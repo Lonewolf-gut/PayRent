@@ -78,8 +78,8 @@ export function SubscriptionCheckoutPage() {
   const canSubscribe = role ? roleRequiresSubscription(role) : true;
 
   const walletPath = useMemo(() => {
-    if (role === "AGENT") return "/dashboard/agent/wallet";
-    return "/dashboard/landlord/wallet";
+    if (role === "MARKETER") return "/dashboard/marketer/wallet";
+    return "/dashboard/merchant/wallet";
   }, [role]);
 
   useEffect(() => {
@@ -174,7 +174,7 @@ export function SubscriptionCheckoutPage() {
       <div className="mx-auto max-w-2xl px-4 py-24 text-center sm:px-6">
         <h1 className="text-3xl font-bold text-emerald-950">No subscription required</h1>
         <p className="mt-4 text-muted-foreground">
-          {role === "TENANT"
+          {role === "BUYER"
             ? "Tenant accounts have free access to browse listings, apply for properties, and request rent financing."
             : "Lender accounts have free access to the full financing pipeline — review, approve, and monitor deals at no monthly cost."}
         </p>

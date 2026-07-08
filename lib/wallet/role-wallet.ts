@@ -1,19 +1,19 @@
 import type { UserRole, WalletType } from "@prisma/client";
 
 export const USER_WALLET_TYPE: Partial<Record<UserRole, WalletType>> = {
-  TENANT: "TENANT",
-  LANDLORD: "LANDLORD",
+  BUYER: "BUYER",
+  MERCHANT: "MERCHANT",
   LENDER: "LENDER",
-  AGENT: "AGENT",
+  MARKETER: "MARKETER",
 };
 
-export const DEPOSIT_ROLES: UserRole[] = ["TENANT", "LANDLORD", "LENDER", "AGENT"];
+export const DEPOSIT_ROLES: UserRole[] = ["BUYER", "MERCHANT", "LENDER", "MARKETER"];
 
 export const WITHDRAW_ROLES: UserRole[] = [
-  "TENANT",
-  "LANDLORD",
+  "BUYER",
+  "MERCHANT",
   "LENDER",
-  "AGENT",
+  "MARKETER",
   "ADMIN",
 ];
 

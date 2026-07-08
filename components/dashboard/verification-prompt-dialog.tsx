@@ -22,9 +22,9 @@ import {
 import type { UserRole } from "@prisma/client";
 
 const KYC_ROUTES: Partial<Record<UserRole, string>> = {
-  TENANT: "/dashboard/tenant/kyc",
-  LANDLORD: "/dashboard/landlord/kyc",
-  AGENT: "/dashboard/agent/kyc",
+  BUYER: "/dashboard/buyer/kyc",
+  MERCHANT: "/dashboard/merchant/kyc",
+  MARKETER: "/dashboard/marketer/kyc",
   LENDER: "/dashboard/lender/kyc",
 };
 

@@ -22,45 +22,45 @@ import {
 } from "@/lib/utils/auth-toast-messages";
 import { toast } from "sonner";
 
-const roleImages: Record<"TENANT" | "LANDLORD" | "AGENT" | "LENDER", string> = {
-  TENANT:
+const roleImages: Record<"BUYER" | "MERCHANT" | "MARKETER" | "LENDER", string> = {
+  BUYER:
     "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1400&q=80",
-  LANDLORD:
+  MERCHANT:
     "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=1400&q=80",
-  AGENT:
+  MARKETER:
     "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1400&q=80",
   LENDER:
     "https://images.unsplash.com/photo-1554224154-26032ffc0d07?auto=format&fit=crop&w=1400&q=80",
 };
 
 const roleLabels: Record<string, string> = {
-  TENANT: "tenant",
-  LANDLORD: "landlord",
-  AGENT: "agent",
+  BUYER: "buyer",
+  MERCHANT: "merchant",
+  MARKETER: "marketer",
   LENDER: "investor",
 };
 
 const roleDisplayNames: Record<string, string> = {
-  TENANT: "Tenant",
-  LANDLORD: "Landlord",
-  AGENT: "Agent",
+  BUYER: "Buyer",
+  MERCHANT: "Merchant",
+  MARKETER: "Affiliate Marketer",
   LENDER: "Investor",
 };
 
 export default function RegisterCreatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialRole = (searchParams.get("role") ?? "TENANT") as
-    | "TENANT"
-    | "LANDLORD"
-    | "AGENT"
+  const initialRole = (searchParams.get("role") ?? "BUYER") as
+    | "BUYER"
+    | "MERCHANT"
+    | "MARKETER"
     | "LENDER";
-  const role = ["TENANT", "LANDLORD", "AGENT", "LENDER"].includes(initialRole) ? initialRole : "TENANT";
+  const role = ["BUYER", "MERCHANT", "MARKETER", "LENDER"].includes(initialRole) ? initialRole : "BUYER";
   const initialEntity = searchParams.get("entityType");
   const entityType: "INDIVIDUAL" | "COMPANY" =
     initialEntity === "COMPANY" ? "COMPANY" : "INDIVIDUAL";
   const [loading, setLoading] = useState(false);
-  const showEntityType = role === "TENANT" || role === "LANDLORD";
+  const showEntityType = role === "BUYER" || role === "MERCHANT";
   const requiresDateOfBirth = entityType !== "COMPANY";
 
   const {

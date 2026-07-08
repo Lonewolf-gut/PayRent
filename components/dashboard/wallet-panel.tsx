@@ -35,10 +35,10 @@ type BankAccount = {
 };
 
 const SETTINGS_PATH: Partial<Record<UserRole, string>> = {
-  TENANT: "/dashboard/tenant/settings",
-  LANDLORD: "/dashboard/landlord/settings",
+  BUYER: "/dashboard/buyer/settings",
+  MERCHANT: "/dashboard/merchant/settings",
   LENDER: "/dashboard/lender/settings",
-  AGENT: "/dashboard/agent/settings",
+  MARKETER: "/dashboard/marketer/settings",
   ADMIN: "/admin/settings",
 };
 

@@ -99,7 +99,7 @@ export async function sendEmail(params: {
   html: string;
   text?: string;
 }): Promise<EmailSendResult> {
-  const from = process.env.SMTP_FROM ?? "PayForMe <noreply@payforme.local>";
+  const from = process.env.SMTP_FROM ?? "PayForMe <noreply@payforme.com>";
 
   let transport = getSmtpTransporter();
   let mode: EmailSendResult["mode"] = "smtp";

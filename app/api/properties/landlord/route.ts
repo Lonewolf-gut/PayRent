@@ -17,5 +17,5 @@ export const GET = withAuth(
     const properties = await propertyRepository.findByLandlord(landlord.id);
     return apiResponse(properties);
   },
-  { roles: ["LANDLORD"] }
+  { roles: ["MERCHANT"] }
 );

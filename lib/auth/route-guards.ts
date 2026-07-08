@@ -25,4 +25,9 @@ export function isNonAdminDashboardPath(pathname: string) {
   return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
 }
 
+export function isCompliancePath(pathname: string) {
+  return pathname === "/compliance" || pathname.startsWith("/compliance/");
+}
+
 export const ADMIN_HOME_PATH = "/admin";
+export const COMPLIANCE_HOME_PATH = "/compliance";

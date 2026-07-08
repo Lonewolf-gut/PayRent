@@ -10,7 +10,7 @@ export const GET = withAuth(
     );
     return apiResponse(settlements, 200, "Settlements retrieved.");
   },
-  { roles: ["LANDLORD", "ADMIN"] }
+  { roles: ["MERCHANT", "ADMIN"] }
 );
 
 export const PATCH = withAuth(

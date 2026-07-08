@@ -18,10 +18,10 @@ async function main() {
   });
 
   const admin = await prisma.user.upsert({
-    where: { email: "admin@rentvest.com" },
+    where: { email: "admin@payforme.com" },
     update: {},
     create: {
-      email: "admin@rentvest.com",
+      email: "admin@payforme.com",
       passwordHash,
       role: "ADMIN",
       emailVerified: new Date(),
@@ -30,12 +30,12 @@ async function main() {
   });
 
   const tenantUser = await prisma.user.upsert({
-    where: { email: "tenant@rentvest.com" },
+    where: { email: "tenant@payforme.com" },
     update: {},
     create: {
-      email: "tenant@rentvest.com",
+      email: "tenant@payforme.com",
       passwordHash,
-      role: "TENANT",
+      role: "BUYER",
       emailVerified: new Date(),
       phone: "+233200000001",
       phoneVerified: new Date(),
@@ -67,12 +67,12 @@ async function main() {
   });
 
   const landlordUser = await prisma.user.upsert({
-    where: { email: "landlord@rentvest.com" },
+    where: { email: "landlord@payforme.com" },
     update: {},
     create: {
-      email: "landlord@rentvest.com",
+      email: "landlord@payforme.com",
       passwordHash,
-      role: "LANDLORD",
+      role: "MERCHANT",
       emailVerified: new Date(),
     },
   });
@@ -88,10 +88,10 @@ async function main() {
   });
 
   const lenderUser = await prisma.user.upsert({
-    where: { email: "lender@rentvest.com" },
+    where: { email: "lender@payforme.com" },
     update: {},
     create: {
-      email: "lender@rentvest.com",
+      email: "lender@payforme.com",
       passwordHash,
       role: "LENDER",
       emailVerified: new Date(),
@@ -112,12 +112,12 @@ async function main() {
   });
 
   const agentUser = await prisma.user.upsert({
-    where: { email: "agent@rentvest.com" },
+    where: { email: "agent@payforme.com" },
     update: {},
     create: {
-      email: "agent@rentvest.com",
+      email: "agent@payforme.com",
       passwordHash,
-      role: "AGENT",
+      role: "MARKETER",
       emailVerified: new Date(),
     },
   });
@@ -127,18 +127,30 @@ async function main() {
     update: {},
     create: {
       userId: agentUser.id,
-      fullName: "Demo Agent",
+      fullName: "Demo Marketer",
       agencyName: "Accra Property Partners",
       region: "Greater Accra",
       profileStatus: "PROFILE_COMPLETED",
     },
   });
 
+  const complianceUser = await prisma.user.upsert({
+    where: { email: "compliance@payforme.com" },
+    update: { role: "COMPLIANCE_OFFICER" },
+    create: {
+      email: "compliance@payforme.com",
+      passwordHash,
+      role: "COMPLIANCE_OFFICER",
+      emailVerified: new Date(),
+      isActive: true,
+    },
+  });
+
   for (const [userId, type] of [
-    [tenantUser.id, "TENANT"],
-    [landlordUser.id, "LANDLORD"],
+    [tenantUser.id, "BUYER"],
+    [landlordUser.id, "MERCHANT"],
     [lenderUser.id, "LENDER"],
-    [agentUser.id, "AGENT"],
+    [agentUser.id, "MARKETER"],
   ] as const) {
     const existing = await prisma.wallet.findFirst({
       where: { userId, type },
@@ -190,14 +202,21 @@ async function main() {
           create: {
             name: "Kwame Asante",
             phone: "+233244000000",
-            email: "kwame@rentvest.com",
+            email: "kwame@payforme.com",
           },
         },
       },
     });
   }
 
-  console.log("Seed completed:", { admin: admin.email });
+  console.log("Seed completed:", {
+    admin: admin.email,
+    buyer: tenantUser.email,
+    merchant: landlordUser.email,
+    marketer: agentUser.email,
+    lender: lenderUser.email,
+    compliance: complianceUser.email,
+  });
   console.log("Demo password for all: Password123!");
 }
 

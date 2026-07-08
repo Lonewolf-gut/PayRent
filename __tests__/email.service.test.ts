@@ -6,6 +6,6 @@ describe("Email service", () => {
     const html = buildEmailTemplate("Subject", "Message body");
     expect(html).toContain("Subject");
     expect(html).toContain("Message body");
-    expect(html).toContain("RentForMe");
+    expect(html).toContain("PayForMe");
   });
 });

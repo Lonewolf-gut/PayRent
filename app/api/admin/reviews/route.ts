@@ -25,7 +25,7 @@ export const GET = withAuth(
 
     return apiResponse([], 200, "Review queue retrieved.");
   },
-  { roles: ["ADMIN"] }
+  { roles: ["ADMIN", "COMPLIANCE_OFFICER"], permissions: ["admin:kyc", "compliance:kyc"] }
 );
 
 export const PATCH = withAuth(
@@ -70,5 +70,5 @@ export const PATCH = withAuth(
 
     return apiResponse(null, 400, "Invalid review action.");
   },
-  { roles: ["ADMIN"] }
+  { roles: ["ADMIN", "COMPLIANCE_OFFICER"], permissions: ["admin:kyc", "compliance:kyc"] }
 );

@@ -40,22 +40,26 @@ export function LoginActivityPanel({
   defaultFilter = "all",
   showExport = true,
   heightClass = "h-[420px]",
+  apiPath = "/api/admin/fraud",
+  queryKeyPrefix = "admin-fraud",
 }: {
   className?: string;
   defaultFilter?: LogFilter;
   showExport?: boolean;
   heightClass?: string;
+  apiPath?: string;
+  queryKeyPrefix?: string;
 }) {
   const [logFilter, setLogFilter] = useState<LogFilter>(defaultFilter);
   const [exporting, setExporting] = useState<"excel" | "pdf" | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-fraud", logFilter],
+    queryKey: [queryKeyPrefix, logFilter],
     queryFn: async () => {
       const params = new URLSearchParams({ limit: "200" });
       if (logFilter === "failed") params.set("success", "false");
       if (logFilter === "success") params.set("success", "true");
-      const res = await fetch(`/api/admin/fraud?${params}`);
+      const res = await fetch(`${apiPath}?${params}`);
       const json = await res.json();
       return json.data as {
         logs?: LoginLogRow[];

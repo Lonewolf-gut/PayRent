@@ -92,7 +92,7 @@ export function SidebarUpgradeCard() {
 
   const plan = normalizeSubscriptionPlan(subscriptionData?.subscription?.plan ?? "FREE");
   const planLabel = PLAN_CATALOG[plan]?.name ?? "Free";
-  const showCard = role === "LANDLORD" || role === "AGENT";
+  const showCard = role === "MERCHANT" || role === "MARKETER";
 
   if (!showCard || !session?.user) return null;
 

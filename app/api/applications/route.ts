@@ -7,7 +7,7 @@ import { getReferralAgentProfileId } from "@/lib/utils/agent-referral-request";
 
 export const GET = withAuth(
   async (_req: NextRequest, _ctx, session) => {
-    if (session.user.role === "TENANT") {
+    if (session.user.role === "BUYER") {
       const tenant = await prisma.tenant.findUnique({
         where: { userId: session.user.id },
       });
@@ -16,7 +16,7 @@ export const GET = withAuth(
       return apiResponse(apps, 200, "Applications retrieved.");
     }
 
-    if (session.user.role === "LANDLORD") {
+    if (session.user.role === "MERCHANT") {
       const landlord = await prisma.landlord.findUnique({
         where: { userId: session.user.id },
       });
@@ -25,7 +25,7 @@ export const GET = withAuth(
       return apiResponse(apps, 200, "Applications retrieved.");
     }
 
-    if (session.user.role === "AGENT") {
+    if (session.user.role === "MARKETER") {
       const agent = await prisma.agentProfile.findUnique({
         where: { userId: session.user.id },
       });
@@ -36,7 +36,7 @@ export const GET = withAuth(
 
     return apiResponse([]);
   },
-  { roles: ["TENANT", "LANDLORD", "AGENT"] }
+  { roles: ["BUYER", "MERCHANT", "MARKETER"] }
 );
 
 export const POST = withAuth(
@@ -63,5 +63,5 @@ export const POST = withAuth(
 
     return apiResponse(application, 201, "Application submitted.");
   },
-  { roles: ["TENANT"], permission: "application:create" }
+  { roles: ["BUYER"], permission: "application:create" }
 );

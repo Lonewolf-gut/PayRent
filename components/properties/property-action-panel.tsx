@@ -79,7 +79,7 @@ export function PropertyActionPanel({
     },
     onSuccess: () => {
       toast.success("Application submitted");
-      router.push("/dashboard/tenant/applications");
+      router.push("/dashboard/buyer/applications");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -101,7 +101,7 @@ export function PropertyActionPanel({
     },
     onSuccess: () => {
       toast.success("Financing request submitted");
-      router.push("/dashboard/tenant/financing");
+      router.push("/dashboard/buyer/financing");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -212,7 +212,7 @@ export function PropertyActionPanel({
                     </p>
                   </div>
                   <Button className="w-full rounded-none" asChild>
-                    <Link href="/dashboard/tenant/kyc">Complete verification</Link>
+                    <Link href="/dashboard/buyer/kyc">Complete verification</Link>
                   </Button>
                 </div>
               ) : !approvedApplication ? (
@@ -226,7 +226,7 @@ export function PropertyActionPanel({
                     review. Verification documents cannot be uploaded on this page.
                   </p>
                   <Button className="w-full rounded-none" asChild>
-                    <Link href="/dashboard/tenant/financing-documents">
+                    <Link href="/dashboard/buyer/financing-documents">
                       Upload financing documents
                     </Link>
                   </Button>

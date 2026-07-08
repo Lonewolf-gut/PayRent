@@ -59,7 +59,7 @@ export class AuthService {
         },
       });
 
-      if (input.role === "TENANT") {
+      if (input.role === "BUYER") {
         await db.tenant.create({
           data: {
             userId: created.id,
@@ -71,7 +71,7 @@ export class AuthService {
               : {}),
           },
         });
-      } else if (input.role === "LANDLORD") {
+      } else if (input.role === "MERCHANT") {
         await db.landlord.create({
           data: {
             userId: created.id,
@@ -91,7 +91,7 @@ export class AuthService {
             ...(dateOfBirth ? { dateOfBirth } : {}),
           },
         });
-      } else if (input.role === "AGENT") {
+      } else if (input.role === "MARKETER") {
         await db.agentProfile.create({
           data: {
             userId: created.id,
@@ -105,12 +105,12 @@ export class AuthService {
     });
 
     const walletType =
-      input.role === "TENANT"
-        ? "TENANT"
-        : input.role === "LANDLORD"
-          ? "LANDLORD"
-          : input.role === "AGENT"
-            ? "AGENT"
+      input.role === "BUYER"
+        ? "BUYER"
+        : input.role === "MERCHANT"
+          ? "MERCHANT"
+          : input.role === "MARKETER"
+            ? "MARKETER"
             : "LENDER";
 
     await walletService.getOrCreateWallet(user.id, walletType);

@@ -64,7 +64,7 @@ export function NavQuickActions({ className }: { className?: string }) {
       if (!json.success) return 0;
       return (json.data ?? []).length as number;
     },
-    enabled: !!session?.user && role === "TENANT",
+    enabled: !!session?.user && role === "BUYER",
   });
 
   const { data: unreadCount = 0 } = useQuery({

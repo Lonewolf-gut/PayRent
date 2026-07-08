@@ -19,7 +19,7 @@ API/mobile clients may use JWT:
   "password": "SecurePass1",
   "fullName": "John Doe",
   "phone": "+233200000000",
-  "role": "TENANT"
+  "role": "BUYER"
 }
 ```
 
@@ -87,11 +87,11 @@ Saved properties (Tenant).
 
 ## Landlord agents
 
-### GET `/api/landlord/agents`
+### GET `/api/merchant/agents`
 
 List landlord properties with assigned agents and available platform agents.
 
-### PATCH `/api/landlord/agents`
+### PATCH `/api/merchant/agents`
 
 ```json
 { "propertyId": "...", "agentProfileId": "..." }
@@ -235,7 +235,7 @@ Admin mark settlement completed.
 
 ## Admin
 
-### GET `/api/admin/users?role=TENANT&page=1`
+### GET `/api/admin/users?role=BUYER&page=1`
 
 ### GET `/api/admin/stats`
 

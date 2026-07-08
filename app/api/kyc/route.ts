@@ -3,7 +3,7 @@ import { profileSchema, firstProfileIssueMessage } from "@/lib/validations/kyc";
 import { kycService } from "@/lib/services/kyc.service";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 
-const KYC_ROLES = ["TENANT", "LANDLORD", "LENDER", "AGENT"] as const;
+const KYC_ROLES = ["BUYER", "MERCHANT", "LENDER", "MARKETER"] as const;
 
 export const GET = withAuth(async (_req, _ctx, session) => {
   const status = await kycService.getVerificationStatus(

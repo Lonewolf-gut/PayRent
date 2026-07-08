@@ -141,7 +141,7 @@ export const PATCH = withAuth(
 
     return apiResponse(updated);
   },
-  { roles: ["LANDLORD"], permission: "property:update" }
+  { roles: ["MERCHANT"], permission: "property:update" }
 );
 
 export const DELETE = withAuth(
@@ -164,5 +164,5 @@ export const DELETE = withAuth(
     await prisma.property.delete({ where: { id } });
     return apiResponse({ ok: true });
   },
-  { roles: ["LANDLORD"], permission: "property:create" }
+  { roles: ["MERCHANT"], permission: "property:create" }
 );

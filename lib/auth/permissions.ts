@@ -1,7 +1,7 @@
 import type { UserRole } from "@prisma/client";
 
 export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
-  TENANT: [
+  BUYER: [
     "property:read",
     "property:save",
     "application:create",
@@ -16,14 +16,18 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "wallet:withdraw",
     "wallet:pay",
     "message:send",
+    "complaint:submit",
   ],
-  LANDLORD: [
+  MERCHANT: [
     "property:create",
     "property:update",
     "property:delete",
     "application:review",
-    "agent:manage",
+    "marketer:manage",
     "settlement:read",
+    "order:confirm",
+    "delivery:update",
+    "sales:read",
     "wallet:read",
     "wallet:deposit",
     "wallet:withdraw",
@@ -31,10 +35,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "subscription:manage",
     "message:send",
   ],
-  AGENT: [
+  MARKETER: [
     "property:read",
     "property:update",
     "application:review",
+    "referral:read",
+    "commission:read",
     "kyc:manage",
     "wallet:read",
     "wallet:deposit",
@@ -67,8 +73,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "admin:fraud",
     "admin:disputes",
     "admin:analytics",
+    "admin:fees",
+    "admin:reports",
     "wallet:read",
     "wallet:withdraw",
+  ],
+  COMPLIANCE_OFFICER: [
+    "compliance:audit",
+    "compliance:kyc",
+    "compliance:monitor",
+    "compliance:reports",
+    "kyc:manage",
   ],
 };
 
@@ -84,40 +99,44 @@ export function requireRole(
 }
 
 export const DASHBOARD_ROUTES: Record<UserRole, string> = {
-  TENANT: "/dashboard/tenant",
-  LANDLORD: "/dashboard/landlord",
-  AGENT: "/dashboard/agent",
+  BUYER: "/dashboard/buyer",
+  MERCHANT: "/dashboard/merchant",
+  MARKETER: "/dashboard/marketer",
   LENDER: "/dashboard/lender",
   ADMIN: "/admin",
+  COMPLIANCE_OFFICER: "/compliance",
 };
 
 export const SETTINGS_ROUTES: Record<UserRole, string> = {
-  TENANT: "/dashboard/tenant/settings",
-  LANDLORD: "/dashboard/landlord/settings",
-  AGENT: "/dashboard/agent/settings",
+  BUYER: "/dashboard/buyer/settings",
+  MERCHANT: "/dashboard/merchant/settings",
+  MARKETER: "/dashboard/marketer/settings",
   LENDER: "/dashboard/lender/settings",
   ADMIN: "/admin/settings",
+  COMPLIANCE_OFFICER: "/compliance/settings",
 };
 
 export const SUBSCRIPTION_ROUTES: Record<UserRole, string> = {
-  TENANT: "/pricing",
-  LANDLORD: "/pricing",
-  AGENT: "/pricing",
+  BUYER: "/pricing",
+  MERCHANT: "/pricing",
+  MARKETER: "/pricing",
   LENDER: "/pricing",
   ADMIN: "/admin/settings",
+  COMPLIANCE_OFFICER: "/compliance",
 };
 
 export function getSubscriptionSettingsPath(role?: UserRole | null) {
-  if (!role || role === "ADMIN") return "/register";
+  if (!role || role === "ADMIN" || role === "COMPLIANCE_OFFICER") return "/register";
   return SUBSCRIPTION_ROUTES[role];
 }
 
 export const POST_LOGIN_ROUTES: Record<UserRole, string> = {
-  TENANT: "/",
-  LANDLORD: "/",
-  AGENT: "/",
+  BUYER: "/",
+  MERCHANT: "/",
+  MARKETER: "/",
   LENDER: "/",
   ADMIN: "/admin",
+  COMPLIANCE_OFFICER: "/compliance",
 };
 
 export function getPostLoginRoute(role: UserRole) {
@@ -125,9 +144,16 @@ export function getPostLoginRoute(role: UserRole) {
 }
 
 export const PLATFORM_ROLES: UserRole[] = [
-  "TENANT",
-  "LANDLORD",
-  "AGENT",
+  "BUYER",
+  "MERCHANT",
+  "MARKETER",
   "LENDER",
   "ADMIN",
+  "COMPLIANCE_OFFICER",
 ];
+
+export const STAFF_ROLES: UserRole[] = ["ADMIN", "COMPLIANCE_OFFICER"];
+
+export function isStaffRole(role?: UserRole | null) {
+  return !!role && STAFF_ROLES.includes(role);
+}

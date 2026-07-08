@@ -6,7 +6,7 @@ export const GET = withAuth(
   async (_req, ctx, session) => {
     const { id } = await ctx.params;
 
-    if (session.user.role === "TENANT") {
+    if (session.user.role === "BUYER") {
       const tenant = await prisma.tenant.findUnique({
         where: { userId: session.user.id },
       });
@@ -25,5 +25,5 @@ export const GET = withAuth(
 
     return apiResponse(null, 403, "Forbidden.");
   },
-  { roles: ["TENANT", "ADMIN"] }
+  { roles: ["BUYER", "ADMIN"] }
 );

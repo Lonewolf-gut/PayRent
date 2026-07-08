@@ -18,8 +18,8 @@ export class AnalyticsService {
       commissions,
     ] = await Promise.all([
       prisma.user.count(),
-      prisma.user.count({ where: { role: "TENANT" } }),
-      prisma.user.count({ where: { role: "LANDLORD" } }),
+      prisma.user.count({ where: { role: "BUYER" } }),
+      prisma.user.count({ where: { role: "MERCHANT" } }),
       prisma.user.count({ where: { role: "LENDER" } }),
       prisma.property.count(),
       prisma.property.count({ where: { status: "ACTIVE" } }),

@@ -67,7 +67,7 @@ export class AgentReferralService {
         agent: { include: { user: { select: { id: true, isActive: true, role: true } } } },
       },
     });
-    if (!link?.agent.user.isActive || link.agent.user.role !== "AGENT") {
+    if (!link?.agent.user.isActive || link.agent.user.role !== "MARKETER") {
       return null;
     }
     return link;

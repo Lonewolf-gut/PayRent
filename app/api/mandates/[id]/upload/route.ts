@@ -29,5 +29,5 @@ export const POST = withAuth(
 
     return apiResponse(updated, 200, "Mandate document uploaded.");
   },
-  { roles: ["TENANT"], permission: "mandate:create" }
+  { roles: ["BUYER"], permission: "mandate:create" }
 );

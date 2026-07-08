@@ -44,7 +44,7 @@ export class AgentCommissionService {
     if (
       !property?.assignedAgent ||
       !property.assignedAgent.user.isActive ||
-      property.assignedAgent.user.role !== "AGENT"
+      property.assignedAgent.user.role !== "MARKETER"
     ) {
       return null;
     }
@@ -63,7 +63,7 @@ export class AgentCommissionService {
       return { commission: 0, agentProfileId: agent.id };
     }
 
-    const agentWallet = await walletService.getOrCreateWallet(agent.user.id, "AGENT");
+    const agentWallet = await walletService.getOrCreateWallet(agent.user.id, "MARKETER");
 
     const result = await runTransaction(async (db) =>
       this.recordCommission(db, agent.id, agentWallet.id, agent.user.id, input, commission)

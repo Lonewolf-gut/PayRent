@@ -122,7 +122,7 @@ export function TrialStatusBanner({
               >
                 Upgrade anytime
               </button>{" "}
-              {role === "AGENT"
+              {role === "MARKETER"
                 ? "to support more assigned listings after your trial."
                 : "to keep listings visible and assign agents after your trial."}
             </p>
@@ -155,7 +155,7 @@ export function TrialStatusBanner({
           <div className="min-w-0 flex-1">
             <p className="font-medium">Your {TRIAL_DAYS}-day trial has ended</p>
             <p className="mt-1 text-amber-900/75 dark:text-amber-200/80">
-              {role === "AGENT"
+              {role === "MARKETER"
                 ? "New listing assignments are paused until you upgrade. Existing assignments remain in your dashboard. "
                 : "Listings are hidden (not deleted), and agent advertising is paused until you upgrade. "}
               <button

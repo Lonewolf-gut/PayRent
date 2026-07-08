@@ -62,13 +62,14 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ## Demo Accounts
 
-| Role     | Email                 | Password        |
-|----------|-----------------------|-----------------|
-| Admin    | admin@rentvest.com    | Password123!    |
-| Tenant   | tenant@rentvest.com   | Password123!    |
-| Landlord | landlord@rentvest.com | Password123!    |
-| Agent    | agent@rentvest.com    | Password123!    |
-| Lender   | lender@rentvest.com   | Password123!    |
+| Role               | Email                    | Password        |
+|--------------------|--------------------------|-----------------|
+| Admin              | admin@payforme.com       | Password123!    |
+| Buyer              | tenant@payforme.com      | Password123!    |
+| Merchant           | landlord@payforme.com    | Password123!    |
+| Marketer           | agent@payforme.com       | Password123!    |
+| Lender             | lender@payforme.com      | Password123!    |
+| Compliance Officer | compliance@payforme.com  | Password123!    |
 
 ## Project Structure
 
@@ -76,8 +77,9 @@ Open [http://localhost:3000](http://localhost:3000)
 app/
   (marketing)/     # Landing, properties browse
   (auth)/          # Login, register
-  dashboard/       # Tenant, landlord, agent, lender dashboards
-  admin/           # Super admin panel
+  dashboard/       # Buyer, merchant, marketer, lender dashboards
+  admin/           # Administrator panel
+  compliance/      # Compliance officer portal
   api/             # REST API routes
 lib/
   auth/            # NextAuth, JWT, permissions
@@ -92,7 +94,7 @@ prisma/
 
 ## Features
 
-- Multi-role auth (Tenant, Landlord, Agent, Lender, Admin)
+- Multi-role auth (Buyer, Merchant, Marketer, Lender, Admin, Compliance Officer)
 - Property applications before Pay for Rent financing
 - Ghana Card KYC and bank account validation workflows
 - Mandate management and admin review queues
@@ -121,7 +123,7 @@ See **[docs/API.md](docs/API.md)** for the full reference.
 | `/api/withdrawals` | GET/POST | Withdrawal request + OTP + 2FA confirm |
 | `/api/kyc` | GET/POST | Profile, identity, bank accounts |
 | `/api/settings` | GET/PATCH | User settings |
-| `/api/landlord/agents` | GET/PATCH | Assign agents to listings |
+| `/api/merchant/agents` | GET/PATCH | Assign agents to listings |
 | `/api/analytics/ceo` | GET | Admin analytics data |
 
 Authenticated browser requests use **session cookies**. API/mobile clients may send `Authorization: Bearer <access_token>` from `/api/auth/refresh`.

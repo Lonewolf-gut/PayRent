@@ -46,7 +46,7 @@ export async function loadSubscriptionAccess(userId: string): Promise<Subscripti
 
   const plan = normalizeSubscriptionPlan(sub?.plan ?? "FREE");
   const isPaid = isPaidPlan(plan);
-  const role = user?.role ?? "TENANT";
+  const role = user?.role ?? "BUYER";
   const requiresSubscription = roleRequiresSubscription(role);
 
   if (roleHasFreePlatformAccess(role)) {
@@ -90,7 +90,7 @@ export async function getSubscriptionAccess(userId: string): Promise<Subscriptio
       where: { id: userId },
       select: { role: true },
     });
-    if (user?.role === "LANDLORD") {
+    if (user?.role === "MERCHANT") {
       const { suspendListingsAfterTrial } = await import("@/lib/subscription/trial.service");
       void suspendListingsAfterTrial(userId);
     }

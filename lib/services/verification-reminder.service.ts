@@ -3,12 +3,12 @@ import { prisma } from "@/lib/db/prisma";
 import { kycService } from "@/lib/services/kyc.service";
 import { notificationService } from "@/lib/services/notification.service";
 
-const KYC_ROLES: UserRole[] = ["TENANT", "LANDLORD", "AGENT", "LENDER"];
+const KYC_ROLES: UserRole[] = ["BUYER", "MERCHANT", "MARKETER", "LENDER"];
 
 export const KYC_DASHBOARD_PATHS: Partial<Record<UserRole, string>> = {
-  TENANT: "/dashboard/tenant/kyc",
-  LANDLORD: "/dashboard/landlord/kyc",
-  AGENT: "/dashboard/agent/kyc",
+  BUYER: "/dashboard/buyer/kyc",
+  MERCHANT: "/dashboard/merchant/kyc",
+  MARKETER: "/dashboard/marketer/kyc",
   LENDER: "/dashboard/lender/kyc",
 };
 

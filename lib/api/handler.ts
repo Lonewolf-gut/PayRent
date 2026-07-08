@@ -57,7 +57,7 @@ export function withAuth(
     context: RouteContext,
     session: AppSession
   ) => Promise<NextResponse>,
-  options?: { permission?: string; roles?: UserRole[] }
+  options?: { permission?: string; permissions?: string[]; roles?: UserRole[] }
 ) {
   return async (req: NextRequest, context: RouteContext) => {
     try {
@@ -90,9 +90,10 @@ export function withAuth(
         );
       }
 
+      const permissionList = options?.permissions ?? (options?.permission ? [options.permission] : []);
       if (
-        options?.permission &&
-        !hasPermission(appSession.user.role, options.permission)
+        permissionList.length > 0 &&
+        !permissionList.some((permission) => hasPermission(appSession.user.role, permission))
       ) {
         return NextResponse.json(
           { success: false, error: { message: "Forbidden", code: "FORBIDDEN" } },

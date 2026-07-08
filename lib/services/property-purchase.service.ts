@@ -36,7 +36,7 @@ export class PropertyPurchaseService {
     const price = Number(property.discountedPrice ?? property.monthlyRent);
     if (price <= 0) throw new AppError("Invalid listing price", 400);
 
-    const tenantWallet = await walletService.getOrCreateWallet(tenantUserId, "TENANT");
+    const tenantWallet = await walletService.getOrCreateWallet(tenantUserId, "BUYER");
     if (Number(tenantWallet.balance) < price) {
       throw new AppError(
         "Insufficient wallet balance. Deposit funds to complete this purchase.",
@@ -52,10 +52,10 @@ export class PropertyPurchaseService {
 
     const landlordWallet = await walletService.getOrCreateWallet(
       property.landlord.userId,
-      "LANDLORD"
+      "MERCHANT"
     );
     const agentWallet = commissionAgent
-      ? await walletService.getOrCreateWallet(commissionAgent.user.id, "AGENT")
+      ? await walletService.getOrCreateWallet(commissionAgent.user.id, "MARKETER")
       : null;
 
     const agentCommission =

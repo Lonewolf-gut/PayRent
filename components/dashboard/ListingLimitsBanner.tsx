@@ -95,7 +95,7 @@ export function ListingLimitsBanner() {
             You&apos;ve reached your free plan limit. Upgrade to list more.
           </p>
           <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-            <Link href="/dashboard/landlord">Upgrade plan</Link>
+            <Link href="/dashboard/merchant">Upgrade plan</Link>
           </Button>
         </div>
       ) : null}

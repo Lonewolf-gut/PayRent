@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import {
   ADMIN_HOME_PATH,
+  COMPLIANCE_HOME_PATH,
+  isCompliancePath,
   isMarketingPath,
   isNonAdminDashboardPath,
   isPublicAuthPath,
@@ -23,6 +25,7 @@ const publicRoutes = [
   "/api/properties",
   "/api/subscriptions/plans",
   "/admin/login",
+  "/compliance/login",
 ];
 
 const authRoutes = ["/login", "/register"];
@@ -52,6 +55,7 @@ export async function proxy(req: NextRequest) {
     : null;
   const role = token?.role as string | undefined;
   const isAdmin = role === "ADMIN";
+  const isComplianceOfficer = role === "COMPLIANCE_OFFICER";
 
   const isPublic = publicRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
@@ -69,20 +73,44 @@ export async function proxy(req: NextRequest) {
     if (
       isMarketingPath(pathname) ||
       isPublicAuthPath(pathname) ||
-      isNonAdminDashboardPath(pathname)
+      isNonAdminDashboardPath(pathname) ||
+      isCompliancePath(pathname)
     ) {
       return NextResponse.redirect(new URL(ADMIN_HOME_PATH, nextUrl));
     }
   }
 
+  if (isComplianceOfficer) {
+    if (pathname === "/compliance/login") {
+      return NextResponse.redirect(new URL(COMPLIANCE_HOME_PATH, nextUrl));
+    }
+
+    if (
+      isMarketingPath(pathname) ||
+      isPublicAuthPath(pathname) ||
+      isNonAdminDashboardPath(pathname) ||
+      pathname.startsWith("/admin")
+    ) {
+      return NextResponse.redirect(new URL(COMPLIANCE_HOME_PATH, nextUrl));
+    }
+  }
+
   if (isAuthRoute && isLoggedIn) {
-    const destination = isAdmin ? ADMIN_HOME_PATH : "/dashboard";
+    const destination = isAdmin
+      ? ADMIN_HOME_PATH
+      : isComplianceOfficer
+        ? COMPLIANCE_HOME_PATH
+        : "/dashboard";
     return NextResponse.redirect(new URL(destination, nextUrl));
   }
 
   if (!isPublic && !isLoggedIn) {
     const callbackUrl = encodeURIComponent(pathname);
-    const loginPath = pathname.startsWith("/admin") ? "/admin/login" : "/login";
+    const loginPath = pathname.startsWith("/admin")
+      ? "/admin/login"
+      : pathname.startsWith("/compliance")
+        ? "/compliance/login"
+        : "/login";
     return NextResponse.redirect(
       new URL(`${loginPath}?callbackUrl=${callbackUrl}`, nextUrl)
     );

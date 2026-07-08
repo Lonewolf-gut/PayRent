@@ -41,7 +41,7 @@ const saveUploadedFile = async (file: File, folder: string) => {
 
 async function getBrowsePlan(userId?: string | null, role?: string | null) {
   if (!userId) return "FREE" as const;
-  if (role && roleHasFreePlatformAccess(role as "TENANT" | "LANDLORD" | "AGENT" | "LENDER" | "ADMIN")) {
+  if (role && roleHasFreePlatformAccess(role as "BUYER" | "MERCHANT" | "MARKETER" | "LENDER" | "ADMIN")) {
     return "MAX" as const;
   }
   const access = await getSubscriptionAccess(userId);
@@ -273,5 +273,5 @@ export const POST = withAuth(
 
     return apiResponse(property, 201);
   },
-  { roles: ["LANDLORD"], permission: "property:create" }
+  { roles: ["MERCHANT"], permission: "property:create" }
 );

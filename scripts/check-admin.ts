@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   const admin = await prisma.user.findUnique({
-    where: { email: "admin@rentvest.com" },
+    where: { email: "admin@payforme.com" },
     select: { email: true, role: true, isActive: true, lockedUntil: true, failedLoginCount: true },
   });
   console.log(JSON.stringify(admin, null, 2));

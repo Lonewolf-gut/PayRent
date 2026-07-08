@@ -15,7 +15,7 @@ export const GET = withAuth(
 
     const usage = { residential: 0, car: 0, appliance: 0, total: 0 };
 
-    if (session.user.role === "LANDLORD") {
+    if (session.user.role === "MERCHANT") {
       const landlord = await prisma.landlord.findUnique({
         where: { userId: session.user.id },
       });
@@ -33,7 +33,7 @@ export const GET = withAuth(
       }
     }
 
-    if (session.user.role === "AGENT") {
+    if (session.user.role === "MARKETER") {
       const agent = await prisma.agentProfile.findUnique({
         where: { userId: session.user.id },
       });
@@ -68,5 +68,5 @@ export const GET = withAuth(
         : limits,
     });
   },
-  { roles: ["LANDLORD", "AGENT"] }
+  { roles: ["MERCHANT", "MARKETER"] }
 );

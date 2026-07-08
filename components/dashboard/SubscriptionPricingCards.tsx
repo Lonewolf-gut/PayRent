@@ -49,12 +49,12 @@ export function SubscriptionPricingCards({
   const pathname = usePathname();
 
   const walletPath = pathname.includes("/tenant/")
-    ? "/dashboard/tenant/wallet"
+    ? "/dashboard/buyer/wallet"
     : pathname.includes("/agent/")
-      ? "/dashboard/agent/wallet"
+      ? "/dashboard/marketer/wallet"
       : pathname.includes("/lender/")
         ? "/dashboard/lender/wallet"
-        : "/dashboard/landlord/wallet";
+        : "/dashboard/merchant/wallet";
 
   const { data: subscription } = useQuery({
     queryKey: ["subscription"],

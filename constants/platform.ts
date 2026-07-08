@@ -2,30 +2,34 @@ import type { UserRole } from "@prisma/client";
 
 export const PLATFORM_NAME = "PayForMe";
 export const PLATFORM_TAGLINE =
-  "Ghana's marketplace for properties, vehicles, and appliances — with rental financing built in.";
+  "Ghana's marketplace for properties, vehicles, and appliances — with pay-for-me financing built in.";
 export const SUPPORT_EMAIL = "support@payforme.com";
 export const SUPPORT_PHONE = "+233 30 000 0000";
 export const SUPPORT_ADDRESS = "Accra, Ghana";
+export const EMAIL_DOMAIN = "payforme.com";
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  TENANT: "Tenant",
-  LANDLORD: "Landlord",
-  AGENT: "Agent",
+  BUYER: "Buyer",
+  MERCHANT: "Merchant",
+  MARKETER: "Affiliate Marketer",
   LENDER: "Lender",
   ADMIN: "Administrator",
+  COMPLIANCE_OFFICER: "Compliance Officer",
 };
 
 export const ROLE_DESCRIPTIONS: Record<string, string> = {
-  TENANT:
-    "Search listings, apply for properties, request rent financing, manage mandates and repayments.",
-  LANDLORD:
-    "Create and publish listings, review tenant applications, and track settlements.",
-  AGENT:
-    "Manage assigned listings, support landlords, and review tenant applications.",
+  BUYER:
+    "Create an account, browse products, raise pay-for-me requests, view repayment schedules, make repayments, and submit complaints.",
+  MERCHANT:
+    "Create a business profile, upload products, manage inventory, confirm orders, update delivery status, and view sales reports.",
+  MARKETER:
+    "Promote products, track referred buyers, view commission reports, and support merchant sales campaigns.",
   LENDER:
-    "Review eligible financing requests, approve funding, and monitor repayment performance.",
+    "View eligible pay-for-me requests, accept financing requests, view repayment status, and receive repayment notifications.",
   ADMIN:
-    "Moderate listings, review KYC and mandates, resolve exceptions, and oversee compliance.",
+    "Verify users, approve merchants and lenders, manage disputes, monitor transactions, configure fees, and generate reports.",
+  COMPLIANCE_OFFICER:
+    "Review audit logs, verify KYC records, monitor suspicious activity, and export compliance reports.",
 };
 
 export const WORKFLOW_STEPS = [
@@ -37,13 +41,13 @@ export const WORKFLOW_STEPS = [
   },
   {
     step: 2,
-    title: "Apply for a property",
+    title: "Browse & request",
     description:
-      "Search published listings, submit an application with documents, and await landlord approval.",
+      "Search published listings, submit an application with documents, and await merchant approval.",
   },
   {
     step: 3,
-    title: "Request Pay for Rent financing",
+    title: "Request PayForMe financing",
     description:
       "Create a financing request, set up a repayment mandate, and pass lender review.",
   },
