@@ -82,6 +82,7 @@ export const authConfig: NextAuthConfig = {
         }
 
         if (!user) {
+          await logLoginAttempt(null, false, email);
           throw new EmailNotFoundError();
         }
 

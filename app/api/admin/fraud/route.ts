@@ -5,7 +5,10 @@ import { apiResponse, withAuth } from "@/lib/api/handler";
 export const GET = withAuth(
   async (req: NextRequest) => {
     const page = parseInt(req.nextUrl.searchParams.get("page") ?? "1", 10);
-    const limit = 50;
+    const limit = Math.min(
+      parseInt(req.nextUrl.searchParams.get("limit") ?? "50", 10),
+      500
+    );
     const skip = (page - 1) * limit;
     const success = req.nextUrl.searchParams.get("success");
     const userId = req.nextUrl.searchParams.get("userId");

@@ -8,7 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { conversationTitle } from "@/lib/messaging/display";
 import { cn } from "@/lib/utils";
-import { ChatThread, ConversationList, useMessaging } from "./messaging-shared";
+import { ChatThread, useMessaging } from "./messaging-shared";
+import { MessagingListPanel } from "./messaging-list-panel";
 
 type WidgetState = "collapsed" | "list" | "chat";
 
@@ -93,7 +94,16 @@ export function MessagesWidget() {
               : "pointer-events-none max-h-0 translate-y-full opacity-0"
           )}
         >
-          <div className="flex items-center gap-2 border-b px-3 py-2">
+          <div className="flex items-center gap-2 border-b px-3 py-2.5">
+            <Avatar className="size-8">
+              {(profile?.image ?? session.user.image) ? (
+                <AvatarImage
+                  src={profile?.image ?? session.user.image ?? undefined}
+                  alt={displayName}
+                />
+              ) : null}
+              <AvatarFallback className="text-xs">{getInitials(displayName)}</AvatarFallback>
+            </Avatar>
             <p className="min-w-0 flex-1 truncate text-sm font-semibold">
               {inChat ? title : "Messaging"}
             </p>
@@ -122,8 +132,8 @@ export function MessagesWidget() {
           >
             {inChat ? (
               <>
-                <div className="w-[38%] shrink-0 overflow-y-auto border-r">
-                  <ConversationList
+                <div className="w-[40%] shrink-0 border-r">
+                  <MessagingListPanel
                     conversations={conversations}
                     activeId={activeId}
                     currentUserId={currentUserId}
@@ -150,18 +160,17 @@ export function MessagesWidget() {
                 </div>
               </>
             ) : (
-              <div className="h-full w-full overflow-y-auto">
-                <ConversationList
-                  conversations={conversations}
-                  activeId={activeId}
-                  currentUserId={currentUserId}
-                  onSelect={(id) => {
-                    setActiveId(id);
-                    setState("chat");
-                  }}
-                  compact
-                />
-              </div>
+              <MessagingListPanel
+                conversations={conversations}
+                activeId={activeId}
+                currentUserId={currentUserId}
+                onSelect={(id) => {
+                  setActiveId(id);
+                  setState("chat");
+                }}
+                compact
+                className="w-full"
+              />
             )}
           </div>
         </div>

@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { PricingCardsSection } from "@/components/subscription/pricing-cards-section";
+import { UpgradePlanPicker } from "@/components/subscription/upgrade-plan-picker";
 import {
   isPaidPlan,
   normalizeSubscriptionPlan,
@@ -48,20 +48,15 @@ export function SubscriptionUpgradeDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && closeUpgrade()}>
-      <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-0 text-white">
+      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-0 text-white sm:max-w-5xl">
         <DialogHeader className="border-b border-white/10 px-6 py-5 text-center">
           <DialogTitle className="text-2xl font-semibold text-white">
             Adjust your plan
           </DialogTitle>
+          <p className="text-sm text-zinc-400">Save 20% when billed annually on checkout</p>
         </DialogHeader>
 
-        <PricingCardsSection
-          mode="modal"
-          compact
-          showHeader={false}
-          currentPlan={currentPlan}
-          onSelectPlan={handlePlanSelect}
-        />
+        <UpgradePlanPicker currentPlan={currentPlan} onSelectPlan={handlePlanSelect} />
       </DialogContent>
     </Dialog>
   );

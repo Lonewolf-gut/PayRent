@@ -1,31 +1,18 @@
 "use client";
 
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/dashboard/status-badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { LoginActivityPanel } from "@/components/admin/login-activity-panel";
 import { toast } from "sonner";
 
 export default function AdminFraudPage() {
   const queryClient = useQueryClient();
-  const [logFilter, setLogFilter] = useState<"all" | "failed" | "success">("failed");
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["admin-fraud", logFilter],
+  const { data } = useQuery({
+    queryKey: ["admin-fraud-locked"],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (logFilter === "failed") params.set("success", "false");
-      if (logFilter === "success") params.set("success", "true");
-      const res = await fetch(`/api/admin/fraud?${params}`);
+      const res = await fetch("/api/admin/fraud");
       const json = await res.json();
       return json.data;
     },
@@ -64,7 +51,13 @@ export default function AdminFraudPage() {
             <p className="text-sm text-muted-foreground">No locked accounts.</p>
           ) : (
             <ul className="space-y-3">
-              {data.lockedUsers.map((u: any) => (
+              {data.lockedUsers.map((u: {
+                id: string;
+                email: string;
+                role: string;
+                failedLoginCount: number;
+                lockedUntil?: string | null;
+              }) => (
                 <li key={u.id} className="flex flex-wrap items-center justify-between gap-3 border border-slate-200 p-3 text-sm">
                   <div>
                     <p className="font-medium">{u.email}</p>
@@ -81,44 +74,7 @@ export default function AdminFraudPage() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-none">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Login activity</CardTitle>
-          <div className="flex gap-2">
-            {(["failed", "success", "all"] as const).map((f) => (
-              <Button key={f} size="sm" variant={logFilter === f ? "default" : "outline"} className="rounded-none" onClick={() => setLogFilter(f)}>
-                {f === "all" ? "All" : f === "failed" ? "Failed" : "Success"}
-              </Button>
-            ))}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading…</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Result</TableHead>
-                  <TableHead>IP</TableHead>
-                  <TableHead>Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.logs?.map((log: any) => (
-                  <TableRow key={log.id}>
-                    <TableCell>{log.user?.email ?? log.userId}</TableCell>
-                    <TableCell><StatusBadge status={log.success ? "SUCCESSFUL" : "FAILED"} label={log.success ? "Success" : "Failed"} /></TableCell>
-                    <TableCell className="font-mono text-xs">{log.ipAddress ?? "—"}</TableCell>
-                    <TableCell>{new Date(log.createdAt).toLocaleString()}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <LoginActivityPanel defaultFilter="failed" heightClass="h-[480px]" />
     </div>
   );
 }

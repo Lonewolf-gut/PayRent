@@ -23,9 +23,21 @@ export class AuditService {
     });
   }
 
-  async logLogin(userId: string, success: boolean, ip?: string, userAgent?: string) {
+  async logLogin(
+    userId: string | null,
+    success: boolean,
+    ip?: string,
+    userAgent?: string,
+    email?: string
+  ) {
     return prisma.loginLog.create({
-      data: { userId, success, ipAddress: ip, userAgent },
+      data: {
+        userId: userId ?? undefined,
+        email: email?.trim().toLowerCase(),
+        success,
+        ipAddress: ip,
+        userAgent,
+      },
     });
   }
 }

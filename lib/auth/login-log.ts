@@ -12,10 +12,14 @@ export async function getLoginRequestMeta() {
   return { ip, userAgent };
 }
 
-export async function logLoginAttempt(userId: string, success: boolean) {
+export async function logLoginAttempt(
+  userId: string | null,
+  success: boolean,
+  email?: string
+) {
   try {
     const { ip, userAgent } = await getLoginRequestMeta();
-    await auditService.logLogin(userId, success, ip, userAgent);
+    await auditService.logLogin(userId, success, ip, userAgent, email);
   } catch {
     // Never block authentication when audit logging fails.
   }

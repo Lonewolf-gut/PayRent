@@ -191,12 +191,14 @@ export function ConversationList({
   currentUserId,
   onSelect,
   compact = false,
+  variant = "default",
 }: {
   conversations: ConversationSummary[];
   activeId: string | null;
   currentUserId: string;
   onSelect: (id: string) => void;
   compact?: boolean;
+  variant?: "default" | "linkedin";
 }) {
   if (!conversations.length) {
     return (
@@ -207,28 +209,40 @@ export function ConversationList({
   }
 
   return (
-    <div className="divide-y">
+    <div className={variant === "linkedin" ? "" : "divide-y"}>
       {conversations.map((conv) => {
         const title = conversationTitle(conv.participants, currentUserId);
         const other = conv.participants.find((p) => p.id !== currentUserId);
         const isActive = activeId === conv.id;
+        const previewPrefix =
+          conv.lastMessage?.senderId === currentUserId ? "You: " : "";
 
         return (
           <button
             key={conv.id}
             type="button"
             onClick={() => onSelect(conv.id)}
-            className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/70 ${
-              isActive ? "border-l-2 border-emerald-600 bg-muted" : "border-l-2 border-transparent"
-            }`}
+            className={cn(
+              "flex w-full items-start gap-3 text-left transition-colors",
+              compact ? "px-3 py-3" : "px-4 py-3",
+              variant === "linkedin"
+                ? isActive
+                  ? "bg-muted/80"
+                  : "hover:bg-muted/50"
+                : isActive
+                  ? "border-l-2 border-emerald-600 bg-muted"
+                  : "border-l-2 border-transparent hover:bg-muted/70"
+            )}
           >
-            <Avatar className="size-10 shrink-0">
-              {other?.image ? <AvatarImage src={other.image} alt={title} /> : null}
-              <AvatarFallback>{getInitials(other?.displayName ?? title)}</AvatarFallback>
-            </Avatar>
+            <div className="relative shrink-0">
+              <Avatar className={variant === "linkedin" ? "size-12" : "size-10"}>
+                {other?.image ? <AvatarImage src={other.image} alt={title} /> : null}
+                <AvatarFallback>{getInitials(other?.displayName ?? title)}</AvatarFallback>
+              </Avatar>
+            </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-sm font-medium">{title}</p>
+                <p className="truncate text-sm font-semibold">{title}</p>
                 {conv.lastMessage ? (
                   <span className="shrink-0 text-[11px] text-muted-foreground">
                     {format(new Date(conv.lastMessage.createdAt), "MMM d")}
@@ -237,6 +251,7 @@ export function ConversationList({
               </div>
               <div className="mt-0.5 flex items-center justify-between gap-2">
                 <p className="truncate text-xs text-muted-foreground">
+                  {previewPrefix}
                   {conv.lastMessage?.content ?? "No messages"}
                 </p>
                 {conv.unreadCount > 0 ? (

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { Users, Building2, CreditCard, AlertTriangle } from "lucide-react";
+import { LoginActivityPanel } from "@/components/admin/login-activity-panel";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +29,17 @@ export default function AdminDashboardPage() {
       const json = await res.json();
       return json.data;
     },
+    refetchInterval: 30_000,
+  });
+
+  const { data: fraudSummary } = useQuery({
+    queryKey: ["admin-fraud", "failed"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/fraud?success=false&limit=1");
+      const json = await res.json();
+      return json.data as { failedLast24h?: number };
+    },
+    refetchInterval: 30_000,
   });
 
   const { data: revenueTrend, isLoading: revenueLoading } = useQuery({
@@ -53,7 +65,7 @@ export default function AdminDashboardPage() {
         <StatCard title="Transactions" value={String(data?.transactions ?? "—")} icon={CreditCard} />
         <StatCard
           title="Failed logins (24h)"
-          value={String(data?.failedLogins ?? 0)}
+          value={String(fraudSummary?.failedLast24h ?? data?.failedLogins ?? 0)}
           icon={AlertTriangle}
           description="Fraud monitoring"
         />
@@ -99,6 +111,8 @@ export default function AdminDashboardPage() {
           />
         )}
       </div>
+
+      <LoginActivityPanel defaultFilter="all" heightClass="h-[420px]" />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[
