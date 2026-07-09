@@ -68,6 +68,9 @@ export const propertySchema = z
     amenities: z.array(z.string()).optional(),
     attributes: z.record(z.string(), z.unknown()).optional(),
     availableFrom: optionalDateTime,
+    stockQuantity: z.coerce.number().int().min(0).default(1),
+    deliveryTerms: z.string().min(5, "Delivery terms must be at least 5 characters").optional(),
+    warrantyDetails: z.string().min(5, "Warranty details must be at least 5 characters").optional(),
   })
   .superRefine((data, ctx) => {
     const isSale = SALE_TYPES.has(data.propertyType);

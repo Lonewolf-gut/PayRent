@@ -7,7 +7,7 @@ export function useSubscriptionUpgradePrompt() {
   const router = useRouter();
 
   function handleLimitError(message: string) {
-    if (/upgrade|plan limit/i.test(message)) {
+    if (/upgrade|plan limit|subscription is required|subscribe at/i.test(message)) {
       toast.error(message, {
         action: {
           label: "View plans",

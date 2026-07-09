@@ -1,11 +1,28 @@
 import type { PropertyType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors";
+import { getBusinessRules } from "@/lib/services/business-rules.service";
 import {
   getPlanLimits,
   getPropertyCategory,
 } from "@/lib/subscription-limits";
 import { getSubscriptionAccess, TRIAL_DAYS } from "@/lib/subscription/access";
+import { isPaidPlan } from "@/lib/subscription/plans";
+
+export async function assertMerchantCanCreateListing(userId: string) {
+  const [access, rules] = await Promise.all([
+    getSubscriptionAccess(userId),
+    getBusinessRules(),
+  ]);
+
+  if (rules.merchantListingRequiresPaidPlan && !isPaidPlan(access.plan)) {
+    throw new AppError(
+      "An active merchant subscription is required before you can list products. Choose Pro or Max at /pricing.",
+      403,
+      "MERCHANT_SUBSCRIPTION_REQUIRED"
+    );
+  }
+}
 
 export async function assertAgentAssignmentLimit(agentUserId: string) {
   const access = await getSubscriptionAccess(agentUserId);
@@ -64,6 +81,8 @@ export async function assertLandlordListingLimit(
   userId: string,
   propertyType: PropertyType
 ) {
+  await assertMerchantCanCreateListing(userId);
+
   const access = await getSubscriptionAccess(userId);
   if (access.trialExpired && !access.isPaid) {
     throw new AppError(

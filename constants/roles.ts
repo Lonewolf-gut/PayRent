@@ -131,9 +131,9 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
       "Complete the deal with transparent payment and settlement tracking.",
     ],
     subscription: {
-      headline: "Merchant Subscription",
+      headline: "Merchant subscription required",
       description:
-        "Merchants get a 7-day trial with full access, then Free plan limits apply. Upgrade to Pro or Max for more listings, Affiliate assignments, and premium placement.",
+        "Merchants need an active Pro or Max subscription before listing any product. Choose a plan at /pricing to publish inventory on the marketplace.",
       features: [
         "Pro: up to 10 homes, 5 cars, 5 appliances",
         "Max: unlimited listings",
@@ -141,7 +141,7 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
         "Assign Affiliates to advertise listings",
       ],
       limitedAccess:
-        "After trial, Free merchants are limited to 3 total active listings. Upgrade to restore visibility and add more inventory.",
+        "Listing creation is blocked until you subscribe. Affiliates still use trial and Free tier limits separately.",
     },
   },
   lender: {
@@ -163,17 +163,17 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
       "Track repayments and portfolio performance through the dashboard.",
     ],
     subscription: {
-      headline: "Free for lenders",
+      headline: "100 properties free, then subscribe",
       description:
-        "Lender accounts are always free. Access the full financing pipeline, approve deals, and monitor repayments without a monthly subscription.",
+        "Lenders can finance up to 100 properties on the free tier. Subscribe to Pro or Max for unlimited financing access across the marketplace.",
       features: [
-        "Full financing request queue",
-        "Approve and reject requests",
+        "Finance up to 100 properties free",
+        "Full financing request queue within your limit",
         "Portfolio and repayment reporting",
         "Wallet and settlement tools",
       ],
       limitedAccess:
-        "Lenders never need a subscription. Revenue comes from funded deals and agreed platform fees on transactions.",
+        "After 100 financed properties, subscribe at /pricing for unlimited lender access.",
     },
   },
   agent: {

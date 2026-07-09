@@ -22,7 +22,7 @@ import {
 } from "@/lib/subscription-limits";
 import { assertLandlordListingLimit } from "@/lib/subscription/listing-access";
 import { getSubscriptionAccess } from "@/lib/subscription/access";
-import { roleHasFreePlatformAccess } from "@/lib/subscription/roles";
+import { roleHasUnlimitedBrowse } from "@/lib/subscription/roles";
 import { assignAgentToProperty } from "@/lib/services/agent-assignment.service";
 import { firstZodIssueMessage } from "@/lib/validations/auth";
 import type { PropertyAttributes } from "@/lib/constants/property-listing";
@@ -41,7 +41,7 @@ const saveUploadedFile = async (file: File, folder: string) => {
 
 async function getBrowsePlan(userId?: string | null, role?: string | null) {
   if (!userId) return "FREE" as const;
-  if (role && roleHasFreePlatformAccess(role as "BUYER" | "MERCHANT" | "MARKETER" | "LENDER" | "ADMIN")) {
+  if (role && roleHasUnlimitedBrowse(role as "BUYER" | "MERCHANT" | "MARKETER" | "LENDER" | "ADMIN")) {
     return "MAX" as const;
   }
   const access = await getSubscriptionAccess(userId);
@@ -231,6 +231,9 @@ export const POST = withAuth(
       latitude: normalized.latitude,
       longitude: normalized.longitude,
       description: normalized.description,
+      stockQuantity: normalized.stockQuantity ?? 1,
+      deliveryTerms: normalized.deliveryTerms ?? null,
+      warrantyDetails: normalized.warrantyDetails ?? null,
       amenities: normalized.amenities ?? [],
       attributes,
       availableFrom: normalized.availableFrom

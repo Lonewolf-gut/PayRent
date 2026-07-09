@@ -34,6 +34,7 @@ type UserSettingsFormProps = {
   imageApi?: string;
   bankApi?: string;
   updateSessionAfterUpload?: boolean;
+  showBankSection?: boolean;
 };
 
 function getApiErrorMessage(json: {
@@ -55,6 +56,7 @@ export default function UserSettingsForm({
   imageApi = "/api/settings/image",
   bankApi = "/api/settings/bank-account",
   updateSessionAfterUpload = true,
+  showBankSection = true,
 }: UserSettingsFormProps) {
   const { update: updateSession } = useSession();
   const queryClient = useQueryClient();
@@ -633,6 +635,8 @@ export default function UserSettingsForm({
           </AccordionContent>
         </AccordionItem>
 
+        {showBankSection ? (
+        <>
         <AccordionItem value="bank" className="border-0">
           <AccordionTrigger className="rounded-none border-0 px-0 py-5 hover:no-underline">
             <div className="flex flex-1 items-center justify-between gap-4 pr-2 text-left">
@@ -803,6 +807,8 @@ export default function UserSettingsForm({
             </div>
           </AccordionContent>
         </AccordionItem>
+        </>
+        ) : null}
       </Accordion>
     </div>
   );

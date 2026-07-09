@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma, runTransaction } from "@/lib/db/prisma";
 import { auditService } from "@/lib/services/audit.service";
+import { getBusinessRules } from "@/lib/services/business-rules.service";
 import { AppError } from "@/lib/errors";
 
 export class SettlementService {
@@ -17,8 +18,9 @@ export class SettlementService {
       throw new AppError("Financed request not found", 404);
     }
 
+    const rules = await getBusinessRules();
     const grossAmount = Number(financing.approvedAmount ?? financing.requestedAmount);
-    const platformFee = grossAmount * 0.025;
+    const platformFee = grossAmount * (rules.platformFinancingFeePercent / 100);
     const netLandlord = grossAmount - platformFee;
 
     const settlements = await runTransaction(async (db) => {

@@ -57,6 +57,26 @@ async function main() {
     },
   });
 
+  await prisma.businessRuleConfig.upsert({
+    where: { id: "default" },
+    update: {},
+    create: {
+      id: "default",
+      rules: {
+        agentCommissionPercent: 2.5,
+        platformFinancingFeePercent: 2.5,
+        serviceFeePercent: 1.5,
+        commissionFeePercent: 2.0,
+        processingFeePercent: 0.5,
+        minRepaymentMonths: 6,
+        maxRepaymentMonths: 60,
+        maxInterestRatePercent: 30,
+        lenderFreeFinancingLimit: 100,
+        merchantListingRequiresPaidPlan: true,
+      },
+    },
+  });
+
   const admin = await upsertDemoUser({
     email: "admin@payforme.com",
     role: "ADMIN",

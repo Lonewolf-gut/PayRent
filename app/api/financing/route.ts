@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 import { getReferralAgentProfileId } from "@/lib/utils/agent-referral-request";
 import { consentService } from "@/lib/services/consent.service";
+import { getBusinessRules } from "@/lib/services/business-rules.service";
 export const GET = withAuth(
   async (req: NextRequest, _ctx, session) => {
     if (session.user.role === "LENDER") {
@@ -19,7 +20,7 @@ export const GET = withAuth(
         return apiResponse(portfolio);
       }
 
-      const requests = await financingService.getPendingForLender();
+      const requests = await financingService.getPendingForLender(session.user.id);
       return apiResponse(requests);
     }
 
@@ -44,6 +45,19 @@ export const POST = withAuth(
     const parsed = financingRequestSchema.safeParse(body);
     if (!parsed.success) {
       return apiResponse({ error: parsed.error.flatten() }, 400);
+    }
+
+    const rules = await getBusinessRules();
+    if (
+      parsed.data.durationMonths < rules.minRepaymentMonths ||
+      parsed.data.durationMonths > rules.maxRepaymentMonths
+    ) {
+      return apiResponse(
+        {
+          error: `Repayment period must be between ${rules.minRepaymentMonths} and ${rules.maxRepaymentMonths} months`,
+        },
+        400
+      );
     }
 
     const tenant = await prisma.tenant.findUnique({

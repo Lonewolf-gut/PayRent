@@ -1,19 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { getBusinessRulesSync } from "@/lib/services/business-rules.service";
 
 export class CommissionService {
   calculateFees(amount: number) {
-    const serviceFeePercent = parseFloat(process.env.SERVICE_FEE_PERCENT ?? "1.5");
-    const commissionFeePercent = parseFloat(
-      process.env.COMMISSION_FEE_PERCENT ?? "2.0"
-    );
-    const processingFeePercent = parseFloat(
-      process.env.PROCESSING_FEE_PERCENT ?? "0.5"
-    );
-
-    const serviceFee = (amount * serviceFeePercent) / 100;
-    const commissionFee = (amount * commissionFeePercent) / 100;
-    const processingFee = (amount * processingFeePercent) / 100;
+    const rules = getBusinessRulesSync();
+    const serviceFee = (amount * rules.serviceFeePercent) / 100;
+    const commissionFee = (amount * rules.commissionFeePercent) / 100;
+    const processingFee = (amount * rules.processingFeePercent) / 100;
     const totalFee = serviceFee + commissionFee + processingFee;
 
     return { serviceFee, commissionFee, processingFee, totalFee };

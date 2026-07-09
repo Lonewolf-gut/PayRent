@@ -500,6 +500,9 @@ model Property {
   latitude        Float?
   longitude       Float?
   description     String         @db.Text
+  stockQuantity   Int            @default(1)
+  deliveryTerms   String?        @db.Text
+  warrantyDetails String?        @db.Text
   amenities       String[]
   attributes      Json?
   status          PropertyStatus @default(DRAFT)
@@ -1177,4 +1180,12 @@ model FeeDisclosureRecord {
   @@index([tenantUserId])
   @@index([lenderUserId])
   @@index([acceptedAt])
+}
+
+model BusinessRuleConfig {
+  id              String   @id @default("default")
+  rules           Json
+  updatedByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

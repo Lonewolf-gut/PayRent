@@ -118,6 +118,9 @@ export const PATCH = withAuth(
       latitude: normalized.latitude,
       longitude: normalized.longitude,
       description: normalized.description,
+      stockQuantity: normalized.stockQuantity ?? 1,
+      deliveryTerms: normalized.deliveryTerms ?? null,
+      warrantyDetails: normalized.warrantyDetails ?? null,
       amenities: normalized.amenities ?? [],
       attributes,
       availableFrom: normalized.availableFrom

@@ -4,7 +4,7 @@ import { walletService } from "@/lib/services/wallet.service";
 import { notificationService } from "@/lib/services/notification.service";
 import { assertEligibleAgent } from "@/lib/services/agent-assignment.service";
 import {
-  AGENT_COMMISSION_RATE,
+  getAgentCommissionRate,
   calculateAgentCommission,
 } from "@/lib/constants/agent-commission";
 
@@ -120,7 +120,7 @@ export class AgentCommissionService {
           propertyId: input.propertyId,
           type: input.type,
           grossAmount: input.grossAmount,
-          commissionRate: AGENT_COMMISSION_RATE,
+          commissionRate: getAgentCommissionRate(),
         },
       },
     });
@@ -132,7 +132,7 @@ export class AgentCommissionService {
         type: input.type,
         amount: new Prisma.Decimal(amount),
         grossAmount: new Prisma.Decimal(input.grossAmount),
-        commissionRate: new Prisma.Decimal(AGENT_COMMISSION_RATE * 100),
+        commissionRate: new Prisma.Decimal(getAgentCommissionRate() * 100),
         reference: input.reference,
         applicationId: input.applicationId,
         financingRequestId: input.financingRequestId,

@@ -11,7 +11,7 @@ export default function ComplianceSettingsPage() {
           Manage your compliance officer profile and security preferences.
         </p>
       </div>
-      <UserSettingsForm />
+      <UserSettingsForm showBankSection={false} />
     </div>
   );
 }

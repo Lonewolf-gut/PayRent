@@ -22,6 +22,7 @@
     "db:role-rebrand": "node scripts/db-role-rebrand.js",
     "db:migrate-roles": "node scripts/db-migrate-roles.js",
     "db:compliance-models": "node scripts/db-compliance-models.js",
+    "db:business-rules": "node scripts/db-business-rules.js",
     "db:migrate": "prisma migrate dev",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",

@@ -9,6 +9,8 @@ import { tenantFinancingDocService } from "@/lib/services/tenant-financing-doc.s
 import { agentCommissionService } from "@/lib/services/agent-commission.service";
 import { calculateAgentCommission } from "@/lib/constants/agent-commission";
 import { auditService } from "@/lib/services/audit.service";
+import { getBusinessRules } from "@/lib/services/business-rules.service";
+import { assertLenderCanFinanceMore } from "@/lib/subscription/lender-access";
 
 export class FinancingService {
   private async assertEligibility(tenantId: string) {
@@ -102,6 +104,19 @@ export class FinancingService {
   }
 
   async approveRequest(lenderId: string, input: ApproveFinancingInput) {
+    await assertLenderCanFinanceMore(lenderId, (await prisma.lender.findUniqueOrThrow({
+      where: { id: lenderId },
+      select: { userId: true },
+    })).userId);
+
+    const rules = await getBusinessRules();
+    if (input.interestRate > rules.maxInterestRatePercent) {
+      throw new AppError(
+        `Interest rate cannot exceed ${rules.maxInterestRatePercent}%`,
+        400
+      );
+    }
+
     const request = await prisma.financingRequest.findUnique({
       where: { id: input.financingRequestId },
       include: {
@@ -125,6 +140,16 @@ export class FinancingService {
 
     if (!request.mandate || request.mandate.status !== "ACTIVE") {
       throw new AppError("An active repayment mandate is required before approval", 400);
+    }
+
+    if (
+      request.durationMonths < rules.minRepaymentMonths ||
+      request.durationMonths > rules.maxRepaymentMonths
+    ) {
+      throw new AppError(
+        `Repayment period must be between ${rules.minRepaymentMonths} and ${rules.maxRepaymentMonths} months`,
+        400
+      );
     }
 
     const lender = await prisma.lender.findUnique({
@@ -229,7 +254,7 @@ export class FinancingService {
       return { investment, repaymentPlan };
     });
 
-    const platformFee = input.amount * 0.025;
+    const platformFee = input.amount * (rules.platformFinancingFeePercent / 100);
 
     await prisma.feeDisclosureRecord.create({
       data: {
@@ -273,9 +298,7 @@ export class FinancingService {
           type: "FINANCING",
           amount: new Prisma.Decimal(agentCommission),
           grossAmount: new Prisma.Decimal(input.amount),
-          commissionRate: new Prisma.Decimal(
-            Number(process.env.AGENT_COMMISSION_PERCENT ?? "2.5")
-          ),
+          commissionRate: new Prisma.Decimal(rules.agentCommissionPercent),
           reference,
           financingRequestId: request.id,
         },
@@ -411,8 +434,8 @@ export class FinancingService {
     });
   }
 
-  async getPendingForLender() {
-    return prisma.financingRequest.findMany({
+  async getPendingForLender(lenderUserId?: string) {
+    const requests = await prisma.financingRequest.findMany({
       where: { status: { in: ["PENDING", "UNDER_REVIEW", "READY_FOR_LENDER_REVIEW"] } },
       include: {
         tenant: { include: { user: { select: { email: true, image: true } } } },
@@ -422,6 +445,16 @@ export class FinancingService {
       },
       orderBy: { createdAt: "desc" },
     });
+
+    if (!lenderUserId) return requests;
+
+    const { getLenderFinancingAccess } = await import(
+      "@/lib/subscription/lender-access"
+    );
+    const access = await getLenderFinancingAccess(lenderUserId);
+    if (access.limit == null) return requests;
+
+    return requests.slice(0, access.limit);
   }
 }
 

@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AdminSettingsForm from "@/components/admin/AdminSettingsForm";
+import { BusinessRulesPanel } from "@/components/admin/business-rules-panel";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 
 export default function AdminSettingsPage() {
@@ -53,9 +54,19 @@ export default function AdminSettingsPage() {
               />
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Fee rates and provider keys are configured via environment variables (.env). Restart the server after changes.
+              Fee rates below can be updated in Business rules without redeploying code. Environment variables are used as fallbacks on first boot.
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-none">
+        <CardHeader><CardTitle>Business rules</CardTitle></CardHeader>
+        <CardContent className="px-6 pb-6">
+          <p className="mb-4 text-sm text-muted-foreground">
+            Configure commission rates, repayment periods, fees, approval thresholds, and subscription gates without code changes.
+          </p>
+          <BusinessRulesPanel />
         </CardContent>
       </Card>
 

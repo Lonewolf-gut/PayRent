@@ -184,6 +184,11 @@ export default function LandlordPropertiesPage() {
       formData.append("discountedPrice", String(data.discountedPrice));
     }
     formData.append("description", data.description);
+    if (data.stockQuantity != null) {
+      formData.append("stockQuantity", String(data.stockQuantity));
+    }
+    if (data.deliveryTerms) formData.append("deliveryTerms", data.deliveryTerms);
+    if (data.warrantyDetails) formData.append("warrantyDetails", data.warrantyDetails);
     if (data.availableFrom) formData.append("availableFrom", data.availableFrom);
     if (getAmenitiesForType(data.propertyType as PropertyType).length > 0) {
       formData.append("amenities", JSON.stringify(amenities));
@@ -470,6 +475,9 @@ export default function LandlordPropertiesPage() {
       latitude: property.latitude ?? undefined,
       longitude: property.longitude ?? undefined,
       description: property.description,
+      stockQuantity: property.stockQuantity ?? 1,
+      deliveryTerms: property.deliveryTerms ?? undefined,
+      warrantyDetails: property.warrantyDetails ?? undefined,
       availableFrom: property.availableFrom ? new Date(property.availableFrom).toISOString().slice(0, 16) : undefined,
       amenities: property.amenities ?? [],
     });
@@ -677,6 +685,18 @@ export default function LandlordPropertiesPage() {
                   <p className="text-xs text-destructive">{editErrors.description.message}</p>
                 )}
               </div>
+              <div>
+                <Label>Stock quantity</Label>
+                <Input type="number" min={0} {...editRegister("stockQuantity", { valueAsNumber: true })} />
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Delivery terms</Label>
+                <Textarea rows={3} {...editRegister("deliveryTerms")} />
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Warranty details</Label>
+                <Textarea rows={3} {...editRegister("warrantyDetails")} />
+              </div>
               <div className="sm:col-span-2">
                 <Label>Photos</Label>
                 {editingProperty.images?.length ? (
@@ -861,6 +881,18 @@ export default function LandlordPropertiesPage() {
                 {addErrors.description && (
                   <p className="text-xs text-destructive">{addErrors.description.message}</p>
                 )}
+              </div>
+              <div>
+                <Label>Stock quantity</Label>
+                <Input type="number" min={0} defaultValue={1} {...addRegister("stockQuantity", { valueAsNumber: true })} />
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Delivery terms</Label>
+                <Textarea rows={3} placeholder="Shipping, pickup, or delivery timeline" {...addRegister("deliveryTerms")} />
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Warranty details</Label>
+                <Textarea rows={3} placeholder="Manufacturer warranty, returns, or service coverage" {...addRegister("warrantyDetails")} />
               </div>
               <div className="sm:col-span-2">
                 <AgentSearchField value={addAgentId} onChange={(id) => setAddAgentId(id)} />

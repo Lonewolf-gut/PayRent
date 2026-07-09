@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, FileSpreadsheet, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 type ReportType =
@@ -14,22 +14,26 @@ type ReportType =
   | "repayments"
   | "user-activity";
 
-export default function ComplianceReportsPage() {
-  const [exporting, setExporting] = useState<ReportType | null>(null);
+type ExportFormat = "csv" | "xlsx" | "pdf";
 
-  async function handleExport(type: ReportType) {
-    setExporting(type);
+export default function ComplianceReportsPage() {
+  const [exporting, setExporting] = useState<string | null>(null);
+
+  async function handleExport(type: ReportType, format: ExportFormat) {
+    const key = `${type}-${format}`;
+    setExporting(key);
     try {
-      const res = await fetch(`/api/compliance/reports?type=${type}`);
+      const res = await fetch(`/api/compliance/reports?type=${type}&format=${format}`);
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `payforme-${type}-report.csv`;
+      const extension = format === "xlsx" ? "xlsx" : format;
+      anchor.download = `payforme-${type}-report.${extension}`;
       anchor.click();
       URL.revokeObjectURL(url);
-      toast.success("Report downloaded");
+      toast.success(`${format.toUpperCase()} report downloaded`);
     } catch {
       toast.error("Could not export report");
     } finally {
@@ -51,7 +55,7 @@ export default function ComplianceReportsPage() {
       <div>
         <h1 className="text-2xl font-bold">Compliance reports</h1>
         <p className="text-sm text-muted-foreground">
-          Exportable transaction, repayment, and user activity reports for regulatory review.
+          Export records as CSV, Excel, or PDF for regulatory and internal review.
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -62,16 +66,25 @@ export default function ComplianceReportsPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground">{report.desc}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-none"
-                disabled={exporting === report.type}
-                onClick={() => handleExport(report.type)}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                {exporting === report.type ? "Exporting…" : "Download CSV"}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { format: "csv" as const, label: "CSV", icon: Download },
+                  { format: "xlsx" as const, label: "Excel", icon: FileSpreadsheet },
+                  { format: "pdf" as const, label: "PDF", icon: FileText },
+                ]).map((item) => (
+                  <Button
+                    key={item.format}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-none"
+                    disabled={exporting === `${report.type}-${item.format}`}
+                    onClick={() => handleExport(report.type, item.format)}
+                  >
+                    <item.icon className="mr-2 h-4 w-4" />
+                    {exporting === `${report.type}-${item.format}` ? "Exporting…" : item.label}
+                  </Button>
+                ))}
+              </div>
             </CardContent>
           </Card>
         ))}
