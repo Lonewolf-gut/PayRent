@@ -9,6 +9,10 @@ import {
   complianceExportFilename,
 } from "@/lib/utils/compliance-export";
 import { withAuth } from "@/lib/api/handler";
+import {
+  getUserDisplayName,
+  notifyComplianceEvent,
+} from "@/lib/services/verification-notifications";
 
 async function buildReportRows(type: string): Promise<Record<string, unknown>[]> {
   if (type === "audit") {
@@ -203,12 +207,19 @@ const REPORT_TITLES: Record<string, string> = {
 };
 
 export const GET = withAuth(
-  async (req: NextRequest) => {
+  async (req: NextRequest, _ctx, session) => {
     const type = req.nextUrl.searchParams.get("type") ?? "audit";
     const format = req.nextUrl.searchParams.get("format") ?? "csv";
     const rows = await buildReportRows(type);
     const title = REPORT_TITLES[type] ?? type;
     const filename = complianceExportFilename(type, format as "csv" | "xlsx" | "pdf");
+
+    const actorName = await getUserDisplayName(session.user.id);
+    await notifyComplianceEvent(
+      "Compliance report exported",
+      `${actorName} (${session.user.email}) downloaded the ${title} report as ${format.toUpperCase()}.`,
+      { reportType: type, format, exportedBy: session.user.id }
+    );
 
     if (format === "pdf") {
       const buffer = await buildPdfBuffer(rows, title);

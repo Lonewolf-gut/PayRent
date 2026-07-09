@@ -2,6 +2,10 @@ import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
 import { apiResponse, withAuth } from "@/lib/api/handler";
+import {
+  getUserDisplayName,
+  notifyComplianceEvent,
+} from "@/lib/services/verification-notifications";
 
 export const GET = withAuth(
   async (_req: NextRequest, _ctx, session) => {
@@ -47,6 +51,13 @@ export const PATCH = withAuth(
 
       const hash = await bcrypt.hash(newPassword, 12);
       await prisma.user.update({ where: { id: session.user.id }, data: { passwordHash: hash } });
+
+      const displayName = await getUserDisplayName(session.user.id);
+      await notifyComplianceEvent(
+        "Password changed",
+        `${displayName} (${user.email}) changed their account password.`,
+        { userId: session.user.id, role: session.user.role }
+      );
     }
 
     return apiResponse({ updated: true });

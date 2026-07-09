@@ -4,6 +4,10 @@ import { prisma } from "@/lib/db/prisma";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 import { withProfileImageVersion } from "@/lib/utils/profile-image";
 import { getProfileDisplayName } from "@/lib/utils/display-name";
+import {
+  getUserDisplayName,
+  notifyComplianceEvent,
+} from "@/lib/services/verification-notifications";
 
 export const GET = withAuth(async (_req: NextRequest, _ctx, session) => {
   const user = await prisma.user.findUnique({
@@ -82,6 +86,13 @@ export const PATCH = withAuth(async (req: NextRequest, _ctx, session) => {
       where: { id: session.user.id },
       data: { passwordHash: hash },
     });
+
+    const displayName = await getUserDisplayName(session.user.id);
+    await notifyComplianceEvent(
+      "Password changed",
+      `${displayName} (${session.user.email}) changed their account password.`,
+      { userId: session.user.id, role: session.user.role }
+    );
   }
 
   return apiResponse({ updated: true });

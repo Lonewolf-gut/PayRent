@@ -182,20 +182,20 @@ function DocumentPreview({ doc }: { doc: KycDocument }) {
   const isPdf = /\.pdf$/i.test(doc.fileName);
 
   return (
-    <div className="space-y-2 border p-3">
+    <div className="space-y-2 rounded-none border border-border bg-card p-3 text-card-foreground">
       <p className="text-sm font-medium">{label}</p>
       {isImage ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={doc.fileUrl}
           alt={label}
-          className="max-h-40 border object-contain"
+          className="max-h-40 rounded-none border border-border bg-muted/30 object-contain"
         />
       ) : isPdf ? (
         <iframe
           src={doc.fileUrl}
           title={label}
-          className="h-40 w-full border bg-muted/20"
+          className="h-40 w-full rounded-none border border-border bg-muted/30"
         />
       ) : null}
       <div className="flex flex-wrap gap-3">
@@ -203,14 +203,14 @@ function DocumentPreview({ doc }: { doc: KycDocument }) {
           href={doc.fileUrl}
           target="_blank"
           rel="noreferrer"
-          className="text-sm text-emerald-600 hover:underline"
+          className="text-sm text-emerald-600 hover:underline dark:text-emerald-400"
         >
           Preview {doc.fileName}
         </a>
         <a
           href={doc.fileUrl}
           download={doc.fileName}
-          className="text-sm text-emerald-600 hover:underline"
+          className="text-sm text-emerald-600 hover:underline dark:text-emerald-400"
         >
           Download
         </a>
@@ -239,7 +239,7 @@ function ReviewDetail({
   const employment = getReviewEmploymentContext(review);
 
   return (
-    <div className="space-y-4 border bg-muted/20 p-4">
+    <div className="space-y-4 rounded-none border border-border bg-card p-4 text-card-foreground">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="font-medium">{reviewTypeLabel(review.type)}</p>
@@ -300,7 +300,7 @@ function ReviewDetail({
       ) : null}
 
       {review.failureReason ? (
-        <p className="text-sm text-amber-700">{review.failureReason}</p>
+        <p className="text-sm text-amber-700 dark:text-amber-300">{review.failureReason}</p>
       ) : null}
 
       {review.documents?.length ? (
@@ -476,7 +476,7 @@ export default function AdminKycPage() {
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                  <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                     {group.pendingCount} pending
                   </span>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -493,10 +493,10 @@ export default function AdminKycPage() {
           if (!open) setSelectedUserId(null);
         }}
       >
-        <SheetContent side="right" variant="wide" className="gap-0 p-0">
+        <SheetContent side="right" variant="wide" className="gap-0 border-border bg-background p-0 text-foreground">
           {selectedGroup ? (
             <>
-              <SheetHeader className="border-b px-6 py-5 pr-14">
+              <SheetHeader className="border-b border-border bg-background px-6 py-5 pr-14">
                 <SheetTitle>{selectedGroup.displayName}</SheetTitle>
                 <SheetDescription className="space-y-1">
                   <span className="block">

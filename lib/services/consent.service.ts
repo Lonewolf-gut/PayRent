@@ -1,6 +1,7 @@
 import type { ConsentType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { CONSENT_POLICY_VERSION } from "@/lib/constants/consent";
+import { CONSENT_POLICY_VERSION, CONSENT_LABELS } from "@/lib/constants/consent";
+import { notifyComplianceEvent } from "@/lib/services/verification-notifications";
 
 export type ConsentContext = {
   ipAddress?: string;
@@ -14,7 +15,7 @@ export class ConsentService {
     consentType: ConsentType,
     context?: ConsentContext
   ) {
-    return prisma.dataConsent.create({
+    const consent = await prisma.dataConsent.create({
       data: {
         userId,
         consentType,
@@ -24,7 +25,20 @@ export class ConsentService {
         userAgent: context?.userAgent ?? null,
         metadata: context?.metadata as Prisma.InputJsonValue,
       },
+      include: { user: { select: { email: true, role: true } } },
     });
+
+    await notifyComplianceEvent(
+      "New consent recorded",
+      `${consent.user.email} (${consent.user.role}) granted ${CONSENT_LABELS[consentType] ?? consentType}.`,
+      {
+        consentId: consent.id,
+        userId,
+        consentType,
+      }
+    );
+
+    return consent;
   }
 
   async recordRegistrationConsents(userId: string, context?: ConsentContext) {
@@ -32,7 +46,36 @@ export class ConsentService {
       "DATA_COLLECTION_PROCESSING",
       "TERMS_OF_SERVICE",
     ];
-    return Promise.all(types.map((type) => this.record(userId, type, context)));
+    const records = await Promise.all(
+      types.map(async (type) => {
+        return prisma.dataConsent.create({
+          data: {
+            userId,
+            consentType: type,
+            version: CONSENT_POLICY_VERSION,
+            granted: true,
+            ipAddress: context?.ipAddress ?? null,
+            userAgent: context?.userAgent ?? null,
+            metadata: context?.metadata as Prisma.InputJsonValue,
+          },
+        });
+      })
+    );
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, role: true },
+    });
+
+    if (user) {
+      await notifyComplianceEvent(
+        "Registration consents captured",
+        `${user.email} (${user.role}) accepted data processing and terms of service during registration.`,
+        { userId, consentIds: records.map((r) => r.id) }
+      );
+    }
+
+    return records;
   }
 
   async recordFinancingConsent(

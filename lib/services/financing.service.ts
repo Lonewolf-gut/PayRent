@@ -11,6 +11,7 @@ import { calculateAgentCommission } from "@/lib/constants/agent-commission";
 import { auditService } from "@/lib/services/audit.service";
 import { getBusinessRules } from "@/lib/services/business-rules.service";
 import { assertLenderCanFinanceMore } from "@/lib/subscription/lender-access";
+import { notifyComplianceEvent } from "@/lib/services/verification-notifications";
 
 export class FinancingService {
   private async assertEligibility(tenantId: string) {
@@ -289,6 +290,12 @@ export class FinancingService {
         tenantUserId: request.tenant.userId,
       },
     });
+
+    await notifyComplianceEvent(
+      "Fee disclosure recorded",
+      `Financing approved for ${request.tenant.user.email} on "${request.property.name}" — GHS ${input.amount.toLocaleString()} at ${input.interestRate}% for ${request.durationMonths} months.`,
+      { financingRequestId: request.id, lenderUserId: lender.user.id }
+    );
 
     if (commissionAgent && agentCommission > 0) {
       await prisma.agentEarning.create({

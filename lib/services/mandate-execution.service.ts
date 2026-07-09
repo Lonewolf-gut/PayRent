@@ -280,6 +280,19 @@ export class MandateExecutionService {
             instalmentNumber: installment.instalmentNumber,
           },
         });
+
+        const { notifyComplianceEvent } = await import(
+          "@/lib/services/verification-notifications"
+        );
+        await notifyComplianceEvent(
+          "Suspicious activity: failed repayment",
+          `A repayment deduction failed for ${financingRequest.tenant.user?.email ?? "a customer"}: ${bankResponse.failureReason || "Unknown error"}. Amount GHS ${amountDue.toFixed(2)}.`,
+          {
+            deductionEventId: deductionEvent.id,
+            mandateId,
+            financingRequestId: financingRequest.id,
+          }
+        );
       } else if (deductionStatus === "RETRY_SCHEDULED") {
         logger.info("Deduction failed - retry scheduled", {
           requestId,
