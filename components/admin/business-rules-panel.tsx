@@ -53,8 +53,10 @@ export function BusinessRulesPanel() {
       minRepaymentMonths: Number(form.get("minRepaymentMonths")),
       maxRepaymentMonths: Number(form.get("maxRepaymentMonths")),
       maxInterestRatePercent: Number(form.get("maxInterestRatePercent")),
+      maxDebtToIncomePercent: Number(form.get("maxDebtToIncomePercent")),
       lenderFreeFinancingLimit: Number(form.get("lenderFreeFinancingLimit")),
       merchantListingRequiresPaidPlan: form.get("merchantListingRequiresPaidPlan") === "on",
+      autoApproveLowRiskFinancing: form.get("autoApproveLowRiskFinancing") === "on",
     });
   }
 
@@ -70,6 +72,7 @@ export function BusinessRulesPanel() {
           ["maxInterestRatePercent", "Max interest rate (%)"],
           ["minRepaymentMonths", "Min repayment months"],
           ["maxRepaymentMonths", "Max repayment months"],
+          ["maxDebtToIncomePercent", "Max debt-to-income (%)"],
           ["lenderFreeFinancingLimit", "Lender free financing limit"],
         ].map(([name, label]) => (
           <div key={name} className="space-y-2">
@@ -85,6 +88,14 @@ export function BusinessRulesPanel() {
           </div>
         ))}
       </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="autoApproveLowRiskFinancing"
+          defaultChecked={rules.autoApproveLowRiskFinancing}
+        />
+        Auto-approve low-risk financing requests (skip admin eligibility review)
+      </label>
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"

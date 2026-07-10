@@ -4,6 +4,7 @@ const navItems = [
   { href: "/dashboard/merchant", label: "Overview", icon: "Home" as const },
   { href: "/dashboard/merchant/properties", label: "My Listings", icon: "Building2" as const },
   { href: "/dashboard/merchant/applications", label: "Applications", icon: "FileText" as const },
+  { href: "/dashboard/merchant/deliveries", label: "Deliveries", icon: "Package" as const },
   { href: "/dashboard/merchant/agents", label: "Affiliates", icon: "Users" as const },
   { href: "/dashboard/merchant/settlements", label: "Settlements", icon: "DollarSign" as const },
   { href: "/dashboard/merchant/wallet", label: "Wallet", icon: "Wallet" as const },

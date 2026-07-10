@@ -7,6 +7,8 @@ export type BusinessRules = {
   minRepaymentMonths: number;
   maxRepaymentMonths: number;
   maxInterestRatePercent: number;
+  maxDebtToIncomePercent: number;
+  autoApproveLowRiskFinancing: boolean;
   lenderFreeFinancingLimit: number;
   merchantListingRequiresPaidPlan: boolean;
 };
@@ -20,6 +22,8 @@ export const DEFAULT_BUSINESS_RULES: BusinessRules = {
   minRepaymentMonths: 6,
   maxRepaymentMonths: 60,
   maxInterestRatePercent: 30,
+  maxDebtToIncomePercent: 45,
+  autoApproveLowRiskFinancing: true,
   lenderFreeFinancingLimit: 100,
   merchantListingRequiresPaidPlan: true,
 };

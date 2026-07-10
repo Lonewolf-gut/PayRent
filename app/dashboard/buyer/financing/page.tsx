@@ -79,6 +79,23 @@ export default function TenantFinancingPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const acceptMutation = useMutation({
+    mutationFn: async (financingRequestId: string) => {
+      const res = await fetch("/api/financing/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ financingRequestId }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message ?? "Acceptance failed");
+    },
+    onSuccess: () => {
+      toast.success("Financing terms accepted — payment sent to merchant");
+      queryClient.invalidateQueries({ queryKey: ["financing"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const createMandateMutation = useMutation({
     mutationFn: async ({
       financingRequestId,
@@ -113,9 +130,9 @@ export default function TenantFinancingPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Pay for Rent financing</h1>
+        <h1 className="text-2xl font-bold">Pay-for-Me financing</h1>
         <p className="text-muted-foreground">
-          Request rent financing after an approved application, complete your mandate, then await lender review.
+          Track eligibility, mandate setup, lender offers, delivery, and repayments.
         </p>
       </div>
 
@@ -141,7 +158,11 @@ export default function TenantFinancingPage() {
             id: string;
             status: string;
             requestedAmount: number;
+            approvedAmount?: number;
             durationMonths: number;
+            riskCategory?: string;
+            eligibilityScore?: number;
+            offeredInterestRate?: number;
             property?: { name: string };
           }) => (
             <Card key={req.id}>
@@ -153,6 +174,18 @@ export default function TenantFinancingPage() {
                 <p className="text-sm">
                   GHS {Number(req.requestedAmount).toLocaleString()} · {req.durationMonths} months
                 </p>
+                {req.riskCategory ? (
+                  <p className="text-sm text-muted-foreground">
+                    Eligibility: {req.riskCategory}
+                    {req.eligibilityScore != null ? ` (score ${req.eligibilityScore})` : ""}
+                  </p>
+                ) : null}
+                {req.status === "ELIGIBILITY_PENDING" && (
+                  <p className="text-sm text-amber-700">
+                    Your request is being reviewed for eligibility. You will be notified when you can
+                    set up your repayment mandate.
+                  </p>
+                )}
                 {req.status === "MANDATE_PENDING" && bankAccountId && (
                   <div className="space-y-3 rounded-lg border p-4">
                     <div>
@@ -212,6 +245,39 @@ export default function TenantFinancingPage() {
                     </Button>
                   </div>
                 )}
+                {req.status === "READY_FOR_LENDER_REVIEW" && (
+                  <p className="text-sm text-muted-foreground">
+                    Mandate active. A lender is reviewing your request.
+                  </p>
+                )}
+                {req.status === "APPROVED" && (
+                  <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                    <p className="text-sm">
+                      Lender offer: GHS {Number(req.approvedAmount ?? req.requestedAmount).toLocaleString()}
+                      {req.offeredInterestRate != null
+                        ? ` at ${Number(req.offeredInterestRate)}% interest`
+                        : ""}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Review the fee disclosure and accept the terms to authorize payment to the
+                      merchant.
+                    </p>
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                      disabled={acceptMutation.isPending}
+                      onClick={() => acceptMutation.mutate(req.id)}
+                    >
+                      Accept financing terms
+                    </Button>
+                  </div>
+                )}
+                {req.status === "DISBURSED" && (
+                  <p className="text-sm text-muted-foreground">
+                    Payment has been sent to the merchant. Repayments will begin once delivery is
+                    confirmed.
+                  </p>
+                )}
                 {req.status === "MANDATE_PENDING" && !bankAccountId && (
                   <p className="text-sm text-amber-700">
                     Add and validate a bank account in Wallet before creating a mandate.
@@ -256,7 +322,7 @@ export default function TenantFinancingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <StatusBadge status={inst.status} />
-                  {inst.status === "PENDING" && (
+                  {["PENDING", "PARTIAL", "OVERDUE"].includes(inst.status) && (
                     <Button
                       size="sm"
                       className="bg-emerald-600 hover:bg-emerald-700"

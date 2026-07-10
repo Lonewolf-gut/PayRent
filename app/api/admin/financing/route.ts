@@ -32,7 +32,16 @@ export const GET = withAuth(
     ]);
 
     const pendingCount = await prisma.financingRequest.count({
-      where: { status: { in: ["PENDING", "UNDER_REVIEW", "READY_FOR_LENDER_REVIEW"] } },
+      where: {
+        status: {
+          in: [
+            "ELIGIBILITY_PENDING",
+            "PENDING",
+            "UNDER_REVIEW",
+            "READY_FOR_LENDER_REVIEW",
+          ],
+        },
+      },
     });
 
     return apiResponse({ requests, total, page, limit, pendingCount });

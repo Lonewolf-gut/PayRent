@@ -74,7 +74,9 @@ export const POST = withAuth(
       parsed.data.durationMonths,
       parsed.data.notes,
       parsed.data.applicationId,
-      referredAgentProfileId
+      referredAgentProfileId,
+      parsed.data.repaymentPreference,
+      parsed.data.monthlyIncome
     );
 
     await consentService.recordFinancingConsent(session.user.id, request.id, {

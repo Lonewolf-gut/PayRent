@@ -79,9 +79,24 @@ enum AdminReviewType {
   KYC
   LISTING
   MANDATE
+  FINANCING_REQUEST
   DISPUTE
   RECONCILIATION
   DEDUCTION
+}
+
+enum FinancingRiskCategory {
+  LOW
+  MEDIUM
+  HIGH
+  INELIGIBLE
+}
+
+enum FinancingDeliveryStatus {
+  PENDING
+  IN_TRANSIT
+  DELIVERED
+  CONFIRMED
 }
 
 enum AdminReviewStatus {
@@ -738,8 +753,19 @@ model FinancingRequest {
   approvedAmount  Decimal?        @db.Decimal(14, 2)
   durationMonths  Int
   status          FinancingStatus @default(CREATED)
+  riskCategory    FinancingRiskCategory?
+  eligibilityScore Int?
+  repaymentPreference Json?
+  affordabilitySnapshot Json?
+  offeredInterestRate Decimal?      @db.Decimal(5, 2)
+  offeredPlanType     RepaymentPlanType?
   notes           String?
   decisionReason  String?
+  adminReviewedAt DateTime?
+  adminReviewedByUserId String?
+  buyerAcceptedAt DateTime?
+  deliveryStatus  FinancingDeliveryStatus @default(PENDING)
+  deliveredAt     DateTime?
   approvedAt      DateTime?
   rejectedAt      DateTime?
   disbursedAt     DateTime?
@@ -804,6 +830,7 @@ model Installment {
   dueDate         DateTime
   paidAt          DateTime?
   status          InstallmentStatus @default(PENDING)
+  lastReminderAt  DateTime?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 

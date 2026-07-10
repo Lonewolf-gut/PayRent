@@ -189,50 +189,13 @@ export class MandateExecutionService {
 
       // 8. If successful, update installment payment status
       if (deductionStatus === "SUCCESSFUL") {
-        const updatedInstallment = await prisma.installment.update({
-          where: { id: installmentId },
-          data: {
-            amountPaid: installment.amountPaid.plus(amountDue),
-            status: installment.amountPaid.plus(amountDue).gte(installment.amount)
-              ? "PAID"
-              : "PARTIAL",
-            paidAt: new Date(),
-          },
+        const { repaymentService } = await import("@/lib/services/repayment.service");
+        await repaymentService.recordInstallmentPayment({
+          installmentId,
+          amountPaid: Number(amountDue),
+          source: "mandate",
+          providerReference: bankResponse.bankReference,
         });
-
-        // Send success notification
-        await notificationService.send({
-          userId: financingRequest.tenant.userId,
-          type: "DEDUCTION_SUCCESSFUL",
-          channels: ["IN_APP", "EMAIL", "SMS"],
-          title: "Repayment Processed",
-          message: `₵${amountDue.toFixed(2)} has been deducted for your RentVest repayment`,
-          metadata: {
-            amount: amountDue.toString(),
-            instalmentNumber: installment.instalmentNumber,
-            dueDate: installment.dueDate,
-          },
-        });
-
-        // Audit log
-        await auditService.log({
-          userId: financingRequest.tenant.userId,
-          action: "DEDUCTION_SUCCESSFUL",
-          entity: "DeductionEvent",
-          entityId: deductionEvent.id,
-          metadata: {
-            amount: amountDue.toString(),
-            mandateId,
-          },
-        });
-
-        // Check if financing is now fully repaid
-        if (updatedInstallment.status === "PAID") {
-          await this.checkFinancingCompletion(
-            financingRequest.id,
-            financingRequest.tenant.userId
-          );
-        }
 
         logger.info("Deduction successful", {
           requestId,

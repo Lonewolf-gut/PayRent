@@ -10,6 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 type PropertyActionPanelProps = {
@@ -64,6 +71,12 @@ export function PropertyActionPanel({
 }: PropertyActionPanelProps) {
   const router = useRouter();
   const [financingConsent, setFinancingConsent] = useState(false);
+  const [monthlyIncome, setMonthlyIncome] = useState("");
+  const [preferredChannel, setPreferredChannel] = useState<
+    "BANK_MANDATE" | "WALLET" | "MOBILE_MONEY"
+  >("BANK_MANDATE");
+  const [preferredPaymentDay, setPreferredPaymentDay] = useState("1");
+  const [contactPhone, setContactPhone] = useState("");
 
   const applyMutation = useMutation({
     mutationFn: async () => {
@@ -99,6 +112,12 @@ export function PropertyActionPanel({
           applicationId: approvedApplication?.id,
           requestedAmount: parseFloat(amount),
           durationMonths: parseInt(months, 10),
+          monthlyIncome: monthlyIncome ? parseFloat(monthlyIncome) : undefined,
+          repaymentPreference: {
+            preferredChannel,
+            preferredPaymentDay: parseInt(preferredPaymentDay, 10),
+            contactPhone: contactPhone || undefined,
+          },
           dataProcessingConsent: true,
         }),
       });
@@ -106,7 +125,7 @@ export function PropertyActionPanel({
       if (!json.success) throw new Error(json.message ?? json.errors?.[0]?.message);
     },
     onSuccess: () => {
-      toast.success("Financing request submitted");
+      toast.success("Pay-for-me request submitted");
       router.push("/dashboard/buyer/financing");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -204,7 +223,7 @@ export function PropertyActionPanel({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CreditCard className="size-5" />
-                Apply for financing
+                Request Pay-for-Me financing
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -259,6 +278,54 @@ export function PropertyActionPanel({
                       onChange={(e) => setMonths(e.target.value)}
                     />
                   </div>
+                  <div>
+                    <Label>Monthly income (GHS)</Label>
+                    <Input
+                      type="number"
+                      className="rounded-none"
+                      value={monthlyIncome}
+                      onChange={(e) => setMonthlyIncome(e.target.value)}
+                      placeholder="For affordability assessment"
+                    />
+                  </div>
+                  <div>
+                    <Label>Preferred repayment channel</Label>
+                    <Select
+                      value={preferredChannel}
+                      onValueChange={(v) =>
+                        setPreferredChannel(v as typeof preferredChannel)
+                      }
+                    >
+                      <SelectTrigger className="rounded-none">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="BANK_MANDATE">Bank mandate (auto-debit)</SelectItem>
+                        <SelectItem value="WALLET">Wallet balance</SelectItem>
+                        <SelectItem value="MOBILE_MONEY">Mobile money</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Preferred payment day of month</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={28}
+                      className="rounded-none"
+                      value={preferredPaymentDay}
+                      onChange={(e) => setPreferredPaymentDay(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Contact phone</Label>
+                    <Input
+                      className="rounded-none"
+                      value={contactPhone}
+                      onChange={(e) => setContactPhone(e.target.value)}
+                      placeholder="For repayment reminders"
+                    />
+                  </div>
                   <label className="flex items-start gap-2 text-sm">
                     <input
                       type="checkbox"
@@ -280,7 +347,7 @@ export function PropertyActionPanel({
                     disabled={!amount || !financingConsent || financeMutation.isPending}
                     onClick={() => financeMutation.mutate()}
                   >
-                    Submit financing request
+                    Submit pay-for-me request
                   </Button>
                 </>
               )}

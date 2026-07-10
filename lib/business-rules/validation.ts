@@ -9,6 +9,8 @@ export const businessRulesPatchSchema = z.object({
   minRepaymentMonths: z.number().int().min(1).max(120).optional(),
   maxRepaymentMonths: z.number().int().min(1).max(120).optional(),
   maxInterestRatePercent: z.number().min(0).max(100).optional(),
+  maxDebtToIncomePercent: z.number().min(1).max(100).optional(),
+  autoApproveLowRiskFinancing: z.boolean().optional(),
   lenderFreeFinancingLimit: z.number().int().min(1).max(10000).optional(),
   merchantListingRequiresPaidPlan: z.boolean().optional(),
 });

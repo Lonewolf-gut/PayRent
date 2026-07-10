@@ -6,6 +6,15 @@ export const financingRequestSchema = z.object({
   requestedAmount: z.number().positive(),
   durationMonths: z.number().int().min(6).max(60),
   notes: z.string().max(500).optional(),
+  monthlyIncome: z.number().positive().optional(),
+  repaymentPreference: z
+    .object({
+      preferredPaymentDay: z.number().int().min(1).max(28).optional(),
+      preferredChannel: z.enum(["BANK_MANDATE", "WALLET", "MOBILE_MONEY"]).optional(),
+      contactPhone: z.string().max(20).optional(),
+      contactEmail: z.string().email().optional(),
+    })
+    .optional(),
   dataProcessingConsent: z.literal(true, {
     error: "You must consent to data collection and processing for financing.",
   }),

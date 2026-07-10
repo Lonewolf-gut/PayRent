@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { mandateExecutionService } from "@/lib/services/mandate-execution.service";
+import { repaymentService } from "@/lib/services/repayment.service";
 import { prisma } from "@/lib/db/prisma";
 import { apiResponse } from "@/lib/api/handler";
 import { authorizeCron } from "@/lib/cron/authorize";
@@ -12,6 +13,8 @@ export async function POST(req: NextRequest) {
   if (!authorizeCron(req)) {
     return apiResponse(null, 401, "Unauthorized.");
   }
+
+  const overdue = await repaymentService.markOverdueInstallments();
 
   const dueInstallments = await prisma.installment.findMany({
     where: {
@@ -52,7 +55,11 @@ export async function POST(req: NextRequest) {
   }
 
   return apiResponse(
-    { deductionsProcessed: processed, mandatesPolled: bankProcessing.length },
+    {
+      deductionsProcessed: processed,
+      mandatesPolled: bankProcessing.length,
+      ...overdue,
+    },
     200,
     "Repayment and mandate jobs completed."
   );

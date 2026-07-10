@@ -63,7 +63,7 @@ export default function LenderOpportunitiesPage() {
       if (!json.success) throw new Error(json.error?.message);
     },
     onSuccess: () => {
-      toast.success("Funding approved");
+      toast.success("Financing offer sent — awaiting customer acceptance");
       queryClient.invalidateQueries({ queryKey: ["financing-pending"] });
       setSelectedId(null);
     },
