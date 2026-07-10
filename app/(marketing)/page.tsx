@@ -131,9 +131,7 @@ export default function HomePage() {
               <span className="text-emerald-600"> rental finance in Ghana</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
-              PayForMe brings Customers, merchants, Affiliates, and lenders together to list assets,
-              review applications, and manage rent financing with transparent payments and
-              verified workflows.
+              Bridging buyers, sellers and lenders through flexible product financing.
             </p>
             <div className="mt-10 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
               <Button size="lg" asChild className="bg-emerald-600 hover:bg-emerald-700">
