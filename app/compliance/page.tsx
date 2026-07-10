@@ -21,7 +21,7 @@ export default function ComplianceOverviewPage() {
       const json = await res.json();
       return json.data as {
         pendingKyc?: number;
-        failedLogins24h?: number;
+        failedLogins?: number;
         auditLogs24h?: number;
         consentCount?: number;
         feeDisclosureCount?: number;
@@ -81,10 +81,10 @@ export default function ComplianceOverviewPage() {
         </Card>
         <Card className="rounded-none">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Failed logins (24h)</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Failed logins (total)</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{data?.failedLogins24h ?? "—"}</p>
+            <p className="text-2xl font-bold">{data?.failedLogins ?? "—"}</p>
           </CardContent>
         </Card>
         <Card className="rounded-none">

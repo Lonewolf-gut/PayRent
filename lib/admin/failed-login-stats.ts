@@ -55,7 +55,7 @@ export async function recordFailedLoginAttempt(params: {
   return createLoginLogResilient(attempts);
 }
 
-async function syncFailedLoginLogsFromUsers(since: Date) {
+async function syncFailedLoginLogsFromUsers(since?: Date) {
   const users = await prisma.user.findMany({
     where: { failedLoginCount: { gt: 0 } },
     select: {
@@ -74,7 +74,7 @@ async function syncFailedLoginLogsFromUsers(since: Date) {
     const missing = user.failedLoginCount - existingFailed;
     if (missing <= 0) continue;
 
-    const createdAt = user.updatedAt >= since ? user.updatedAt : new Date();
+    const createdAt = user.updatedAt;
 
     for (let index = 0; index < missing; index += 1) {
       await recordFailedLoginAttempt({
@@ -84,6 +84,28 @@ async function syncFailedLoginLogsFromUsers(since: Date) {
       });
     }
   }
+}
+
+export async function countAllFailedLogins() {
+  await syncFailedLoginLogsFromUsers();
+
+  const fromLogs = await prisma.loginLog.count({
+    where: { success: false },
+  });
+
+  if (fromLogs > 0) {
+    return fromLogs;
+  }
+
+  const usersWithFailures = await prisma.user.findMany({
+    where: { failedLoginCount: { gt: 0 } },
+    select: { failedLoginCount: true },
+  });
+
+  return usersWithFailures.reduce(
+    (total, user) => total + user.failedLoginCount,
+    0
+  );
 }
 
 export async function countFailedLoginsLast24h() {

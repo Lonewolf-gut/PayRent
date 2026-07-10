@@ -70,10 +70,10 @@ export default function AdminDashboardPage() {
         <StatCard title="Active Properties" value={String(data?.properties ?? "—")} icon={Building2} />
         <StatCard title="Transactions" value={String(data?.transactions ?? "—")} icon={CreditCard} />
         <StatCard
-          title="Failed logins (24h)"
+          title="Failed logins (total)"
           value={String(failedLoginStats?.failedLogins ?? data?.failedLogins ?? 0)}
           icon={AlertTriangle}
-          description="Fraud monitoring"
+          description="All recorded failed login attempts"
         />
       </div>
 

@@ -62,3 +62,39 @@ describe("countFailedLoginsLast24h", () => {
     await expect(countFailedLoginsLast24h()).resolves.toBe(3);
   });
 });
+
+describe("countAllFailedLogins", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    prismaMock.loginLog.count.mockReset();
+    prismaMock.loginLog.create.mockReset();
+    prismaMock.user.findMany.mockReset();
+    prismaMock.loginLog.create.mockResolvedValue({ id: "log-1" });
+  });
+
+  it("returns total failed login log count", async () => {
+    prismaMock.user.findMany.mockResolvedValue([]);
+    prismaMock.loginLog.count.mockResolvedValue(4);
+
+    const { countAllFailedLogins } = await import("@/lib/admin/failed-login-stats");
+
+    await expect(countAllFailedLogins()).resolves.toBe(4);
+    expect(prismaMock.loginLog.count).toHaveBeenCalledWith({
+      where: { success: false },
+    });
+  });
+
+  it("falls back to sum of all user failedLoginCount when logs are empty", async () => {
+    prismaMock.user.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { failedLoginCount: 2 },
+        { failedLoginCount: 2 },
+      ]);
+    prismaMock.loginLog.count.mockResolvedValue(0);
+
+    const { countAllFailedLogins } = await import("@/lib/admin/failed-login-stats");
+
+    await expect(countAllFailedLogins()).resolves.toBe(4);
+  });
+});
