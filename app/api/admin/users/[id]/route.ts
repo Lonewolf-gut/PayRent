@@ -17,6 +17,7 @@ export const GET = withAuth(
         twoFactorEnabled: true,
         failedLoginCount: true,
         lockedUntil: true,
+        lastLoginAt: true,
         createdAt: true,
         updatedAt: true,
         tenant: { select: { fullName: true, kycVerified: true, profileStatus: true } },
@@ -56,7 +57,13 @@ export const GET = withAuth(
           })
         : [];
 
-    return apiResponse({ ...user, properties });
+    const lastSuccessfulLogin = user.loginLogs.find((log) => log.success);
+
+    return apiResponse({
+      ...user,
+      properties,
+      lastLoginAt: user.lastLoginAt ?? lastSuccessfulLogin?.createdAt ?? null,
+    });
   },
   { roles: ["ADMIN"], permission: "admin:users" }
 );

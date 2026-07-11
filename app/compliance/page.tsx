@@ -114,8 +114,14 @@ export default function ComplianceOverviewPage() {
           {
             href: "/compliance/audit-logs",
             label: "Audit logs",
-            desc: "Approvals, changes, repayments, disputes",
+            desc: "Approvals, changes, repayments, and sign-ins",
             icon: FileText,
+          },
+          {
+            href: "/compliance/transactions",
+            label: "Transactions",
+            desc: "Wallet transactions with timestamps",
+            icon: Receipt,
           },
           {
             href: "/compliance/kyc",

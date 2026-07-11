@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/dashboard/status-badge";
+import { formatDateTime } from "@/lib/utils/format-datetime";
 
 export default function AdminTransactionsPage() {
   const [page, setPage] = useState(1);
@@ -58,16 +58,28 @@ export default function AdminTransactionsPage() {
                   <TableHead>User</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>When</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data?.transactions?.map((tx: any) => (
+                {data?.transactions?.map((tx: {
+                  id: string;
+                  reference: string;
+                  type: string;
+                  amount: number;
+                  status: string;
+                  createdAt: string;
+                  wallet?: { user?: { email?: string } };
+                }) => (
                   <TableRow key={tx.id}>
                     <TableCell className="font-mono text-xs">{tx.reference}</TableCell>
                     <TableCell>{tx.type}</TableCell>
                     <TableCell>{tx.wallet?.user?.email ?? "Platform"}</TableCell>
                     <TableCell>GHS {Number(tx.amount).toLocaleString()}</TableCell>
                     <TableCell><Badge variant="secondary" className="rounded-none">{tx.status}</Badge></TableCell>
+                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                      {formatDateTime(tx.createdAt)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -83,14 +95,38 @@ export default function AdminTransactionsPage() {
       <Card className="rounded-none">
         <CardHeader><CardTitle>Audit log</CardTitle></CardHeader>
         <CardContent>
-          <ul className="space-y-2 text-sm">
-            {data?.auditLogs?.map((log: any) => (
-              <li key={log.id} className="flex justify-between border-b border-slate-100 py-2">
-                <span>{log.action} {log.entity && `· ${log.entity}`}{log.user?.email && ` · ${log.user.email}`}</span>
-                <span className="text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</span>
-              </li>
-            ))}
-          </ul>
+          {!data?.auditLogs?.length ? (
+            <p className="text-sm text-muted-foreground">No audit events yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Entity</TableHead>
+                  <TableHead>User</TableHead>
+                  <TableHead>When</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.auditLogs.map((log: {
+                  id: string;
+                  action: string;
+                  entity?: string | null;
+                  createdAt: string;
+                  user?: { email?: string };
+                }) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="font-medium">{log.action}</TableCell>
+                    <TableCell>{log.entity ?? "—"}</TableCell>
+                    <TableCell>{log.user?.email ?? "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                      {formatDateTime(log.createdAt)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

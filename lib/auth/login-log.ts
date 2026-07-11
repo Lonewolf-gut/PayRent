@@ -57,6 +57,18 @@ export async function logLoginAttempt(
         meta.userAgent,
         email
       );
+
+      if (userId) {
+        await auditService.log({
+          userId,
+          action: "USER_SIGN_IN",
+          entity: "User",
+          entityId: userId,
+          ipAddress: meta.ip,
+          userAgent: meta.userAgent,
+          metadata: email ? { email } : undefined,
+        });
+      }
       return;
     }
 

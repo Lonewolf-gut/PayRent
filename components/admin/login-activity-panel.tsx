@@ -20,6 +20,7 @@ import {
   loginExportFilename,
   loginLogsToCsv,
 } from "@/lib/utils/login-export";
+import { formatDateTime } from "@/lib/utils/format-datetime";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -173,7 +174,9 @@ export function LoginActivityPanel({
                       />
                     </TableCell>
                     <TableCell className="font-mono text-xs">{log.ipAddress ?? "—"}</TableCell>
-                    <TableCell>{new Date(log.createdAt).toLocaleString()}</TableCell>
+                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                      {formatDateTime(log.createdAt)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

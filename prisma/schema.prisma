@@ -319,6 +319,7 @@ model User {
   isActive          Boolean   @default(true)
   failedLoginCount  Int       @default(0)
   lockedUntil       DateTime?
+  lastLoginAt       DateTime?
   refreshTokenHash  String?
   trialEndsAt       DateTime?
   createdAt         DateTime  @default(now())

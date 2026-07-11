@@ -7,6 +7,7 @@ const navItems = [
   { href: "/compliance/consents", label: "Consent records", icon: "FileText" as const },
   { href: "/compliance/fee-disclosures", label: "Fee disclosures", icon: "FileText" as const },
   { href: "/compliance/audit-logs", label: "Audit logs", icon: "FileText" as const },
+  { href: "/compliance/transactions", label: "Transactions", icon: "DollarSign" as const },
   { href: "/compliance/kyc", label: "KYC review", icon: "FileText" as const },
   { href: "/compliance/monitoring", label: "Suspicious activity", icon: "Shield" as const },
   { href: "/compliance/reports", label: "Reports", icon: "BarChart3" as const },

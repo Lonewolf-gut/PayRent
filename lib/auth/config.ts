@@ -132,7 +132,7 @@ export const authConfig: NextAuthConfig = {
 
         await prisma.user.update({
           where: { id: user.id },
-          data: { failedLoginCount: 0, lockedUntil: null },
+          data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
         });
 
         await logLoginAttempt(user.id, true, user.email, request);

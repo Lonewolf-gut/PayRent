@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatDateTime } from "@/lib/utils/format-datetime";
 import {
   Table,
   TableBody,
@@ -116,7 +117,9 @@ export default function ComplianceAuditLogsPage() {
                     <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
                       {log.metadata ? JSON.stringify(log.metadata) : log.ipAddress ?? "—"}
                     </TableCell>
-                    <TableCell>{new Date(log.createdAt).toLocaleString()}</TableCell>
+                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                      {formatDateTime(log.createdAt)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
