@@ -13,4 +13,4 @@ npm run db:push
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host ""
-Write-Host "Done. Start the app with: npm run dev:webpack"
+Write-Host "Done. Start the app with: npm run dev"

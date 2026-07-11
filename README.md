@@ -58,6 +58,13 @@ npm run db:seed
 npm run dev
 ```
 
+On **Windows**, `npm run dev` automatically uses **webpack** (more stable). If you still see Turbopack `FATAL` panics, stop the server and run:
+
+```bash
+npm run clean
+npm run dev:webpack
+```
+
 Open [http://localhost:3000](http://localhost:3000)
 
 ## Demo Accounts
@@ -148,12 +155,10 @@ These require external credentials and are not fully live without them:
 ## Scripts
 
 ```bash
-npm run dev          # Development
-npm run build        # Production build
-npm run db:generate  # Prisma client
-npm run db:push      # Push schema
-npm run db:seed      # Seed demo data
-npm run db:studio    # Prisma Studio
+npm run dev          # Development (webpack on Windows, Turbopack elsewhere)
+npm run dev:webpack  # Force webpack (most stable)
+npm run dev:turbo    # Force Turbopack (faster when it works)
+npm run clean        # Clear .next-dev cache after crashes
 ```
 
 ## Security

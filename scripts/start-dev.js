@@ -14,15 +14,37 @@ const nodeOptions = [
 const projectRoot = path.join(__dirname, "..");
 const nextCli = path.join(projectRoot, "node_modules", "next", "dist", "bin", "next");
 
+function resolveBundler() {
+  const forced = process.env.DEV_BUNDLER?.toLowerCase();
+  if (forced === "webpack" || forced === "turbo" || forced === "turbopack") {
+    return forced === "webpack" ? "webpack" : "turbopack";
+  }
+
+  // Turbopack frequently panics on Windows (especially under AppData temp paths).
+  if (process.platform === "win32") {
+    return "webpack";
+  }
+
+  return "turbopack";
+}
+
+const bundler = resolveBundler();
+const bundlerArgs = bundler === "webpack" ? ["--webpack"] : ["--turbopack"];
+
 console.log("");
-console.log("Starting PayRent dev server (Turbopack)…");
-console.log("After Ready, open http://localhost:3000 (or http://127.0.0.1:3000) — wait for GET / 200 in this terminal.");
-console.log("If Turbopack crashes on CSS, run: npm run dev:webpack");
+if (bundler === "webpack") {
+  console.log("Starting PayRent dev server (webpack — stable on Windows)…");
+  console.log("First compile can take 2–5 minutes. Keep this terminal open.");
+} else {
+  console.log("Starting PayRent dev server (Turbopack)…");
+  console.log("If you see FATAL Turbopack errors, run: npm run dev:webpack");
+}
+console.log("After Ready, open http://localhost:3000");
 console.log("");
 
 const child = spawn(
   process.execPath,
-  [nextCli, "dev", "--turbopack", "--hostname", "0.0.0.0"],
+  [nextCli, "dev", ...bundlerArgs, "--hostname", "0.0.0.0"],
   {
     stdio: "inherit",
     env: { ...process.env, NODE_OPTIONS: nodeOptions },
@@ -35,7 +57,11 @@ child.on("exit", (code, signal) => {
     console.error(`\nDev server stopped (${signal}).`);
   } else if (code && code !== 0) {
     console.error(`\nDev server exited with code ${code}.`);
-    console.error("Try: npm run dev:webpack");
+    if (bundler === "turbopack") {
+      console.error("Try: npm run dev:webpack");
+    } else {
+      console.error("Try: npm run clean && npm run dev:webpack");
+    }
   }
   process.exit(code ?? 0);
 });
