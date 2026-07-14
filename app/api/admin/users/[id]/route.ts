@@ -18,6 +18,7 @@ export const GET = withAuth(
         failedLoginCount: true,
         lockedUntil: true,
         lastLoginAt: true,
+        dashboardTheme: true,
         createdAt: true,
         updatedAt: true,
         tenant: { select: { fullName: true, kycVerified: true, profileStatus: true } },

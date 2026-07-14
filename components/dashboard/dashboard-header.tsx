@@ -118,6 +118,7 @@ export function DashboardHeader({
                     items={navItems}
                     title={sidebarTitle}
                     showLogo
+                    showThemeToggle
                     onNavigate={() => setMenuOpen(false)}
                   />
                 </SheetContent>
@@ -253,6 +254,7 @@ export function AdminDashboardHeader({
                     items={navItems}
                     title={sidebarTitle}
                     showLogo
+                    showThemeToggle
                     onNavigate={() => setMenuOpen(false)}
                   />
                 </SheetContent>

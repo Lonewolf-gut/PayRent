@@ -209,6 +209,7 @@ export class KycService {
           occupation: input.occupation,
           employerName: input.employerName,
           staffId: input.staffId,
+          ssnitNumber: input.ssnitNumber,
           monthlyIncome: input.monthlyIncome,
           residentialAddress: input.residentialAddress,
         },
@@ -233,6 +234,7 @@ export class KycService {
           occupation: input.occupation,
           employerName: input.employerName,
           staffId: input.staffId,
+          ssnitNumber: input.ssnitNumber,
           monthlyIncome: input.monthlyIncome,
           residentialAddress: input.residentialAddress,
         },
@@ -256,6 +258,7 @@ export class KycService {
           institutionName: input.employerName ?? undefined,
           lenderType: input.occupation ?? undefined,
           staffId: input.staffId,
+          ssnitNumber: input.ssnitNumber,
           residentialAddress: input.residentialAddress,
         },
       });
@@ -277,6 +280,7 @@ export class KycService {
           ...(input.dateOfBirth ? { dateOfBirth: new Date(input.dateOfBirth) } : {}),
           officeAddress: input.residentialAddress,
           staffId: input.staffId,
+          ssnitNumber: input.ssnitNumber,
         },
       });
       await auditService.log({
@@ -503,6 +507,7 @@ export class KycService {
     files: {
       employmentLetter: File;
       staffIdDocument: File;
+      ssnitDocument: File;
     }
   ) {
     const profile = await this.getRoleProfile(userId, role);
@@ -524,6 +529,7 @@ export class KycService {
 
     const verificationData: VerificationData = {
       staffId: input.staffId,
+      ssnitNumber: input.ssnitNumber,
       employerName: input.employerName,
       occupation: input.occupation,
       employmentStatus: profile?.employmentStatus ?? "EMPLOYED",
@@ -544,6 +550,7 @@ export class KycService {
     const documentUrls = await saveVerificationDocuments(userId, verification.id, {
       EMPLOYMENT_LETTER: files.employmentLetter,
       STAFF_ID: files.staffIdDocument,
+      SSNIT_CARD: files.ssnitDocument,
     });
 
     await prisma.verification.update({
@@ -551,13 +558,16 @@ export class KycService {
       data: { data: { ...verificationData, documentUrls } },
     });
 
-    await this.updateRoleProfile(userId, role, { staffId: input.staffId });
+    await this.updateRoleProfile(userId, role, {
+      staffId: input.staffId,
+      ssnitNumber: input.ssnitNumber,
+    });
 
     const contact = await getUserContactLines(userId);
     await notifyUser(
       userId,
       "Employment documents submitted",
-      "Your employment letter and staff ID have been submitted and are pending administrator review."
+      "Your employment letter, staff ID, and SSNIT document have been submitted and are pending administrator review."
     );
     await notifyAdmins(
       "New employment verification submission",
@@ -1011,6 +1021,14 @@ export class KycService {
             : role === "LENDER"
               ? lender?.staffId ?? null
               : agent?.staffId ?? null,
+      ssnitNumber:
+        role === "BUYER"
+          ? tenant?.ssnitNumber ?? null
+          : role === "MERCHANT"
+            ? landlord?.ssnitNumber ?? null
+            : role === "LENDER"
+              ? lender?.ssnitNumber ?? null
+              : agent?.ssnitNumber ?? null,
       nationalId:
         role === "BUYER"
           ? tenant?.nationalId ?? null
@@ -1369,6 +1387,7 @@ export class KycService {
     role: UserRole,
     data: {
       staffId?: string;
+      ssnitNumber?: string;
       residentialAddress?: string;
       companyRegisteredAddress?: string;
     }
@@ -1382,6 +1401,7 @@ export class KycService {
         where: { userId },
         data: {
           staffId: data.staffId,
+          ssnitNumber: data.ssnitNumber,
           residentialAddress: data.residentialAddress,
         },
       });
@@ -1390,6 +1410,7 @@ export class KycService {
         where: { userId },
         data: {
           staffId: data.staffId,
+          ssnitNumber: data.ssnitNumber,
           officeAddress: data.residentialAddress ?? data.companyRegisteredAddress,
         },
       });

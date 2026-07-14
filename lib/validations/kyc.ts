@@ -36,6 +36,7 @@ export const profileSchema = z
     monthlyIncome: optionalIncome,
     residentialAddress: optionalText(5),
     staffId: optionalText(2),
+    ssnitNumber: optionalText(6),
     employmentStatus: z.preprocess(emptyToUndefined, employmentStatusSchema.optional()),
     companyName: optionalText(2),
     companyRegistrationNumber: optionalText(2),
@@ -137,6 +138,10 @@ export const utilityBillTypeSchema = z.enum([
 
 export const employmentVerifySchema = z.object({
   staffId: z.string().min(2, "Staff ID is required."),
+  ssnitNumber: z
+    .string()
+    .min(6, "SSNIT number is required for employed users.")
+    .regex(/^[A-Za-z0-9-]+$/, "Enter a valid SSNIT number."),
   employerName: optionalText(2),
   occupation: optionalText(2),
 });

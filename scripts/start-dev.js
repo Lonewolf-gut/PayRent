@@ -20,11 +20,6 @@ function resolveBundler() {
     return forced === "webpack" ? "webpack" : "turbopack";
   }
 
-  // Turbopack frequently panics on Windows (especially under AppData temp paths).
-  if (process.platform === "win32") {
-    return "webpack";
-  }
-
   return "turbopack";
 }
 
@@ -33,11 +28,11 @@ const bundlerArgs = bundler === "webpack" ? ["--webpack"] : ["--turbopack"];
 
 console.log("");
 if (bundler === "webpack") {
-  console.log("Starting PayRent dev server (webpack — stable on Windows)…");
+  console.log("Starting PayRent dev server (webpack)…");
   console.log("First compile can take 2–5 minutes. Keep this terminal open.");
 } else {
   console.log("Starting PayRent dev server (Turbopack)…");
-  console.log("If you see FATAL Turbopack errors, run: npm run dev:webpack");
+  console.log("If you see FATAL Turbopack errors on Windows, run: npm run dev:webpack");
 }
 console.log("After Ready, open http://localhost:3000");
 console.log("");

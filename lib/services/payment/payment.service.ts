@@ -1,4 +1,5 @@
 import { momoService } from "@/lib/services/payment/momo.service";
+import { momoPaymentService } from "@/lib/services/payment/momo-payment.service";
 import { hubtelPaymentService } from "@/lib/services/payment/hubtel-payment.service";
 import { paystackPaymentService } from "@/lib/services/payment/paystack-payment.service";
 import {
@@ -28,6 +29,10 @@ export class PaymentService {
   async requestWalletDeposit(input: WalletDepositRequest) {
     const provider = getPaymentProvider();
 
+    if (provider === "momo") {
+      return momoPaymentService.requestWalletDepositFromAccount(input);
+    }
+
     if (provider === "paystack") {
       return paystackPaymentService.requestWalletDepositFromAccount(input);
     }
@@ -41,11 +46,11 @@ export class PaymentService {
         provider: "sandbox" as const,
         reference: `LOG-${Date.now()}`,
         status: "PENDING" as const,
-        message: "Configure PAYMENT_PROVIDER=paystack or hubtel for live deposits.",
+        message: "Configure PAYMENT_PROVIDER=momo and MoMo credentials for live deposits.",
       };
     }
 
-    throw new Error(`Deposits require paystack or hubtel when PAYMENT_PROVIDER=${provider}`);
+    throw new Error(`Deposits require momo when PAYMENT_PROVIDER=${provider}`);
   }
 
   async requestWalletTopUp(input: WalletTopUpRequest) {
@@ -60,6 +65,27 @@ export class PaymentService {
     }
 
     const provider = getPaymentProvider();
+
+    if (provider === "momo") {
+      if (!input.phone) {
+        throw new Error("Add a verified MoMo account in Settings before depositing.");
+      }
+      const payment = await momoService.requestPayment({
+        amount: input.amount,
+        phone: input.phone,
+        description: input.description ?? "PayForMe wallet top-up",
+      });
+
+      return {
+        provider: "momo" as const,
+        reference: payment.reference,
+        status: payment.status,
+        message:
+          payment.message ??
+          "Approve the MoMo prompt on your phone. You will receive a notification when the deposit completes.",
+        externalId: payment.externalId,
+      };
+    }
 
     if (provider === "paystack") {
       if (!input.phone) {
@@ -81,31 +107,12 @@ export class PaymentService {
       });
     }
 
-    if (provider === "momo") {
-      if (!input.phone) {
-        throw new Error("Phone number is required for Mobile Money top-up.");
-      }
-      const payment = await momoService.requestPayment({
-        amount: input.amount,
-        phone: input.phone,
-        description: input.description ?? "RentVest wallet top-up",
-      });
-
-      return {
-        provider: "momo" as const,
-        reference: payment.reference,
-        status: payment.status,
-        message: payment.message,
-        externalId: payment.externalId,
-      };
-    }
-
     if (provider === "log" || (process.env.NODE_ENV === "development" && !isPaymentCollectionConfigured())) {
       return {
         provider: "sandbox" as const,
         reference: `LOG-${Date.now()}`,
         status: "PENDING" as const,
-        message: "Configure PAYMENT_PROVIDER=paystack or hubtel for live collections.",
+        message: "Configure PAYMENT_PROVIDER=momo for live collections.",
       };
     }
 
@@ -115,23 +122,16 @@ export class PaymentService {
   async verifyWalletTopUp(reference: string) {
     const provider = getPaymentProvider();
 
+    if (provider === "momo") {
+      return momoPaymentService.verifyCollection(reference);
+    }
+
     if (provider === "paystack") {
       return paystackPaymentService.verifyCollection(reference);
     }
 
     if (provider === "hubtel") {
       return hubtelPaymentService.verifyCollection(reference);
-    }
-
-    if (provider === "momo") {
-      const payment = await momoService.verifyPayment(reference);
-      return {
-        provider: "momo" as const,
-        reference: payment.reference,
-        status: payment.status,
-        message: payment.message,
-        externalId: payment.externalId,
-      };
     }
 
     return {

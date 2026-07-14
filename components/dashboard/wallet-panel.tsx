@@ -111,10 +111,11 @@ export function WalletPanel({
       queryClient.invalidateQueries({ queryKey: ["wallet", walletApiPath] });
       if (data.payment?.checkoutUrl) {
         window.location.href = data.payment.checkoutUrl;
-        toast.success("Redirecting to Hubtel checkout…");
+        toast.success("Redirecting to checkout…");
       } else {
         toast.success(
-          data.message ?? "Payment initiated — approve the prompt on your phone."
+          data.message ??
+            "MoMo payment initiated — approve the prompt on your phone. You will receive a notification when the deposit completes."
         );
       }
       setDepositAmount("");
@@ -215,7 +216,7 @@ export function WalletPanel({
               <div>
                 <p className="text-base font-medium">Deposit funds</p>
                 <p className="text-sm font-normal text-muted-foreground">
-                  Top up via bank transfer or Mobile Money.
+                  Top up via Mobile Money using a saved verified account.
                 </p>
               </div>
               <StatusBadge status="ACTIVE" label="Top up" />
@@ -223,14 +224,28 @@ export function WalletPanel({
           </AccordionTrigger>
           <AccordionContent className="px-0 pb-6 space-y-4">
             <p className="text-sm text-muted-foreground">
-              Choose a verified account from Settings, then complete payment on the secure
-              checkout page (card, bank, or Mobile Money).
+              Your wallet balance reflects completed deposits and withdrawals only. Add a verified
+              Mobile Money account in Settings, then deposit via MoMo. Subscriptions are paid
+              separately through MoMo and cannot use wallet balance.
             </p>
 
             {!verifiedAccounts.length && settingsHref ? (
-              <Button asChild variant="outline" size="sm">
-                <Link href={settingsHref}>Add bank or MoMo account in Settings</Link>
-              </Button>
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-100">
+                You do not have a saved payment method yet. Add a verified bank or MoMo account in
+                Settings before depositing or withdrawing.
+                <div className="mt-3">
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={settingsHref}>Add account in Settings</Link>
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {verifiedAccounts.length ? (
+              <p className="text-sm text-muted-foreground">
+                Deposits are collected through MoMo. Approve the prompt on your phone and you will
+                receive an in-app and email receipt when funds arrive.
+              </p>
             ) : null}
 
             <div className="grid gap-4 sm:grid-cols-2">

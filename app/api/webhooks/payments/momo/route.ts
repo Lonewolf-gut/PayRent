@@ -5,6 +5,9 @@ import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger";
 import { notificationService } from "@/lib/services/notification.service";
 import crypto from "crypto";
+import { completeWalletDeposit } from "@/lib/services/payment/payment-completion.service";
+import { completeSubscriptionPayment } from "@/lib/services/payment/subscription-completion.service";
+import { getPendingPayment } from "@/lib/services/payment/pending-payment.store";
 
 /**
  * MoMo Webhook payload schema as per MTN MoMo API documentation
@@ -169,52 +172,41 @@ export const POST = async (req: NextRequest) => {
 
     // 8. Handle payment status
     if (webhookData.status === "SUCCESSFUL") {
-      // Record transaction atomically with wallet update
-      const transaction = await prisma.walletTransaction.create({
-        data: {
-          walletId: wallet.id,
-          type: "DEPOSIT",
-          status: "COMPLETED",
-          amount: new Decimal(webhookData.amount),
-          netAmount: new Decimal(webhookData.amount),
-          reference: webhookData.externalId,
-          description: `MoMo deposit - ${webhookData.payerMessage || "wallet top-up"}`,
+      const session = await getPendingPayment(webhookData.externalId);
+
+      if (session?.purpose === "SUBSCRIPTION") {
+        await completeSubscriptionPayment({
+          clientReference: webhookData.externalId,
+          amount: webhookData.amount,
+          provider: "momo",
           metadata: {
-            provider: "MOMO",
             payerPhone: webhookData.payer.partyId,
             timestamp: webhookData.timestamp,
           },
-        },
-        include: { wallet: true },
-      });
-
-      // Update wallet balance
-      await prisma.wallet.update({
-        where: { id: wallet.id },
-        data: {
-          balance: { increment: new Decimal(webhookData.amount) },
-        },
-      });
-
-      // Send success notification to user
-      await notificationService.send({
-        userId: user.id,
-        type: "PAYMENT_SUCCESSFUL",
-        channels: ["IN_APP", "EMAIL"],
-        title: "Payment Received",
-        message: `₵${webhookData.amount.toFixed(2)} has been added to your wallet`,
-        metadata: {
+        });
+      } else if (session?.purpose === "WALLET_DEPOSIT") {
+        await completeWalletDeposit({
+          clientReference: webhookData.externalId,
           amount: webhookData.amount,
-          reference: webhookData.externalId,
-          type: "DEPOSIT",
-        },
-      });
+          provider: "momo",
+          description: `MoMo deposit — ${webhookData.payerMessage || "wallet top-up"}`,
+          metadata: {
+            payerPhone: webhookData.payer.partyId,
+            timestamp: webhookData.timestamp,
+          },
+        });
+      } else {
+        logger.warn("MoMo webhook without pending payment session", {
+          requestId,
+          externalId: webhookData.externalId,
+        });
+      }
 
-      logger.info("Payment webhook processed successfully", {
+      logger.info("MoMo webhook processed successfully", {
         requestId,
-        userId: user.id,
-        amount: webhookData.amount,
         externalId: webhookData.externalId,
+        amount: webhookData.amount,
+        purpose: session?.purpose ?? "unknown",
       });
 
       return new Response(JSON.stringify({ success: true }), { status: 200 });

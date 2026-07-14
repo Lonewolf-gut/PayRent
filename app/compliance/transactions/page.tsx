@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/utils/format-datetime";
+import { ScrollableTable } from "@/components/ui/scrollable-table";
 
 export default function ComplianceTransactionsPage() {
   const [page, setPage] = useState(1);
@@ -55,13 +56,14 @@ export default function ComplianceTransactionsPage() {
         <CardHeader>
           <CardTitle>Recent transactions</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 sm:p-6">
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading transactions…</p>
+            <p className="px-6 pb-6 text-sm text-muted-foreground sm:px-0">Loading transactions…</p>
           ) : !data?.transactions?.length ? (
-            <p className="text-sm text-muted-foreground">No transactions found.</p>
+            <p className="px-6 pb-6 text-sm text-muted-foreground sm:px-0">No transactions found.</p>
           ) : (
-            <Table>
+            <ScrollableTable>
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Reference</TableHead>
@@ -93,8 +95,9 @@ export default function ComplianceTransactionsPage() {
                 ))}
               </TableBody>
             </Table>
+            </ScrollableTable>
           )}
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex gap-2 px-6 pb-6 sm:px-0">
             <Button
               size="sm"
               variant="outline"

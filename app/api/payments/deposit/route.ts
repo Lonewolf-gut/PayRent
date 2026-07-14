@@ -43,7 +43,7 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
       payment,
       message: payment.message,
     },
-    payment.checkoutUrl ? 200 : 202
+    "checkoutUrl" in payment && payment.checkoutUrl ? 200 : 202
   );
 });
 

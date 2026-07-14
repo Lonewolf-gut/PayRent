@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { cn } from "@/lib/utils";
+import { SessionExpiryHandler } from "@/components/providers/session-expiry-handler";
 
 const STORAGE_KEY = "payforme-dashboard-theme";
 
@@ -58,6 +59,11 @@ export function DashboardThemeProvider({
     setThemeState(next);
     localStorage.setItem(STORAGE_KEY, next);
     applyThemeClass(next);
+    void fetch("/api/settings/theme", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ theme: next }),
+    }).catch(() => undefined);
   }, []);
 
   const toggleTheme = useCallback(() => {
@@ -65,6 +71,11 @@ export function DashboardThemeProvider({
       const next = current === "dark" ? "light" : "dark";
       localStorage.setItem(STORAGE_KEY, next);
       applyThemeClass(next);
+      void fetch("/api/settings/theme", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: next }),
+      }).catch(() => undefined);
       return next;
     });
   }, []);
@@ -82,6 +93,7 @@ export function DashboardThemeProvider({
           theme === "dark" ? "dark min-h-screen bg-background" : "min-h-screen bg-background"
         )}
       >
+        <SessionExpiryHandler />
         {children}
       </div>
     </DashboardThemeContext.Provider>

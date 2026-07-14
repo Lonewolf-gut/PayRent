@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Wallet } from "lucide-react";
+import { ArrowLeft, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PricingCardsSection } from "@/components/subscription/pricing-cards-section";
@@ -21,7 +21,14 @@ import { roleRequiresSubscription } from "@/lib/subscription/roles";
 import { DASHBOARD_ROUTES } from "@/lib/auth/permissions";
 
 type BillingCycle = "MONTHLY" | "ANNUAL";
-type PaymentMethod = "wallet" | "paystack";
+
+type BankAccount = {
+  id: string;
+  accountType?: string;
+  bankName: string;
+  accountNumberMasked?: string | null;
+  isVerified: boolean;
+};
 
 function formatAmount(amount: number) {
   return `GHS ${amount.toFixed(2)}`;
@@ -38,7 +45,7 @@ export function SubscriptionCheckoutPage() {
     initialPlan === "PRO" || initialPlan === "MAX" ? initialPlan : null
   );
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("ANNUAL");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("paystack");
+  const [bankAccountId, setBankAccountId] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const { data: subscriptionData } = useQuery({
@@ -51,20 +58,29 @@ export function SubscriptionCheckoutPage() {
     enabled: !!session?.user,
   });
 
-  const { data: wallet } = useQuery({
-    queryKey: ["wallet-balance"],
+  const { data: bankAccounts = [] } = useQuery({
+    queryKey: ["settings-bank-accounts"],
     queryFn: async () => {
-      const res = await fetch("/api/wallet");
+      const res = await fetch("/api/settings");
       const json = await res.json();
-      return json.data as { balance?: number | string } | null;
+      return (json.data?.bankAccounts ?? []) as BankAccount[];
     },
     enabled: !!session?.user,
   });
 
+  const verifiedMomoAccounts = bankAccounts.filter(
+    (account) => account.isVerified && account.accountType === "MOMO"
+  );
+
   const currentPlan = normalizeSubscriptionPlan(
     subscriptionData?.subscription?.plan ?? "FREE"
   );
-  const walletBalance = Number(wallet?.balance ?? 0);
+  const role = session?.user?.role;
+  const canSubscribe = role ? roleRequiresSubscription(role) : true;
+  const settingsPath = useMemo(() => {
+    if (role === "MARKETER") return "/dashboard/marketer/settings";
+    return "/dashboard/merchant/settings";
+  }, [role]);
 
   const checkoutPlan = selectedPlan && selectedPlan !== "FREE" ? selectedPlan : null;
   const planMeta = checkoutPlan ? PLAN_CATALOG[checkoutPlan] : null;
@@ -73,14 +89,6 @@ export function SubscriptionCheckoutPage() {
     : 0;
   const annualSavings = checkoutPlan ? getAnnualSavingsPercent(checkoutPlan) : 0;
   const cycleLabel = billingCycle === "ANNUAL" ? "year" : "month";
-
-  const role = session?.user?.role;
-  const canSubscribe = role ? roleRequiresSubscription(role) : true;
-
-  const walletPath = useMemo(() => {
-    if (role === "MARKETER") return "/dashboard/marketer/wallet";
-    return "/dashboard/merchant/wallet";
-  }, [role]);
 
   useEffect(() => {
     if (initialPlan === "PRO" || initialPlan === "MAX") {
@@ -106,7 +114,8 @@ export function SubscriptionCheckoutPage() {
           action: "upgrade",
           plan: checkoutPlan,
           billingCycle,
-          paymentMethod,
+          paymentMethod: "momo",
+          bankAccountId,
         }),
       });
       const json = await res.json();
@@ -115,21 +124,14 @@ export function SubscriptionCheckoutPage() {
         throw new Error(message);
       }
 
-      if (paymentMethod === "paystack") {
-        const checkoutUrl = json.data?.checkout?.checkoutUrl as string | undefined;
-        if (checkoutUrl) {
-          window.location.href = checkoutUrl;
-          return;
-        }
-        throw new Error(json.data?.checkout?.message ?? "Could not start Paystack checkout.");
-      }
-
       return json.data;
     },
-    onSuccess: () => {
-      toast.success(`${planMeta?.name ?? "Plan"} activated — payment taken from your wallet`);
+    onSuccess: (data) => {
+      toast.success(
+        data?.message ??
+          "MoMo payment initiated — approve the prompt on your phone to activate your subscription."
+      );
       queryClient.invalidateQueries({ queryKey: ["subscription"] });
-      queryClient.invalidateQueries({ queryKey: ["wallet-balance"] });
       router.push("/dashboard");
     },
     onError: (error: Error) => {
@@ -304,64 +306,51 @@ export function SubscriptionCheckoutPage() {
 
               <div className="mt-6">
                 <p className="text-sm text-emerald-900/70">Payment method</p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <label
-                    className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 ${
-                      paymentMethod === "paystack"
-                        ? "border-emerald-500 bg-emerald-50"
-                        : "border-emerald-100"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="paystack"
-                      checked={paymentMethod === "paystack"}
-                      onChange={() => setPaymentMethod("paystack")}
-                      className="mt-1 accent-emerald-600"
-                    />
-                    <div>
-                      <p className="font-medium text-emerald-950">Pay direct</p>
-                      <p className="mt-1 text-sm text-emerald-900/65">
-                        Card, bank transfer, or Mobile Money via Paystack
-                      </p>
+                <p className="mt-2 text-sm text-emerald-900/65">
+                  Subscriptions are paid through Mobile Money only. Wallet balance cannot be used
+                  for subscription payments.
+                </p>
+                {!verifiedMomoAccounts.length ? (
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                    Add a verified MoMo account in Settings before subscribing.
+                    <div className="mt-3">
+                      <Link href={settingsPath} className="font-medium text-emerald-700 underline">
+                        Go to Settings
+                      </Link>
                     </div>
-                  </label>
-                  <label
-                    className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 ${
-                      paymentMethod === "wallet"
-                        ? "border-emerald-500 bg-emerald-50"
-                        : "border-emerald-100"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="wallet"
-                      checked={paymentMethod === "wallet"}
-                      onChange={() => setPaymentMethod("wallet")}
-                      className="mt-1 accent-emerald-600"
-                    />
-                    <div>
-                      <p className="flex items-center gap-2 font-medium text-emerald-950">
-                        <Wallet className="h-4 w-4" />
-                        Pay from wallet
-                      </p>
-                      <p className="mt-1 text-sm text-emerald-900/65">
-                        Balance: {formatAmount(walletBalance)}
-                        {walletBalance < price ? (
-                          <>
-                            {" "}
-                            ·{" "}
-                            <Link href={walletPath} className="font-medium text-emerald-700 underline">
-                              Top up wallet
-                            </Link>
-                          </>
-                        ) : null}
-                      </p>
-                    </div>
-                  </label>
-                </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    {verifiedMomoAccounts.map((account) => (
+                      <label
+                        key={account.id}
+                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 ${
+                          bankAccountId === account.id
+                            ? "border-emerald-500 bg-emerald-50"
+                            : "border-emerald-100"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="bankAccountId"
+                          value={account.id}
+                          checked={bankAccountId === account.id}
+                          onChange={() => setBankAccountId(account.id)}
+                          className="mt-1 accent-emerald-600"
+                        />
+                        <div>
+                          <p className="flex items-center gap-2 font-medium text-emerald-950">
+                            <Smartphone className="h-4 w-4" />
+                            {account.bankName}
+                          </p>
+                          <p className="mt-1 text-sm text-emerald-900/65">
+                            {account.accountNumberMasked ?? "Verified MoMo account"}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="mt-6 flex items-start gap-3">
@@ -387,7 +376,8 @@ export function SubscriptionCheckoutPage() {
                 disabled={
                   checkoutMutation.isPending ||
                   isCurrentPaidPlan ||
-                  (paymentMethod === "wallet" && walletBalance < price) ||
+                  !bankAccountId ||
+                  !verifiedMomoAccounts.length ||
                   sessionStatus === "loading"
                 }
                 onClick={() => checkoutMutation.mutate()}

@@ -4,8 +4,6 @@ import { AppError } from "@/lib/errors";
 import { getPlanLimits } from "@/lib/subscription-limits";
 import { PLAN_CATALOG, normalizeSubscriptionPlan } from "@/lib/subscription/plans";
 import { walletService } from "@/lib/services/wallet.service";
-import { getWalletTypeForRole } from "@/lib/wallet/role-wallet";
-import { notificationService } from "@/lib/services/notification.service";
 import {
   getSubscriptionPrice,
   PLAN_PRICES,
@@ -76,11 +74,12 @@ export class SubscriptionService {
     });
   }
 
-  async upgradeWithPayment(
+  async upgradeWithMomo(
     userId: string,
     role: UserRole,
     plan: SubscriptionPlan,
-    billingCycle: BillingCycle
+    billingCycle: BillingCycle,
+    bankAccountId: string
   ) {
     if (plan === "FREE") {
       throw new AppError("Use cancel to return to the free plan");
@@ -93,34 +92,30 @@ export class SubscriptionService {
       throw new AppError(`You already have an active ${getPlanLabel(plan)} subscription`);
     }
 
-    const amount = getSubscriptionPrice(plan, billingCycle);
-    const walletType = getWalletTypeForRole(role);
-    if (!walletType) {
-      throw new AppError("Your account role cannot purchase a subscription");
-    }
-
-    const cycleLabel = billingCycle === "ANNUAL" ? "annual" : "monthly";
-    const planLabel = getPlanLabel(plan);
-    await walletService.payToPlatform(
-      userId,
-      walletType,
-      amount,
-      `${planLabel} ${cycleLabel} subscription`
+    const { momoPaymentService } = await import(
+      "@/lib/services/payment/momo-payment.service"
     );
 
-    const subscription = await this.upgrade(userId, plan, billingCycle, {
-      skipCancelCheck: true,
-    });
-
-    await notificationService.create({
+    return momoPaymentService.requestSubscriptionPayment({
       userId,
-      title: `${planLabel} activated`,
-      body: `Your ${planLabel} plan (${cycleLabel}) is active until ${subscription.endDate?.toLocaleDateString() ?? "the renewal date"}.`,
-      channel: "EMAIL",
-      sendEmail: true,
+      role,
+      plan,
+      billingCycle,
+      bankAccountId,
     });
+  }
 
-    return subscription;
+  async upgradeWithPayment(
+    _userId: string,
+    _role: UserRole,
+    _plan: SubscriptionPlan,
+    _billingCycle: BillingCycle
+  ) {
+    throw new AppError(
+      "Subscriptions cannot be paid from your wallet. Use Mobile Money instead.",
+      400,
+      "WALLET_SUBSCRIPTION_DISABLED"
+    );
   }
 
   async upgrade(

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/utils/format-datetime";
+import { ScrollableTable } from "@/components/ui/scrollable-table";
 import {
   Table,
   TableBody,
@@ -80,13 +81,14 @@ export default function ComplianceAuditLogsPage() {
         <CardHeader>
           <CardTitle>Recent activity</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 sm:p-6">
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading audit logs…</p>
+            <p className="px-6 pb-6 text-sm text-muted-foreground sm:px-0">Loading audit logs…</p>
           ) : !data?.length ? (
-            <p className="text-sm text-muted-foreground">No audit logs found.</p>
+            <p className="px-6 pb-6 text-sm text-muted-foreground sm:px-0">No audit logs found.</p>
           ) : (
-            <Table>
+            <ScrollableTable>
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Action</TableHead>
@@ -124,6 +126,7 @@ export default function ComplianceAuditLogsPage() {
                 ))}
               </TableBody>
             </Table>
+            </ScrollableTable>
           )}
         </CardContent>
       </Card>

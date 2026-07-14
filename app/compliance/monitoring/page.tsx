@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { LoginActivityPanel } from "@/components/admin/login-activity-panel";
+import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -26,9 +27,9 @@ type SuspiciousFlag = {
 };
 
 const severityClass: Record<string, string> = {
-  HIGH: "bg-red-100 text-red-800",
-  MEDIUM: "bg-amber-100 text-amber-800",
-  LOW: "bg-slate-100 text-slate-700",
+  HIGH: "bg-destructive/15 text-destructive",
+  MEDIUM: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  LOW: "bg-muted text-muted-foreground",
 };
 
 const categoryLabels: Record<string, string> = {
@@ -62,13 +63,14 @@ export default function ComplianceMonitoringPage() {
         <CardHeader>
           <CardTitle>Automated flags</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 sm:p-6">
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Scanning for suspicious activity…</p>
+            <p className="px-6 pb-6 text-sm text-muted-foreground sm:px-0">Scanning for suspicious activity…</p>
           ) : !flags?.length ? (
-            <p className="text-sm text-muted-foreground">No suspicious activity flags right now.</p>
+            <p className="px-6 pb-6 text-sm text-muted-foreground sm:px-0">No suspicious activity flags right now.</p>
           ) : (
-            <Table>
+            <ScrollableTable>
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Severity</TableHead>
@@ -97,6 +99,7 @@ export default function ComplianceMonitoringPage() {
                 ))}
               </TableBody>
             </Table>
+            </ScrollableTable>
           )}
         </CardContent>
       </Card>

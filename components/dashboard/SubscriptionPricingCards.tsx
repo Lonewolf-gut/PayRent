@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { Check, CreditCard } from "lucide-react";
-import { PLAN_PRICES } from "@/lib/subscription/pricing";
 
 const plans = [
   {
@@ -45,17 +42,6 @@ export function SubscriptionPricingCards({
 }: {
   upgradeOnly?: boolean;
 }) {
-  const queryClient = useQueryClient();
-  const pathname = usePathname();
-
-  const walletPath = pathname.includes("/tenant/")
-    ? "/dashboard/buyer/wallet"
-    : pathname.includes("/agent/")
-      ? "/dashboard/marketer/wallet"
-      : pathname.includes("/lender/")
-        ? "/dashboard/lender/wallet"
-        : "/dashboard/merchant/wallet";
-
   const { data: subscription } = useQuery({
     queryKey: ["subscription"],
     queryFn: async () => {
@@ -65,95 +51,7 @@ export function SubscriptionPricingCards({
     },
   });
 
-  const { data: wallet } = useQuery({
-    queryKey: ["wallet-balance"],
-    queryFn: async () => {
-      const res = await fetch("/api/wallet");
-      const json = await res.json();
-      return json.data as { balance?: number | string } | null;
-    },
-  });
-
-  const walletBalance = Number(wallet?.balance ?? 0);
-
-  const paystackUpgradeMutation = useMutation({
-    mutationFn: async (billingCycle: "MONTHLY" | "ANNUAL") => {
-      const res = await fetch("/api/subscriptions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "upgrade",
-          plan: "PREMIUM",
-          billingCycle,
-          paymentMethod: "paystack",
-        }),
-      });
-      const json = await res.json();
-      if (!json.success) {
-        const message = json.errors?.[0]?.message ?? json.message ?? "Upgrade failed";
-        throw new Error(message);
-      }
-
-      const checkoutUrl = json.data?.checkout?.checkoutUrl as string | undefined;
-      if (checkoutUrl) {
-        window.location.href = checkoutUrl;
-        return;
-      }
-
-      throw new Error(json.data?.checkout?.message ?? "Could not start Paystack checkout.");
-    },
-    onError: (e: Error) => {
-      toast.error(e.message);
-    },
-  });
-
-  const walletUpgradeMutation = useMutation({
-    mutationFn: async (billingCycle: "MONTHLY" | "ANNUAL") => {
-      const res = await fetch("/api/subscriptions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "upgrade",
-          plan: "PREMIUM",
-          billingCycle,
-          paymentMethod: "wallet",
-        }),
-      });
-      const json = await res.json();
-      if (!json.success) {
-        const code = json.errors?.[0]?.code;
-        const message = json.errors?.[0]?.message ?? json.message ?? "Upgrade failed";
-        const error = new Error(message) as Error & { code?: string };
-        error.code = code;
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      toast.success("Premium activated — payment taken from your wallet");
-      queryClient.invalidateQueries({ queryKey: ["subscription"] });
-      queryClient.invalidateQueries({ queryKey: ["wallet-balance"] });
-    },
-    onError: (e: Error & { code?: string }) => {
-      if (e.code === "INSUFFICIENT_FUNDS") {
-        toast.error(e.message, {
-          action: {
-            label: "Top up wallet",
-            onClick: () => {
-              window.location.href = walletPath;
-            },
-          },
-        });
-        return;
-      }
-      toast.error(e.message);
-    },
-  });
-
   const currentPlan = subscription?.subscription?.plan ?? "FREE";
-  const monthlyPrice = PLAN_PRICES.PREMIUM.monthly;
-  const annualPrice = PLAN_PRICES.PREMIUM.annual;
-  const isUpgrading =
-    paystackUpgradeMutation.isPending || walletUpgradeMutation.isPending;
 
   const visiblePlans = upgradeOnly
     ? plans.filter((plan) => plan.id !== "FREE")
@@ -169,8 +67,8 @@ export function SubscriptionPricingCards({
     >
       {!upgradeOnly ? null : (
         <p className="mb-4 text-sm text-muted-foreground">
-          Pay securely with Paystack (card, bank, or Mobile Money). You can also pay from your
-          wallet if you have enough balance.
+          Subscriptions are paid through Mobile Money only. Wallet balance cannot be used for
+          subscription payments.
         </p>
       )}
 
@@ -253,58 +151,21 @@ export function SubscriptionPricingCards({
                 <div className="mt-8 space-y-3">
                   <p className="flex items-center justify-center gap-2 text-center text-xs text-emerald-50/80">
                     <CreditCard className="size-3.5" />
-                    Secure checkout via Paystack
+                    Pay with verified Mobile Money
                   </p>
                   <div className="flex flex-col gap-2 sm:flex-row">
-                    <button
-                      type="button"
-                      className="inline-flex flex-1 items-center justify-center rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-60"
-                      disabled={isUpgrading}
-                      onClick={() => paystackUpgradeMutation.mutate("MONTHLY")}
+                    <Link
+                      href="/pricing?plan=PREMIUM"
+                      className="inline-flex flex-1 items-center justify-center rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
                     >
-                      Pay GHS {monthlyPrice}/mo
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex flex-1 items-center justify-center rounded-md border border-emerald-600/50 px-4 py-2.5 text-sm font-semibold text-white transition hover:border-emerald-500 hover:bg-emerald-800/50 disabled:opacity-60"
-                      disabled={isUpgrading}
-                      onClick={() => paystackUpgradeMutation.mutate("ANNUAL")}
+                      Subscribe monthly
+                    </Link>
+                    <Link
+                      href="/pricing?plan=PREMIUM"
+                      className="inline-flex flex-1 items-center justify-center rounded-md border border-emerald-600/50 px-4 py-2.5 text-sm font-semibold text-white transition hover:border-emerald-500 hover:bg-emerald-800/50"
                     >
-                      Pay GHS {annualPrice}/yr
-                    </button>
-                  </div>
-                  <div className="border-t border-emerald-400/20 pt-3">
-                    <p className="mb-2 text-center text-xs text-emerald-50/70">
-                      Wallet balance: GHS{" "}
-                      {walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </p>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <button
-                        type="button"
-                        className="inline-flex flex-1 items-center justify-center rounded-md border border-white/20 px-3 py-2 text-xs font-medium text-emerald-50/90 transition hover:bg-white/10 disabled:opacity-50"
-                        disabled={
-                          isUpgrading || walletBalance < monthlyPrice
-                        }
-                        onClick={() => walletUpgradeMutation.mutate("MONTHLY")}
-                      >
-                        Use wallet (monthly)
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex flex-1 items-center justify-center rounded-md border border-white/20 px-3 py-2 text-xs font-medium text-emerald-50/90 transition hover:bg-white/10 disabled:opacity-50"
-                        disabled={
-                          isUpgrading || walletBalance < annualPrice
-                        }
-                        onClick={() => walletUpgradeMutation.mutate("ANNUAL")}
-                      >
-                        Use wallet (annual)
-                      </button>
-                    </div>
-                    <p className="mt-2 text-center text-xs text-emerald-50/60">
-                      <Link href={walletPath} className="underline hover:text-white">
-                        Top up wallet
-                      </Link>
-                    </p>
+                      Subscribe annually
+                    </Link>
                   </div>
                 </div>
               ) : plan.id === "FREE" && isCurrent ? (

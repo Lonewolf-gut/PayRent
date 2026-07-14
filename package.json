@@ -25,6 +25,7 @@
     "db:business-rules": "node scripts/db-business-rules.js",
     "db:financing-workflow": "node scripts/db-financing-workflow.js",
     "db:user-last-login": "node scripts/db-user-last-login.js",
+    "db:ssnit-theme": "node scripts/db-ssnit-theme.js",
     "db:migrate": "prisma migrate dev",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",

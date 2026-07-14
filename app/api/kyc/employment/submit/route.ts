@@ -13,6 +13,7 @@ export const POST = withAuth(
     const formData = await req.formData();
     const parsed = employmentVerifySchema.safeParse({
       staffId: formData.get("staffId")?.toString(),
+      ssnitNumber: formData.get("ssnitNumber")?.toString(),
       employerName: formData.get("employerName")?.toString() || undefined,
       occupation: formData.get("occupation")?.toString() || undefined,
     });
@@ -22,11 +23,12 @@ export const POST = withAuth(
 
     const employmentLetter = getFile(formData, "employmentLetter");
     const staffIdDocument = getFile(formData, "staffIdDocument");
-    if (!employmentLetter || !staffIdDocument) {
+    const ssnitDocument = getFile(formData, "ssnitDocument");
+    if (!employmentLetter || !staffIdDocument || !ssnitDocument) {
       return apiResponse(
         null,
         400,
-        "Employment letter and staff ID document are required."
+        "Employment letter, staff ID document, and SSNIT document are required."
       );
     }
 
@@ -34,7 +36,7 @@ export const POST = withAuth(
       session.user.id,
       session.user.role,
       parsed.data,
-      { employmentLetter, staffIdDocument }
+      { employmentLetter, staffIdDocument, ssnitDocument }
     );
 
     return apiResponse(

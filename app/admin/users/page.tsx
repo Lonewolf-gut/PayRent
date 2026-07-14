@@ -217,7 +217,7 @@ export default function AdminUsersPage() {
       {isLoading ? (
         <p className="text-muted-foreground">Loading…</p>
       ) : (
-        <div className="overflow-x-auto border border-slate-200">
+        <div className="overflow-x-auto border border-border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -308,6 +308,7 @@ export default function AdminUsersPage() {
               <p><strong>Role:</strong> {ROLE_LABELS[detail.role as UserRole] ?? detail.role}</p>
               <p><strong>Phone:</strong> {detail.phone ?? "—"}</p>
               <p><strong>Status:</strong> {detail.isActive ? "Active" : "Suspended"}</p>
+              <p><strong>Theme:</strong> {detail.dashboardTheme === "dark" ? "Dark" : "Light"}</p>
               <p><strong>Last sign-in:</strong> {formatDateTime(detail.lastLoginAt)}</p>
               <p><strong>Joined:</strong> {formatDateTime(detail.createdAt)}</p>
               <p><strong>2FA:</strong> {detail.twoFactorEnabled ? "Enabled" : "Off"}</p>
@@ -322,7 +323,7 @@ export default function AdminUsersPage() {
                       ipAddress?: string | null;
                       createdAt: string;
                     }) => (
-                      <li key={log.id} className="flex flex-wrap justify-between gap-2 border-b border-slate-100 py-1">
+                      <li key={log.id} className="flex flex-wrap justify-between gap-2 border-b border-border py-1">
                         <span>
                           {log.success ? "Success" : "Failed"}
                           {log.ipAddress ? ` · ${log.ipAddress}` : ""}

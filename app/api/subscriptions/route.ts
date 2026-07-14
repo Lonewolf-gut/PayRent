@@ -4,7 +4,6 @@ import { subscriptionService } from "@/lib/services/subscription.service";
 import { getSubscriptionAccess } from "@/lib/subscription/access";
 import { roleRequiresSubscription } from "@/lib/subscription/roles";
 import { AppError } from "@/lib/errors";
-import { getPaymentProvider } from "@/lib/services/payment/provider";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 import type { SubscriptionPlan, BillingCycle } from "@prisma/client";
 
@@ -23,7 +22,8 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
     action: z.enum(["upgrade", "cancel"]),
     plan: z.enum(["PRO", "MAX", "PREMIUM"]).optional(),
     billingCycle: z.enum(["MONTHLY", "ANNUAL"]).optional(),
-    paymentMethod: z.enum(["wallet", "paystack"]).optional(),
+    paymentMethod: z.enum(["momo"]).optional(),
+    bankAccountId: z.string().cuid().optional(),
   });
   const parsed = schema.safeParse(body);
   if (!parsed.success) return apiResponse({ error: "Invalid input" }, 400);
@@ -38,7 +38,7 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
 
   if (!roleRequiresSubscription(session.user.role)) {
     throw new AppError(
-      "Subscriptions are available for landlord and agent accounts only.",
+      "Subscriptions are available for merchant and marketer accounts only.",
       403,
       "SUBSCRIPTION_NOT_AVAILABLE"
     );
@@ -46,33 +46,30 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
 
   const plan = (parsed.data.plan ?? "PRO") as SubscriptionPlan;
   const billingCycle = (parsed.data.billingCycle ?? "MONTHLY") as BillingCycle;
-  const provider = getPaymentProvider();
-  const paymentMethod =
-    parsed.data.paymentMethod ?? (provider === "paystack" ? "paystack" : "wallet");
 
-  if (paymentMethod === "paystack" && provider === "paystack") {
-    const checkout = await subscriptionService.upgradeWithPaystack(
-      session.user.id,
-      session.user.role,
-      plan,
-      billingCycle
+  if (!parsed.data.bankAccountId) {
+    throw new AppError(
+      "Add a verified Mobile Money account in Settings before subscribing.",
+      400,
+      "PAYMENT_METHOD_REQUIRED"
     );
-
-    if (!checkout.checkoutUrl) {
-      return apiResponse({ checkout, message: checkout.message }, 202);
-    }
-
-    return apiResponse({
-      checkout,
-      message: checkout.message ?? "Redirecting to Paystack checkout…",
-    });
   }
 
-  const result = await subscriptionService.upgradeWithPayment(
+  const checkout = await subscriptionService.upgradeWithMomo(
     session.user.id,
     session.user.role,
     plan,
-    billingCycle
+    billingCycle,
+    parsed.data.bankAccountId
   );
-  return apiResponse(result);
+
+  return apiResponse(
+    {
+      checkout,
+      message:
+        checkout.message ??
+        "Approve the MoMo prompt on your phone to activate your subscription.",
+    },
+    checkout.status === "FAILED" ? 400 : 202
+  );
 });

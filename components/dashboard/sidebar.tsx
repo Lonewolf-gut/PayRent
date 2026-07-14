@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { Badge } from "@/components/ui/badge";
 import { SidebarUpgradeCard } from "@/components/dashboard/subscription-upgrade-dialog";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 const ICONS: Record<string, LucideIcon> = {
   Home,
@@ -81,11 +82,13 @@ export function SidebarNavContent({
   title,
   onNavigate,
   showLogo = false,
+  showThemeToggle = false,
 }: {
   items: NavItem[];
   title: string;
   onNavigate?: () => void;
   showLogo?: boolean;
+  showThemeToggle?: boolean;
 }) {
   const pathname = usePathname();
   const badgeCountMap = useSidebarBadges(items);
@@ -133,6 +136,14 @@ export function SidebarNavContent({
           );
         })}
       </nav>
+      {showThemeToggle ? (
+        <div className="border-t px-4 py-4 lg:hidden">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Appearance
+          </p>
+          <ThemeToggle />
+        </div>
+      ) : null}
       <SidebarUpgradeCard />
     </div>
   );

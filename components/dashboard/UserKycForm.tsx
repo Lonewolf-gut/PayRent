@@ -54,6 +54,7 @@ function applyStatusToForm(
       monthlyIncome: string;
       residentialAddress: string;
       staffId: string;
+      ssnitNumber: string;
       companyName: string;
       companyRegistrationNumber: string;
       companyRegisteredAddress: string;
@@ -79,6 +80,7 @@ function applyStatusToForm(
       status.monthlyIncome != null ? String(status.monthlyIncome) : "",
     residentialAddress: (status.residentialAddress as string) ?? "",
     staffId: (status.staffId as string) ?? "",
+    ssnitNumber: (status.ssnitNumber as string) ?? "",
     companyName: (status.companyName as string) ?? "",
     companyRegistrationNumber: (status.companyRegistrationNumber as string) ?? "",
     companyRegisteredAddress: (status.companyRegisteredAddress as string) ?? "",
@@ -132,6 +134,7 @@ export function UserKycForm({
     monthlyIncome: "",
     residentialAddress: "",
     staffId: "",
+    ssnitNumber: "",
     companyName: "",
     companyRegistrationNumber: "",
     companyRegisteredAddress: "",
@@ -148,6 +151,7 @@ export function UserKycForm({
   const [facePhoto, setFacePhoto] = useState<File | null>(null);
   const [companyRegistration, setCompanyRegistration] = useState<File | null>(null);
   const [companyTin, setCompanyTin] = useState<File | null>(null);
+  const [ssnitDocument, setSsnitDocument] = useState<File | null>(null);
   const [employmentLetter, setEmploymentLetter] = useState<File | null>(null);
   const [staffIdDocument, setStaffIdDocument] = useState<File | null>(null);
   const [addressProof, setAddressProof] = useState<File | null>(null);
@@ -199,6 +203,9 @@ export function UserKycForm({
         if (profile.staffId.trim() && employmentStatus === "EMPLOYED") {
           payload.staffId = profile.staffId;
         }
+        if (profile.ssnitNumber.trim() && employmentStatus === "EMPLOYED") {
+          payload.ssnitNumber = profile.ssnitNumber;
+        }
       }
 
       const res = await fetch("/api/kyc", {
@@ -229,17 +236,19 @@ export function UserKycForm({
     mutationFn: async () => {
       const formData = new FormData();
       formData.append("staffId", profile.staffId);
+      formData.append("ssnitNumber", profile.ssnitNumber);
       if (profile.employerName.trim()) {
         formData.append("employerName", profile.employerName);
       }
       if (profile.occupation.trim()) {
         formData.append("occupation", profile.occupation);
       }
-      if (!employmentLetter || !staffIdDocument) {
-        throw new Error("Employment letter and staff ID document are required.");
+      if (!employmentLetter || !staffIdDocument || !ssnitDocument) {
+        throw new Error("Employment letter, staff ID document, and SSNIT document are required.");
       }
       formData.append("employmentLetter", employmentLetter);
       formData.append("staffIdDocument", staffIdDocument);
+      formData.append("ssnitDocument", ssnitDocument);
 
       const res = await fetch("/api/kyc/employment/submit", {
         method: "POST",
@@ -253,6 +262,7 @@ export function UserKycForm({
       toast.success(json.message ?? "Employment documents submitted");
       setEmploymentLetter(null);
       setStaffIdDocument(null);
+      setSsnitDocument(null);
       await queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
       await refetch();
     },
@@ -615,18 +625,31 @@ export function UserKycForm({
                     />
                   </div>
                   {employmentStatus === "EMPLOYED" ? (
-                    <div className="sm:col-span-2">
-                      <Label>Staff ID number</Label>
-                      <Input
-                        value={profile.staffId}
-                        onChange={(e) =>
-                          setProfile({ ...profile, staffId: e.target.value })
-                        }
-                      />
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Required for employed users before submitting employment documents.
-                      </p>
-                    </div>
+                    <>
+                      <div className="sm:col-span-2">
+                        <Label>Staff ID number</Label>
+                        <Input
+                          value={profile.staffId}
+                          onChange={(e) =>
+                            setProfile({ ...profile, staffId: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Label>SSNIT number</Label>
+                        <Input
+                          value={profile.ssnitNumber}
+                          onChange={(e) =>
+                            setProfile({ ...profile, ssnitNumber: e.target.value })
+                          }
+                          placeholder="Enter your SSNIT membership number"
+                        />
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Required for employed users. You will also submit an SSNIT registration
+                          document in the employment verification step.
+                        </p>
+                      </div>
+                    </>
                   ) : null}
                 </>
               )}
@@ -649,7 +672,7 @@ export function UserKycForm({
                 <p className="text-base font-medium">Employment verification</p>
                 <p className="text-sm font-normal text-muted-foreground">
                   {needsEmploymentDocuments
-                    ? "Submit your employment letter and staff ID document for admin review."
+                    ? "Submit your employment letter, staff ID, and SSNIT document for admin review."
                     : "Your employment status is recorded on your profile. Document upload is only required if you are employed."}
                 </p>
               </div>
@@ -687,6 +710,16 @@ export function UserKycForm({
                 />
               </div>
               <div className="sm:col-span-2">
+                <Label>SSNIT number</Label>
+                <Input
+                  value={profile.ssnitNumber}
+                  onChange={(e) =>
+                    setProfile({ ...profile, ssnitNumber: e.target.value })
+                  }
+                  disabled={employmentVerified || employmentPending}
+                />
+              </div>
+              <div className="sm:col-span-2">
                 <Label>Employment letter</Label>
                 <Input
                   type="file"
@@ -704,6 +737,15 @@ export function UserKycForm({
                   onChange={(e) => setStaffIdDocument(e.target.files?.[0] ?? null)}
                 />
               </div>
+              <div className="sm:col-span-2">
+                <Label>SSNIT registration document</Label>
+                <Input
+                  type="file"
+                  accept="image/*,.pdf"
+                  disabled={employmentVerified || employmentPending}
+                  onChange={(e) => setSsnitDocument(e.target.files?.[0] ?? null)}
+                />
+              </div>
               <Button
                 className="sm:col-span-2 bg-emerald-600 hover:bg-emerald-700"
                 disabled={
@@ -711,7 +753,8 @@ export function UserKycForm({
                   employmentPending ||
                   employmentMutation.isPending ||
                   !profileComplete ||
-                  !profile.staffId.trim()
+                  !profile.staffId.trim() ||
+                  !profile.ssnitNumber.trim()
                 }
                 onClick={() => employmentMutation.mutate()}
               >
