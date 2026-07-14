@@ -43,7 +43,8 @@ export function VerificationPromptDialog() {
     queryFn: async () => {
       const res = await fetch("/api/kyc");
       const json = await res.json();
-      return json.data as VerificationStatusSnapshot;
+      if (!res.ok || json.success === false) return null;
+      return (json.data ?? null) as VerificationStatusSnapshot | null;
     },
     enabled: showVerificationUi && !!userId,
     staleTime: 1000 * 60 * 5,
@@ -72,7 +73,6 @@ export function VerificationPromptDialog() {
     if (userId) {
       sessionStorage.setItem(`verification-prompt-dismissed:${userId}`, "true");
     }
-    sessionStorage.removeItem(FRESH_LOGIN_KEY);
     setOpen(false);
   };
 

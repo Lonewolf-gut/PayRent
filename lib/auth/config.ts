@@ -154,12 +154,18 @@ export const authConfig: NextAuthConfig = {
   ],
   callbacks: {
     async jwt({ token, user, trigger, session }) {
+      const sessionMaxAgeSeconds = 60 * 60 * 24 * 30;
+
       if (user) {
         token.id = user.id!;
         token.role = user.role;
         token.twoFactorEnabled = user.twoFactorEnabled;
         token.emailVerified = Boolean(user.emailVerified);
         token.picture = user.image ?? null;
+
+        const now = Math.floor(Date.now() / 1000);
+        token.iat = now;
+        token.exp = now + sessionMaxAgeSeconds;
 
         void import("@/lib/services/verification-reminder.service")
           .then(({ verificationReminderService }) =>

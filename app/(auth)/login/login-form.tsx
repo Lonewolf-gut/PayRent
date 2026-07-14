@@ -174,8 +174,8 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
       const destination = session.user.role
         ? getPostLoginRoute(session.user.role as UserRole)
         : callbackUrl;
-      router.push(destination);
-      router.refresh();
+      window.location.assign(destination);
+      return;
     } catch (error) {
       const isNetworkError =
         error instanceof TypeError ||

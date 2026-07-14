@@ -9,7 +9,6 @@ import {
   useState,
 } from "react";
 import { cn } from "@/lib/utils";
-import { SessionExpiryHandler } from "@/components/providers/session-expiry-handler";
 
 const STORAGE_KEY = "payforme-dashboard-theme";
 
@@ -93,7 +92,6 @@ export function DashboardThemeProvider({
           theme === "dark" ? "dark min-h-screen bg-background" : "min-h-screen bg-background"
         )}
       >
-        <SessionExpiryHandler />
         {children}
       </div>
     </DashboardThemeContext.Provider>
