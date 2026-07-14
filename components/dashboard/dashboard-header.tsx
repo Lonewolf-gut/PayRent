@@ -65,7 +65,8 @@ export function DashboardHeader({
     queryFn: async () => {
       const res = await fetch("/api/settings");
       const json = await res.json();
-      return json.data?.user as {
+      if (!res.ok || json.success === false) return null;
+      return (json.data?.user ?? null) as {
         fullName?: string | null;
         email?: string;
         image?: string | null;
@@ -79,7 +80,8 @@ export function DashboardHeader({
     queryFn: async () => {
       const res = await fetch("/api/subscriptions");
       const json = await res.json();
-      return json.data;
+      if (!res.ok || json.success === false) return null;
+      return json.data ?? null;
     },
     enabled: !!session?.user && !!role && roleRequiresSubscription(role),
   });
@@ -217,12 +219,17 @@ export function AdminDashboardHeader({
   const { data: session } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const role = session?.user?.role;
+  const profileApiPath =
+    role === "ADMIN" ? "/api/admin/settings" : "/api/settings";
+
   const { data: profile } = useQuery({
-    queryKey: ["admin-profile"],
+    queryKey: ["admin-profile", profileApiPath],
     queryFn: async () => {
-      const res = await fetch("/api/admin/settings");
+      const res = await fetch(profileApiPath);
       const json = await res.json();
-      return json.data?.user as { email?: string; image?: string | null } | null;
+      if (!res.ok || json.success === false) return null;
+      return (json.data?.user ?? null) as { email?: string; image?: string | null } | null;
     },
     enabled: !!session?.user?.id,
   });
