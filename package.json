@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "postinstall": "npm run db:generate && npm run copy-prisma-client",
+    "postinstall": "node scripts/postinstall.js",
     "copy-prisma-client": "node scripts/copy-prisma-client.js",
     "dev": "node scripts/start-dev.js",
     "dev:turbo": "node scripts/start-dev.js",
