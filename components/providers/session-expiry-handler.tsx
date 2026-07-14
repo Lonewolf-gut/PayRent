@@ -5,6 +5,10 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { toast } from "sonner";
 
+const FRESH_LOGIN_KEY = "fresh-dashboard-login";
+const FRESH_LOGIN_GRACE_MS = 15 * 60 * 1000;
+const MIN_TIMER_MS = 5 * 60 * 1000;
+
 const AUTH_PATHS = new Set([
   "/login",
   "/register",
@@ -21,12 +25,25 @@ function isAuthPath(pathname: string | null) {
   return pathname.startsWith("/register/");
 }
 
+function isWithinFreshLoginGrace() {
+  if (typeof window === "undefined") return false;
+  if (sessionStorage.getItem(FRESH_LOGIN_KEY) !== "1") return false;
+  const startedAt = Number(sessionStorage.getItem(`${FRESH_LOGIN_KEY}:at`) ?? "0");
+  if (!startedAt) return true;
+  return Date.now() - startedAt < FRESH_LOGIN_GRACE_MS;
+}
+
 export function SessionExpiryHandler() {
   const pathname = usePathname();
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
 
   useEffect(() => {
-    if (isAuthPath(pathname) || status !== "authenticated" || !session?.expires) {
+    if (
+      isAuthPath(pathname) ||
+      status !== "authenticated" ||
+      !session?.expires ||
+      isWithinFreshLoginGrace()
+    ) {
       return;
     }
 
@@ -34,15 +51,13 @@ export function SessionExpiryHandler() {
     if (!Number.isFinite(expiresAt)) return;
 
     const msUntilExpiry = expiresAt - Date.now();
-    const graceMs = 60_000;
 
-    // Stale cookie right after login or clock skew — clear quietly, no toast.
-    if (msUntilExpiry <= -graceMs) {
-      void signOut({ callbackUrl: "/login" });
+    if (msUntilExpiry <= 0) {
+      void update();
       return;
     }
 
-    if (msUntilExpiry <= 0) {
+    if (msUntilExpiry < MIN_TIMER_MS) {
       return;
     }
 
@@ -52,7 +67,7 @@ export function SessionExpiryHandler() {
     }, msUntilExpiry);
 
     return () => window.clearTimeout(timer);
-  }, [pathname, session?.expires, status]);
+  }, [pathname, session?.expires, status, update]);
 
   return null;
 }

@@ -306,10 +306,6 @@ export function SubscriptionCheckoutPage() {
 
               <div className="mt-6">
                 <p className="text-sm text-emerald-900/70">Payment method</p>
-                <p className="mt-2 text-sm text-emerald-900/65">
-                  Subscriptions are paid through Mobile Money only. Wallet balance cannot be used
-                  for subscription payments.
-                </p>
                 {!verifiedMomoAccounts.length ? (
                   <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                     Add a verified MoMo account in Settings before subscribing.

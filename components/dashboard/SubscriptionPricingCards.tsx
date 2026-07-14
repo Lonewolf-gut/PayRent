@@ -65,13 +65,6 @@ export function SubscriptionPricingCards({
           : "overflow-hidden rounded-2xl border border-emerald-100 bg-emerald-950 p-6 text-white sm:p-8"
       }
     >
-      {!upgradeOnly ? null : (
-        <p className="mb-4 text-sm text-muted-foreground">
-          Subscriptions are paid through Mobile Money only. Wallet balance cannot be used for
-          subscription payments.
-        </p>
-      )}
-
       <div
         className={
           upgradeOnly

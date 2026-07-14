@@ -137,6 +137,7 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
 
       toast.success("Signed in successfully.", { id: toastId });
       sessionStorage.setItem("fresh-dashboard-login", "1");
+      sessionStorage.setItem("fresh-dashboard-login:at", String(Date.now()));
 
       if (adminMode) {
         if (session.user.role !== "ADMIN") {
