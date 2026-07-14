@@ -50,7 +50,7 @@ export class TenantFinancingDocService {
       throw new AppError("This document is not required for your account type.", 400);
     }
 
-    const fileUrl = await saveFinancingDocument(file);
+    const fileUrl = await saveFinancingDocument(userId, file);
     const doc = await prisma.tenantFinancingDocument.upsert({
       where: {
         tenantId_documentType: { tenantId: tenant.id, documentType },

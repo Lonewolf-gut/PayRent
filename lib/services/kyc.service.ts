@@ -121,7 +121,7 @@ async function saveVerificationDocuments(
 
   const saved = await Promise.all(
     entries.map(async ([documentType, file]) => {
-      const fileUrl = await saveKycDocument(file);
+      const fileUrl = await saveKycDocument(userId, file, verificationId);
       return prisma.kycDocument.create({
         data: {
           userId,
