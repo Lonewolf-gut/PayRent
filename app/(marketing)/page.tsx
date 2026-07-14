@@ -13,7 +13,6 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
-  Quote,
   Shield,
   Star,
   Users,
@@ -21,7 +20,7 @@ import {
 } from "lucide-react";
 import { PLATFORM_NAME, PLATFORM_TAGLINE } from "@/constants/platform";
 import { ROLE_HOW_IT_WORKS } from "@/constants/roles";
-import { PricingCardsSection } from "@/components/subscription/pricing-cards-section";
+import { LandlordAgentPricingCta } from "@/components/marketing/landlord-agent-pricing-cta";
 import { StatsBar } from "@/components/marketing/stats-bar";
 
 const whoItsFor = [
@@ -66,41 +65,42 @@ const testimonials = [
       "PayForme made finding and financing my apartment smooth. I felt supported at every step.",
     name: "Ama Boateng",
     role: "Tenant",
+    image:
+      "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&h=400&q=80",
   },
   {
     quote:
       "Our listings now reach more verified tenants, and the admin tools keep everything under control.",
     name: "Kwame Mensah",
     role: "Landlord",
+    image:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&h=400&q=80",
   },
   {
     quote:
       "As a lender, I love how clear the repayment tracking is — it saves so much time.",
     name: "Nana Yaa Asantewaa",
     role: "Lender",
+    image:
+      "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&h=400&q=80",
   },
   {
     quote:
       "Managing applications for multiple landlords is so much easier. The dashboard keeps every deal transparent.",
     name: "Efua Koranteng",
     role: "Agent",
+    image:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&h=400&q=80",
   },
   {
     quote:
       "The subscription model is fair — I started free and upgraded when my portfolio grew. No surprises.",
     name: "Kofi Adom",
     role: "Landlord",
+    image:
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80",
   },
 ];
-
-function testimonialInitials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 export default function HomePage() {
   const { data: session } = useSession();
@@ -288,7 +288,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <PricingCardsSection mode="marketing" />
+      <LandlordAgentPricingCta />
 
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -345,57 +345,58 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="bg-gradient-to-b from-emerald-50 via-emerald-100/40 to-emerald-50 py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+      <section className="relative overflow-hidden bg-slate-100 py-24">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(226,232,240,0.7),transparent_70%)]" />
+
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-700">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
               What our users say
             </p>
-            <h2 className="mt-4 text-3xl font-bold text-emerald-950">
+            <h2 className="mt-4 text-3xl font-bold text-slate-800 sm:text-4xl">
               Trusted across Ghana
             </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-emerald-800/70">
+            <p className="mx-auto mt-3 max-w-2xl text-slate-500">
               Hear from tenants, landlords, agents, and lenders using {PLATFORM_NAME} every day.
             </p>
           </div>
 
-          <div className="relative mx-auto mt-12 max-w-3xl">
+          <div className="relative mx-auto mt-14 max-w-4xl">
             <button
               type="button"
               onClick={() => goToTestimonial(currentTestimonial - 1)}
               aria-label="Previous testimonial"
-              className="absolute -left-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-700 shadow-md transition hover:border-emerald-400 hover:bg-emerald-50 sm:-left-14"
+              className="absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:-left-16"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
 
-            <div className="overflow-hidden">
+            <div className="overflow-hidden px-2 sm:px-12">
               <div
                 className="flex transition-transform duration-500 ease-in-out"
                 style={{ transform: `translateX(-${currentTestimonial * 100}%)` }}
               >
                 {testimonials.map((item) => (
-                  <div key={item.name} className="w-full flex-shrink-0 px-1">
-                    <div className="border border-emerald-700/25 bg-gradient-to-br from-emerald-900 via-emerald-950 to-emerald-900 p-8 shadow-[0_24px_48px_rgba(6,78,59,0.25)]">
-                      <div className="mb-6 flex items-center justify-between">
-                        <Quote className="h-7 w-7 text-emerald-300" />
-                        <div className="flex items-center gap-1 text-emerald-300">
-                          {[...Array(5)].map((_, index) => (
-                            <Star key={index} className="h-4 w-4 fill-current" />
-                          ))}
-                        </div>
+                  <div key={item.name} className="w-full flex-shrink-0 px-2">
+                    <div className="flex flex-col items-center px-4 py-6 text-center sm:px-10 sm:py-8">
+                      <div className="relative h-24 w-24 overflow-hidden rounded-full border-2 border-slate-200 bg-white shadow-sm">
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          sizes="96px"
+                          className="object-cover"
+                        />
                       </div>
-                      <p className="text-lg leading-8 text-emerald-50">
+                      <p className="mt-6 text-lg font-semibold text-slate-800">{item.name}</p>
+                      <p className="mt-1 text-sm text-slate-500">{item.role}</p>
+                      <p className="mt-8 max-w-2xl text-lg leading-8 text-slate-600 sm:text-xl sm:leading-9">
                         &ldquo;{item.quote}&rdquo;
                       </p>
-                      <div className="mt-8 flex items-center gap-4">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-emerald-400/30 bg-emerald-800 text-sm font-semibold text-emerald-100">
-                          {testimonialInitials(item.name)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-white">{item.name}</p>
-                          <p className="text-sm text-emerald-300/80">{item.role}</p>
-                        </div>
+                      <div className="mt-8 flex items-center gap-1 text-amber-400">
+                        {[...Array(5)].map((_, index) => (
+                          <Star key={index} className="h-4 w-4 fill-current" />
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -407,12 +408,12 @@ export default function HomePage() {
               type="button"
               onClick={() => goToTestimonial(currentTestimonial + 1)}
               aria-label="Next testimonial"
-              className="absolute -right-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-700 shadow-md transition hover:border-emerald-400 hover:bg-emerald-50 sm:-right-14"
+              className="absolute right-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:-right-16"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
 
-            <div className="mt-8 flex items-center justify-center gap-2">
+            <div className="mt-10 flex items-center justify-center gap-2">
               {testimonials.map((item, index) => (
                 <button
                   key={item.name}
@@ -421,8 +422,8 @@ export default function HomePage() {
                   aria-label={`Go to testimonial ${index + 1}`}
                   className={`h-2.5 rounded-full transition-all ${
                     index === currentTestimonial
-                      ? "w-8 bg-emerald-600"
-                      : "w-2.5 bg-emerald-300 hover:bg-emerald-400"
+                      ? "w-8 bg-slate-400"
+                      : "w-2.5 bg-slate-300 hover:bg-slate-400"
                   }`}
                 />
               ))}

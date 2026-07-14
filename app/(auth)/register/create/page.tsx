@@ -61,6 +61,7 @@ export default function RegisterCreatePage() {
     initialEntity === "COMPANY" ? "COMPANY" : "INDIVIDUAL";
   const [loading, setLoading] = useState(false);
   const showEntityType = role === "TENANT" || role === "LANDLORD";
+  const requiresDateOfBirth = entityType !== "COMPANY";
 
   const {
     register,
@@ -124,6 +125,7 @@ export default function RegisterCreatePage() {
       toast.success("Welcome! Your account is ready — verify your email to continue.", {
         id: toastId,
       });
+      sessionStorage.setItem("fresh-dashboard-login", "1");
       router.push("/verify-email");
       router.refresh();
     } catch {
@@ -194,6 +196,26 @@ export default function RegisterCreatePage() {
               <p className="text-xs text-destructive">{errors.fullName.message}</p>
             ) : null}
           </div>
+          {requiresDateOfBirth ? (
+            <div className="space-y-2.5">
+              <Label htmlFor="dateOfBirth" className="text-sm font-medium text-slate-700">
+                Date of birth <span className="text-emerald-600">*</span>
+              </Label>
+              <Input
+                id="dateOfBirth"
+                type="date"
+                className="h-11"
+                max={new Date().toISOString().slice(0, 10)}
+                {...register("dateOfBirth")}
+              />
+              <p className="text-xs text-muted-foreground">
+                You must be at least 18 years old to create an account.
+              </p>
+              {errors.dateOfBirth ? (
+                <p className="text-xs text-destructive">{errors.dateOfBirth.message}</p>
+              ) : null}
+            </div>
+          ) : null}
           <div className="space-y-2.5">
             <Label htmlFor="email" className="text-sm font-medium text-slate-700">
               Email address <span className="text-emerald-600">*</span>

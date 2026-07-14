@@ -189,7 +189,7 @@ export function SubscriptionCheckoutPage() {
   return (
     <div>
       {session?.user && canSubscribe ? (
-        <div className="border-b border-emerald-100 bg-emerald-50/60">
+        <div className="border-b border-emerald-200 bg-emerald-100/70">
           <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
             <TrialStatusBanner className="mb-0" />
           </div>

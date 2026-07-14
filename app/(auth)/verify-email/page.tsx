@@ -119,6 +119,7 @@ export default function VerifyEmailPage() {
       toast.success("Email verified successfully");
 
       const role = session?.user?.role as UserRole | undefined;
+      sessionStorage.setItem("fresh-dashboard-login", "1");
       router.push(role ? getPostLoginRoute(role) : "/");
       router.refresh();
     } catch {
@@ -259,6 +260,7 @@ export default function VerifyEmailPage() {
             className="text-muted-foreground hover:text-foreground"
             onClick={() => {
               const role = session?.user?.role as UserRole | undefined;
+              sessionStorage.setItem("fresh-dashboard-login", "1");
               router.push(role ? getPostLoginRoute(role) : "/");
             }}
           >

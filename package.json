@@ -18,6 +18,7 @@
     "test:watch": "vitest",
     "db:generate": "node scripts/prisma-generate.js",
     "db:push": "prisma db push",
+    "db:stored-files": "node scripts/db-stored-files.js",
     "db:sync-docker": "node scripts/db-sync-docker.js",
     "db:migrate": "prisma migrate dev",
     "db:seed": "npx tsx prisma/seed.ts",

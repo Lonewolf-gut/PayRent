@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, Bell, CheckCheck, Sparkles, Trash2 } from "lucide-react";
+import { Bell, CheckCheck, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -14,6 +13,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useDashboardTheme } from "@/components/dashboard/dashboard-theme-provider";
 
 type NotificationItem = {
   id: string;
@@ -39,8 +39,10 @@ function formatBadgeCount(count: number) {
   return count > 9 ? "9+" : String(count);
 }
 
-export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" }: { viewAllHref?: string }) {
+export function NotificationsPopover() {
   const { data: session } = useSession();
+  const dashboardTheme = useDashboardTheme();
+  const isDark = dashboardTheme?.theme === "dark";
   const queryClient = useQueryClient();
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
@@ -131,6 +133,7 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
 
   const hasNotifications = allNotifications.length > 0;
   const badgeLabel = formatBadgeCount(unreadCount);
+  const showingDetail = Boolean(selectedNotification);
 
   const markAllRead = async () => {
     const unread = allNotifications.filter((item) => !item.read);
@@ -149,10 +152,17 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
   };
 
   const handlePopoverOpenChange = (open: boolean) => {
-    setPopoverOpen(open);
-    if (!open) {
-      setSelectedNotification(null);
+    if (open) {
+      setPopoverOpen(true);
+      return;
     }
+
+    if (selectedNotification) {
+      setSelectedNotification(null);
+      return;
+    }
+
+    setPopoverOpen(false);
   };
 
   return (
@@ -172,154 +182,175 @@ export function NotificationsPopover({ viewAllHref = "/dashboard/notifications" 
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-[min(100vw-2rem,24rem)] overflow-hidden border-border bg-popover p-0 text-popover-foreground"
+        className={cn(
+          "flex max-h-[min(32rem,85vh)] flex-col overflow-hidden border-border bg-popover p-0 text-popover-foreground transition-[width] duration-200",
+          showingDetail
+            ? "w-[min(100vw-2rem,44rem)]"
+            : "w-[min(100vw-2rem,24rem)]",
+          isDark && "dark"
+        )}
       >
-        <div className="border-b border-emerald-700/30 bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3 text-white dark:from-emerald-700 dark:to-teal-800">
+        <div
+          className={cn(
+            "shrink-0 border-b px-4 py-3 text-white",
+            isDark
+              ? "border-emerald-800/40 bg-gradient-to-r from-emerald-900 to-emerald-950"
+              : "border-emerald-700/30 bg-gradient-to-r from-emerald-600 to-teal-600"
+          )}
+        >
           <PopoverHeader className="gap-1">
-            {selectedNotification ? (
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <PopoverTitle className="flex items-center gap-2 text-base text-white">
+                <Sparkles className="h-4 w-4" />
+                Notifications
+              </PopoverTitle>
+              {!showingDetail && unreadCount > 0 ? (
                 <Button
                   type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 shrink-0 text-white hover:bg-white/15"
-                  onClick={closeDetail}
-                  aria-label="Back to notifications"
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 bg-white/15 text-white hover:bg-white/25"
+                  onClick={() => void markAllRead()}
                 >
-                  <ArrowLeft className="h-4 w-4" />
+                  <CheckCheck className="mr-1 h-3.5 w-3.5" />
+                  Mark all read
                 </Button>
-                <PopoverTitle className="line-clamp-1 text-base text-white">
-                  {selectedNotification.title}
-                </PopoverTitle>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-3">
-                <PopoverTitle className="flex items-center gap-2 text-base text-white">
-                  <Sparkles className="h-4 w-4" />
-                  Notifications
-                </PopoverTitle>
-                {unreadCount > 0 ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    className="h-7 bg-white/15 text-white hover:bg-white/25"
-                    onClick={() => void markAllRead()}
-                  >
-                    <CheckCheck className="mr-1 h-3.5 w-3.5" />
-                    Mark all read
-                  </Button>
-                ) : null}
-              </div>
-            )}
-            <p className="text-xs text-emerald-50/90">
-              {selectedNotification
-                ? new Date(selectedNotification.createdAt).toLocaleString()
-                : formatUnreadLabel(unreadCount)}
+              ) : null}
+            </div>
+            <p className={cn("text-xs", isDark ? "text-emerald-200/80" : "text-emerald-50/90")}>
+              {formatUnreadLabel(unreadCount)}
             </p>
           </PopoverHeader>
         </div>
 
-        <div className="max-h-[min(24rem,60vh)] overflow-y-auto overscroll-contain bg-popover">
-          {selectedNotification ? (
-            <div className="space-y-4 px-4 py-4">
-              <p className="text-sm leading-7 text-foreground">{selectedNotification.body}</p>
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                  onClick={closeDetail}
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          ) : isLoading ? (
-            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-              Loading notifications...
-            </p>
-          ) : !allNotifications.length ? (
-            <div className="flex flex-col items-center px-4 py-10 text-center">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/60">
-                <Bell className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <p className="text-sm font-medium text-foreground">No notifications yet</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Updates about your account will appear here.
-              </p>
-            </div>
-          ) : (
-            <ul>
-              {allNotifications.map((notification) => (
-                <li key={notification.id} className="border-b border-border last:border-b-0">
-                  <button
-                    type="button"
-                    onClick={() => openNotification(notification)}
+        <div className="flex min-h-0 flex-1">
+          <div
+            className={cn(
+              "flex min-h-0 flex-col border-border",
+              showingDetail ? "w-[min(100%,14rem)] border-r sm:w-56" : "w-full"
+            )}
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-popover">
+              {isLoading ? (
+                <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  Loading notifications...
+                </p>
+              ) : !allNotifications.length ? (
+                <div className="flex flex-col items-center px-4 py-10 text-center">
+                  <div
                     className={cn(
-                      "w-full px-4 py-3 text-left transition hover:bg-muted/60",
-                      !notification.read && "bg-emerald-50/70 dark:bg-emerald-950/40"
+                      "mb-3 flex h-12 w-12 items-center justify-center rounded-full",
+                      isDark ? "bg-emerald-950/60" : "bg-emerald-100"
                     )}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <p
+                    <Bell
+                      className={cn("h-5 w-5", isDark ? "text-emerald-400" : "text-emerald-600")}
+                    />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">No notifications yet</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Updates about your account will appear here.
+                  </p>
+                </div>
+              ) : (
+                <ul>
+                  {allNotifications.map((notification) => (
+                    <li key={notification.id} className="border-b border-border last:border-b-0">
+                      <button
+                        type="button"
+                        onClick={() => openNotification(notification)}
                         className={cn(
-                          "text-sm",
-                          notification.read
-                            ? "font-medium text-muted-foreground"
-                            : "font-semibold text-foreground"
+                          "w-full px-3 py-3 text-left transition hover:bg-muted/60 sm:px-4",
+                          selectedNotification?.id === notification.id && "bg-muted/70",
+                          !notification.read &&
+                            (isDark ? "bg-emerald-950/40" : "bg-emerald-50/70")
                         )}
                       >
-                        {notification.title}
-                      </p>
-                      {!notification.read ? (
-                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500 dark:bg-emerald-400" />
-                      ) : null}
-                    </div>
-                    <p
-                      className={cn(
-                        "mt-1 line-clamp-2 text-sm leading-relaxed",
-                        notification.read ? "text-muted-foreground/80" : "text-muted-foreground"
-                      )}
-                    >
-                      {notification.body}
-                    </p>
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      {new Date(notification.createdAt).toLocaleString()}
-                    </p>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+                        <div className="flex items-start justify-between gap-2">
+                          <p
+                            className={cn(
+                              "text-sm",
+                              notification.read
+                                ? "font-medium text-muted-foreground"
+                                : "font-semibold text-foreground"
+                            )}
+                          >
+                            {notification.title}
+                          </p>
+                          {!notification.read ? (
+                            <span
+                              className={cn(
+                                "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+                                isDark ? "bg-emerald-400" : "bg-emerald-500"
+                              )}
+                            />
+                          ) : null}
+                        </div>
+                        <p
+                          className={cn(
+                            "mt-1 line-clamp-2 text-sm leading-relaxed",
+                            notification.read ? "text-muted-foreground/80" : "text-muted-foreground"
+                          )}
+                        >
+                          {notification.body}
+                        </p>
+                        <p className="mt-2 text-[11px] text-muted-foreground">
+                          {new Date(notification.createdAt).toLocaleString()}
+                        </p>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-        {!selectedNotification ? (
-          <div className="border-t border-border bg-popover p-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 w-full text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-300"
-              render={<Link href={viewAllHref} />}
-            >
-              View all notifications
-            </Button>
-            {hasNotifications ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mt-1 h-8 w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-                disabled={clearAll.isPending}
-                onClick={() => clearAll.mutate()}
-              >
-                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                Clear all notifications
-              </Button>
+            {!showingDetail && hasNotifications ? (
+              <div className="shrink-0 border-t border-border bg-popover p-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  disabled={clearAll.isPending}
+                  onClick={() => clearAll.mutate()}
+                >
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                  Clear all notifications
+                </Button>
+              </div>
             ) : null}
           </div>
-        ) : null}
+
+          {selectedNotification ? (
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-popover">
+              <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    {selectedNotification.title}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {new Date(selectedNotification.createdAt).toLocaleString()}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  className="shrink-0"
+                  onClick={closeDetail}
+                  aria-label="Close message details"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+                <p className="text-sm leading-7 whitespace-pre-wrap text-foreground">
+                  {selectedNotification.body}
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </div>
       </PopoverContent>
     </Popover>
   );

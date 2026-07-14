@@ -20,7 +20,7 @@ export const POST = withAuth(
       return apiResponse(null, 400, "Document file is required.");
     }
 
-    const fileUrl = await saveApplicationDocument(file);
+    const fileUrl = await saveApplicationDocument(session.user.id, file, id);
     const document = await applicationService.addDocument(
       id,
       tenant.id,

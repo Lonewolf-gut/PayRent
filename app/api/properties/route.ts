@@ -1,6 +1,3 @@
-import fs from "fs/promises";
-import path from "path";
-import { randomUUID } from "crypto";
 import type { Prisma, PropertyType } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { propertyFilterSchema, propertySchema, normalizePropertyPayload, parseOptionalFormNumber } from "@/lib/validations/property";
@@ -23,18 +20,8 @@ import { getSubscriptionAccess } from "@/lib/subscription/access";
 import { roleHasFreePlatformAccess } from "@/lib/subscription/roles";
 import { assignAgentToProperty } from "@/lib/services/agent-assignment.service";
 import { firstZodIssueMessage } from "@/lib/validations/auth";
-
-const saveUploadedFile = async (file: File, folder: string) => {
-  const mimeMatch = file.type.match(/\/([a-z0-9]+)(?:;|$)/i);
-  const extension = mimeMatch ? `.${mimeMatch[1]}` : path.extname(file.name) || "";
-  const fileName = `${Date.now()}-${randomUUID()}${extension}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "properties", folder);
-  await fs.mkdir(uploadDir, { recursive: true });
-  const filePath = path.join(uploadDir, fileName);
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(filePath, buffer);
-  return `/uploads/properties/${folder}/${fileName}`;
-};
+import { savePropertyImage } from "@/lib/integrations/documents";
+import { fileStorageService } from "@/lib/services/file-storage.service";
 
 async function getBrowsePlan(userId?: string | null, role?: string | null) {
   if (!userId) return "FREE" as const;
@@ -229,19 +216,27 @@ export const POST = withAuth(
       status: "PENDING_VERIFICATION",
     };
 
+    let imageCreates: { url: string; alt: string; order: number }[] = [];
+
     if (images.length > 0) {
-      propertyData.images = {
-        create: await Promise.all(
-          images.slice(0, 10).map(async (file, index) => ({
-            url: await saveUploadedFile(file, "images"),
-            alt: `Property photo ${index + 1}`,
-            order: index,
-          }))
-        ),
-      };
+      imageCreates = await Promise.all(
+        images.slice(0, 10).map(async (file, index) => ({
+          url: await savePropertyImage(session.user.id, file),
+          alt: `Property photo ${index + 1}`,
+          order: index,
+        }))
+      );
+      propertyData.images = { create: imageCreates };
     }
 
     const property = await propertyRepository.create(propertyData);
+
+    if (imageCreates.length > 0) {
+      await fileStorageService.linkPropertyImagesToEntity(
+        property.id,
+        imageCreates.map((image) => image.url)
+      );
+    }
 
     if (agentProfileId) {
       await assignAgentToProperty(property.id, agentProfileId, session.user.id);

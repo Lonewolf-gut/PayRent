@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { calculateAge, parseDateOfBirth } from "@/lib/utils/age";
 
 const normalizedEmail = z
   .string()
@@ -25,12 +26,52 @@ export const registerSchema = z.object({
   role: z.enum(["TENANT", "LANDLORD", "AGENT", "LENDER"]),
   entityType: z.enum(["INDIVIDUAL", "COMPANY"]).optional(),
   companyName: z.string().min(2).optional(),
+  dateOfBirth: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.entityType === "COMPANY" && !data.companyName?.trim()) {
     ctx.addIssue({
       code: "custom",
       message: "Company name is required for business accounts.",
       path: ["companyName"],
+    });
+  }
+
+  const requiresDateOfBirth = data.entityType !== "COMPANY";
+  if (!requiresDateOfBirth) return;
+
+  if (!data.dateOfBirth?.trim()) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Please enter your date of birth.",
+      path: ["dateOfBirth"],
+    });
+    return;
+  }
+
+  const parsed = parseDateOfBirth(data.dateOfBirth);
+  if (!parsed) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Please enter a valid date of birth.",
+      path: ["dateOfBirth"],
+    });
+    return;
+  }
+
+  if (parsed > new Date()) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Date of birth cannot be in the future.",
+      path: ["dateOfBirth"],
+    });
+    return;
+  }
+
+  if (calculateAge(parsed) < 18) {
+    ctx.addIssue({
+      code: "custom",
+      message: "You must be at least 18 years old to create an account.",
+      path: ["dateOfBirth"],
     });
   }
 });

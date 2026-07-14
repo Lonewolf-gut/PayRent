@@ -212,7 +212,11 @@ export function Navbar() {
                 <DropdownMenuItem
                   variant="destructive"
                   className="cursor-pointer rounded-none"
-                  onClick={() => signOut({ callbackUrl: "/" })}
+                  onClick={() =>
+                    signOut({
+                      callbackUrl: role === "ADMIN" ? "/admin/login" : "/",
+                    })
+                  }
                 >
                   <LogOut className="size-4" />
                   Sign out

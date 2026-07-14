@@ -211,7 +211,7 @@ export function AdminDashboardHeader({
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
-          <NotificationsPopover viewAllHref="/admin/notifications" />
+          <NotificationsPopover />
           <div className="flex min-w-0 items-center gap-2.5 rounded-none border border-border/60 bg-muted/30 py-1 pl-1 pr-3">
             <Avatar size="lg" className="size-11 rounded-none">
               {image ? (
@@ -231,7 +231,7 @@ export function AdminDashboardHeader({
             variant="outline"
             size="sm"
             className="hidden rounded-none sm:inline-flex"
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={() => signOut({ callbackUrl: "/admin/login" })}
           >
             Sign out
           </Button>
@@ -240,7 +240,7 @@ export function AdminDashboardHeader({
             size="icon-sm"
             className="rounded-none sm:hidden"
             aria-label="Sign out"
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={() => signOut({ callbackUrl: "/admin/login" })}
           >
             <LogOut className="h-4 w-4" />
           </Button>

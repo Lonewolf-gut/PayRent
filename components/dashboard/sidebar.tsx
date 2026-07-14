@@ -87,7 +87,7 @@ export function SidebarNavContent({
     <div className="flex h-full flex-col">
       {showLogo ? (
         <div className="flex h-16 items-center border-b px-6">
-          <RentVestLogo showIcon={false} />
+          <RentVestLogo showIcon={false} href={title === "Admin" ? "/admin" : "/"} />
         </div>
       ) : null}
       <div className="px-4 py-4">

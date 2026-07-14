@@ -275,6 +275,15 @@ enum MessageStatus {
   READ
 }
 
+enum StoredFileCategory {
+  KYC
+  APPLICATION
+  FINANCING
+  MANDATE
+  PROFILE
+  PROPERTY
+}
+
 model User {
   id                String    @id @default(cuid())
   email             String    @unique
@@ -314,9 +323,29 @@ model User {
   sessions          Session[]
   accounts          Account[]
   subscriptions     Subscription[]
+  storedFiles       UserStoredFile[]
 
   @@index([email])
   @@index([role])
+}
+
+model UserStoredFile {
+  id                String             @id @default(cuid())
+  userId            String
+  category          StoredFileCategory
+  fileName          String
+  mimeType          String
+  sizeBytes         Int
+  data              Bytes
+  relatedEntityType String?
+  relatedEntityId   String?
+  createdAt         DateTime           @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([category])
+  @@index([relatedEntityType, relatedEntityId])
 }
 
 model Account {
@@ -418,6 +447,7 @@ model Lender {
   userId           String   @unique
   fullName         String
   nationalId       String?  @unique
+  dateOfBirth      DateTime?
   institutionName  String?
   lenderType       String?
   licenceReference String?
@@ -441,6 +471,7 @@ model AgentProfile {
   id             String   @id @default(cuid())
   userId         String   @unique
   fullName       String
+  dateOfBirth    DateTime?
   agencyName     String?
   licenceNumber  String?
   region         String?
