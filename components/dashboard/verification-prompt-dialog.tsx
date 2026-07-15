@@ -19,6 +19,8 @@ import {
   isAccountFullyVerified,
   type VerificationStatusSnapshot,
 } from "@/lib/utils/account-verification";
+import { useDashboardTheme } from "@/components/dashboard/dashboard-theme-provider";
+import { cn } from "@/lib/utils";
 import type { UserRole } from "@prisma/client";
 
 const KYC_ROUTES: Partial<Record<UserRole, string>> = {
@@ -40,6 +42,8 @@ function getCompleteStorageKey(userId: string) {
 
 export function VerificationPromptDialog() {
   const { data: session, update } = useSession();
+  const dashboardTheme = useDashboardTheme();
+  const isDark = dashboardTheme?.theme === "dark";
   const role = session?.user?.role;
   const userId = session?.user?.id;
   const [open, setOpen] = useState(false);
@@ -114,7 +118,12 @@ export function VerificationPromptDialog() {
         if (!nextOpen) dismissDialog();
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent
+        className={cn(
+          "border-border bg-popover text-popover-foreground sm:max-w-lg",
+          isDark && "dark"
+        )}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-emerald-600" />

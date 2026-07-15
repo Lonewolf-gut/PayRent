@@ -65,7 +65,7 @@ function DialogContent({
             render={
               <Button
                 variant="outline"
-                className="absolute top-3 right-3 z-50 size-8 rounded-none border-slate-300 bg-white text-slate-900 shadow-sm hover:bg-slate-50"
+                className="absolute top-3 right-3 z-50 size-8 rounded-md border border-border bg-background text-foreground shadow-sm hover:bg-muted"
                 size="icon-sm"
               />
             }
