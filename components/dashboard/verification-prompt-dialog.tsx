@@ -30,6 +30,10 @@ const KYC_ROUTES: Partial<Record<UserRole, string>> = {
 
 const FRESH_LOGIN_KEY = "fresh-dashboard-login";
 
+function getDismissedSessionKey(userId: string) {
+  return `verification-prompt-dismissed:${userId}`;
+}
+
 function getCompleteStorageKey(userId: string) {
   return `verification-prompt-complete:${userId}`;
 }
@@ -70,32 +74,33 @@ export function VerificationPromptDialog() {
     if (!showVerificationUi || !userId || isLoading) return;
 
     const completeKey = getCompleteStorageKey(userId);
+    const dismissedKey = getDismissedSessionKey(userId);
+    const freshLogin = sessionStorage.getItem(FRESH_LOGIN_KEY) === "1";
 
     if (fullyVerified) {
       localStorage.setItem(completeKey, "true");
       sessionStorage.removeItem(FRESH_LOGIN_KEY);
+      sessionStorage.removeItem(dismissedKey);
       setOpen(false);
       return;
     }
 
-    if (localStorage.getItem(completeKey) === "true") {
-      setOpen(false);
-      return;
-    }
+    localStorage.removeItem(completeKey);
 
-    const dismissed =
-      sessionStorage.getItem(`verification-prompt-dismissed:${userId}`) === "true";
-    const freshLogin = sessionStorage.getItem(FRESH_LOGIN_KEY) === "1";
-
-    if (freshLogin || !dismissed) {
+    if (freshLogin) {
+      sessionStorage.removeItem(dismissedKey);
+      sessionStorage.removeItem(FRESH_LOGIN_KEY);
       setOpen(true);
+      return;
     }
-  }, [showVerificationUi, userId, isLoading, fullyVerified]);
+
+    const dismissedThisSession = sessionStorage.getItem(dismissedKey) === "true";
+    setOpen(!dismissedThisSession);
+  }, [showVerificationUi, userId, isLoading, fullyVerified, status, emailVerified]);
 
   const dismissDialog = () => {
     if (userId) {
-      sessionStorage.setItem(`verification-prompt-dismissed:${userId}`, "true");
-      sessionStorage.removeItem(FRESH_LOGIN_KEY);
+      sessionStorage.setItem(getDismissedSessionKey(userId), "true");
     }
     setOpen(false);
   };
