@@ -1,4 +1,5 @@
 export type VerificationStatusSnapshot = {
+  emailVerified?: boolean;
   profileStatus?: string;
   kycVerified?: boolean;
   identityVerified?: boolean;
@@ -53,9 +54,12 @@ export function getVerificationChecklist(status?: VerificationStatusSnapshot) {
   ] satisfies VerificationChecklistItem[];
 }
 
-export function isAccountFullyVerified(status?: VerificationStatusSnapshot) {
+export function isAccountFullyVerified(
+  status?: VerificationStatusSnapshot,
+  emailVerified = false
+) {
   const checklist = getVerificationChecklist(status);
-  return checklist.every((item) => item.complete);
+  return emailVerified && checklist.every((item) => item.complete);
 }
 
 export function deriveAccountStatusLabel(status?: VerificationStatusSnapshot) {

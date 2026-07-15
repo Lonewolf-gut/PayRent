@@ -30,8 +30,12 @@ const KYC_ROUTES: Partial<Record<UserRole, string>> = {
 
 const FRESH_LOGIN_KEY = "fresh-dashboard-login";
 
+function getCompleteStorageKey(userId: string) {
+  return `verification-prompt-complete:${userId}`;
+}
+
 export function VerificationPromptDialog() {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const role = session?.user?.role;
   const userId = session?.user?.id;
   const [open, setOpen] = useState(false);
@@ -47,21 +51,40 @@ export function VerificationPromptDialog() {
       return (json.data ?? null) as VerificationStatusSnapshot | null;
     },
     enabled: showVerificationUi && !!userId,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
-  const emailVerified = Boolean(session?.user?.emailVerified);
+  const emailVerified =
+    Boolean(session?.user?.emailVerified) || Boolean(status?.emailVerified);
   const kycRoute = role ? KYC_ROUTES[role] : undefined;
   const checklist = getVerificationChecklist(status);
-  const fullyVerified = isAccountFullyVerified(status) && emailVerified;
+  const fullyVerified = isAccountFullyVerified(status, emailVerified);
 
   useEffect(() => {
-    if (!showVerificationUi || !userId || isLoading || fullyVerified) {
+    if (!emailVerified || session?.user?.emailVerified) return;
+    void update();
+  }, [emailVerified, session?.user?.emailVerified, update]);
+
+  useEffect(() => {
+    if (!showVerificationUi || !userId || isLoading) return;
+
+    const completeKey = getCompleteStorageKey(userId);
+
+    if (fullyVerified) {
+      localStorage.setItem(completeKey, "true");
+      sessionStorage.removeItem(FRESH_LOGIN_KEY);
       setOpen(false);
       return;
     }
 
-    const dismissed = sessionStorage.getItem(`verification-prompt-dismissed:${userId}`) === "true";
+    if (localStorage.getItem(completeKey) === "true") {
+      setOpen(false);
+      return;
+    }
+
+    const dismissed =
+      sessionStorage.getItem(`verification-prompt-dismissed:${userId}`) === "true";
     const freshLogin = sessionStorage.getItem(FRESH_LOGIN_KEY) === "1";
 
     if (freshLogin || !dismissed) {
@@ -72,6 +95,7 @@ export function VerificationPromptDialog() {
   const dismissDialog = () => {
     if (userId) {
       sessionStorage.setItem(`verification-prompt-dismissed:${userId}`, "true");
+      sessionStorage.removeItem(FRESH_LOGIN_KEY);
     }
     setOpen(false);
   };

@@ -6,7 +6,7 @@ import { Bookmark } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { clearSavedPropertyViewed } from "@/lib/nav/saved-property-views";
+import { clearSavedPropertyViewed, refreshSavedPropertyCountQuery } from "@/lib/nav/saved-property-views";
 import { Button } from "@/components/ui/button";
 
 type PropertySaveButtonProps = {
@@ -62,7 +62,7 @@ export function PropertySaveButton({
         clearSavedPropertyViewed(propertyId);
       }
       queryClient.invalidateQueries({ queryKey: ["saved-property-ids"] });
-      queryClient.invalidateQueries({ queryKey: ["saved-property-count"] });
+      void refreshSavedPropertyCountQuery(queryClient);
       queryClient.invalidateQueries({ queryKey: ["saved-properties"] });
       toast.success(
         saved ? "Removed from saved listings" : "Saved to your bookmarks"

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { AuthSplitLayout } from "@/components/rentvest/auth-split-layout";
 import { Label } from "@/components/ui/label";
@@ -22,6 +23,7 @@ type VerificationDelivery = {
 
 export default function VerifyEmailPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: session, update } = useSession();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -116,9 +118,13 @@ export default function VerifyEmailPage() {
       }
 
       await update();
+      await queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
       toast.success("Email verified successfully");
 
       const role = session?.user?.role as UserRole | undefined;
+      if (session?.user?.id) {
+        sessionStorage.removeItem(`verification-prompt-dismissed:${session.user.id}`);
+      }
       sessionStorage.setItem("fresh-dashboard-login", "1");
       router.push(role ? getPostLoginRoute(role) : "/");
       router.refresh();

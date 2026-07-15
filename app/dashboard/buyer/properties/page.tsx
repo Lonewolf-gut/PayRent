@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { MapPin } from "lucide-react";
 import {
   countUnviewedSavedProperties,
-  markSavedPropertyViewed,
+  extractSavedPropertyIds,
+  markSavedPropertyViewedAndSyncCount,
 } from "@/lib/nav/saved-property-views";
 
 export default function TenantSavedPropertiesPage() {
@@ -25,16 +26,11 @@ export default function TenantSavedPropertiesPage() {
     },
   });
 
-  const propertyIds = (saved ?? []).map(
-    (item: { propertyId?: string; property: { id: string } }) =>
-      item.propertyId ?? item.property.id
-  ) as string[];
+  const propertyIds = extractSavedPropertyIds(saved ?? []);
   const unviewedCount = countUnviewedSavedProperties(propertyIds);
 
   function handleOpenSaved(propertyId: string) {
-    markSavedPropertyViewed(propertyId);
-    queryClient.invalidateQueries({ queryKey: ["saved-property-count"] });
-    queryClient.invalidateQueries({ queryKey: ["saved-properties"] });
+    markSavedPropertyViewedAndSyncCount(queryClient, propertyIds, propertyId);
     router.push(`/properties/${propertyId}`);
   }
 

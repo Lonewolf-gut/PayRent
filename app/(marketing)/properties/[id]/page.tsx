@@ -1,11 +1,11 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,10 +31,15 @@ import { isEmploymentRecorded } from "@/lib/constants/employment-status";
 import { isSaleListing } from "@/lib/subscription-limits";
 import type { PropertyType } from "@prisma/client";
 import { toast } from "sonner";
+import {
+  extractSavedPropertyIds,
+  markSavedPropertyViewedAndSyncCount,
+} from "@/lib/nav/saved-property-views";
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: session } = useSession();
   const [locationOpen, setLocationOpen] = useState(false);
   const [depositPromptOpen, setDepositPromptOpen] = useState(false);
@@ -91,6 +96,23 @@ export default function PropertyDetailPage() {
     },
     enabled: session?.user?.role === "BUYER",
   });
+
+  const { data: savedItems = [] } = useQuery({
+    queryKey: ["saved-properties"],
+    queryFn: async () => {
+      const res = await fetch("/api/properties/saved");
+      const json = await res.json();
+      return json.success ? (json.data ?? []) : [];
+    },
+    enabled: session?.user?.role === "BUYER",
+  });
+
+  useEffect(() => {
+    if (!id || session?.user?.role !== "BUYER") return;
+    const propertyIds = extractSavedPropertyIds(savedItems);
+    if (!propertyIds.includes(id)) return;
+    markSavedPropertyViewedAndSyncCount(queryClient, propertyIds, id);
+  }, [id, queryClient, savedItems, session?.user?.role]);
 
   const chatMutation = useMutation({
     mutationFn: async ({

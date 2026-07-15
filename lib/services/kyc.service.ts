@@ -870,7 +870,7 @@ export class KycService {
       await Promise.all([
         prisma.user.findUnique({
           where: { id: userId },
-          select: { email: true, image: true, phone: true, updatedAt: true },
+          select: { email: true, image: true, phone: true, updatedAt: true, emailVerified: true },
         }),
         prisma.tenant.findUnique({ where: { userId } }),
         prisma.landlord.findUnique({ where: { userId } }),
@@ -917,6 +917,7 @@ export class KycService {
             : profile?.profileStatus === "KYC_VERIFIED";
 
     return {
+      emailVerified: Boolean(user?.emailVerified),
       email: user?.email ?? null,
       image: withProfileImageVersion(user?.image, user?.updatedAt),
       phone: user?.phone ?? null,

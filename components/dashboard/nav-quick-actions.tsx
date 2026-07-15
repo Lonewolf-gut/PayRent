@@ -7,7 +7,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Bookmark, MessagesSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMessagesPath, getSavedPath } from "@/lib/nav/dashboard-quick-links";
-import { countUnviewedSavedProperties } from "@/lib/nav/saved-property-views";
+import {
+  fetchUnviewedSavedCount,
+  SAVED_PROPERTY_COUNT_QUERY_KEY,
+} from "@/lib/nav/saved-property-views";
 import { cn } from "@/lib/utils";
 
 function formatBadgeCount(count: number) {
@@ -58,18 +61,10 @@ export function NavQuickActions({ className }: { className?: string }) {
   const messagesPath = getMessagesPath(role);
 
   const { data: savedCount = 0 } = useQuery({
-    queryKey: ["saved-property-count"],
-    queryFn: async () => {
-      const res = await fetch("/api/properties/saved");
-      const json = await res.json();
-      if (!json.success) return 0;
-      const propertyIds = (json.data ?? []).map(
-        (item: { propertyId?: string; property?: { id: string } }) =>
-          item.propertyId ?? item.property?.id
-      ) as string[];
-      return countUnviewedSavedProperties(propertyIds.filter(Boolean));
-    },
+    queryKey: SAVED_PROPERTY_COUNT_QUERY_KEY,
+    queryFn: fetchUnviewedSavedCount,
     enabled: !!session?.user && role === "BUYER",
+    refetchOnWindowFocus: true,
   });
 
   const { data: unreadCount = 0 } = useQuery({
