@@ -32,6 +32,11 @@ import {
   type NavItem,
 } from "@/components/dashboard/sidebar";
 import { RentVestLogo } from "@/components/rentvest/logo";
+import {
+  ADMIN_HOME_PATH,
+  COMPLIANCE_HOME_PATH,
+  getRoleSignOutPath,
+} from "@/lib/auth/route-guards";
 
 function getInitials(name?: string | null, email?: string | null) {
   if (name) {
@@ -220,6 +225,9 @@ export function AdminDashboardHeader({
   const [menuOpen, setMenuOpen] = useState(false);
 
   const role = session?.user?.role;
+  const staffHomePath =
+    role === "COMPLIANCE_OFFICER" ? COMPLIANCE_HOME_PATH : ADMIN_HOME_PATH;
+  const signOutPath = getRoleSignOutPath(role);
   const profileApiPath =
     role === "ADMIN" ? "/api/admin/settings" : "/api/settings";
 
@@ -268,7 +276,7 @@ export function AdminDashboardHeader({
               </Sheet>
             </>
           ) : null}
-          <RentVestLogo showIcon={false} href="/admin" className="shrink-0 lg:hidden" />
+          <RentVestLogo showIcon={false} href={staffHomePath} className="shrink-0 lg:hidden" />
           <p className="hidden truncate text-base font-semibold text-foreground lg:block">
             {sidebarTitle}
           </p>
@@ -296,7 +304,7 @@ export function AdminDashboardHeader({
             variant="outline"
             size="sm"
             className="hidden rounded-none sm:inline-flex"
-            onClick={() => signOut({ callbackUrl: "/admin/login" })}
+            onClick={() => signOut({ callbackUrl: signOutPath })}
           >
             Sign out
           </Button>
@@ -305,7 +313,7 @@ export function AdminDashboardHeader({
             size="icon-sm"
             className="rounded-none sm:hidden"
             aria-label="Sign out"
-            onClick={() => signOut({ callbackUrl: "/admin/login" })}
+            onClick={() => signOut({ callbackUrl: signOutPath })}
           >
             <LogOut className="h-4 w-4" />
           </Button>

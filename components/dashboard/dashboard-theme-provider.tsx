@@ -24,15 +24,6 @@ const DashboardThemeContext = createContext<DashboardThemeContextValue | null>(
   null
 );
 
-function applyThemeClass(theme: DashboardTheme) {
-  const root = document.documentElement;
-  if (theme === "dark") {
-    root.classList.add("dark");
-  } else {
-    root.classList.remove("dark");
-  }
-}
-
 function readStoredTheme(): DashboardTheme {
   if (typeof window === "undefined") return "light";
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -49,15 +40,17 @@ export function DashboardThemeProvider({
   const [theme, setThemeState] = useState<DashboardTheme>("light");
 
   useLayoutEffect(() => {
-    const stored = readStoredTheme();
-    setThemeState(stored);
-    applyThemeClass(stored);
+    document.documentElement.classList.remove("dark");
+    setThemeState(readStoredTheme());
+
+    return () => {
+      document.documentElement.classList.remove("dark");
+    };
   }, []);
 
   const setTheme = useCallback((next: DashboardTheme) => {
     setThemeState(next);
     localStorage.setItem(STORAGE_KEY, next);
-    applyThemeClass(next);
     void fetch("/api/settings/theme", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -69,7 +62,6 @@ export function DashboardThemeProvider({
     setThemeState((current) => {
       const next = current === "dark" ? "light" : "dark";
       localStorage.setItem(STORAGE_KEY, next);
-      applyThemeClass(next);
       void fetch("/api/settings/theme", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

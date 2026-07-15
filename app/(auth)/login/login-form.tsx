@@ -35,7 +35,9 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
   const [twoFaCode, setTwoFaCode] = useState("");
   const rawCallbackUrl = searchParams.get("callbackUrl");
   const callbackUrl =
-    rawCallbackUrl && !rawCallbackUrl.startsWith("/admin/login")
+    rawCallbackUrl &&
+    !rawCallbackUrl.startsWith("/admin/login") &&
+    !rawCallbackUrl.startsWith("/compliance/login")
       ? rawCallbackUrl
       : "/";
   const role = (adminMode || complianceMode

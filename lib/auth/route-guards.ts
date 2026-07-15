@@ -31,3 +31,13 @@ export function isCompliancePath(pathname: string) {
 
 export const ADMIN_HOME_PATH = "/admin";
 export const COMPLIANCE_HOME_PATH = "/compliance";
+
+export function getRoleSignOutPath(role?: string | null) {
+  if (role === "ADMIN") return "/admin/login";
+  if (role === "COMPLIANCE_OFFICER") return "/compliance/login";
+  return "/";
+}
+
+export function shouldRedirectStaffFromMarketing(role?: string | null) {
+  return role === "ADMIN" || role === "COMPLIANCE_OFFICER";
+}

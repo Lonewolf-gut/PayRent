@@ -2,20 +2,23 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getPostLoginRoute } from "@/lib/auth/permissions";
+import { shouldRedirectStaffFromMarketing } from "@/lib/auth/route-guards";
 import { Navbar } from "@/components/rentvest/navbar";
 import { MarketingSignedInExtras } from "@/components/marketing/marketing-signed-in-extras";
 import { MarketingSubscriptionShell } from "@/components/marketing/marketing-subscription-shell";
+import { MarketingThemeGuard } from "@/components/marketing/marketing-theme-guard";
 
 export default async function MarketingLayout({
   children,
 }: { children: React.ReactNode }) {
   const session = await auth();
-  if (session?.user?.role === "ADMIN") {
-    redirect(getPostLoginRoute("ADMIN"));
+  if (session?.user?.role && shouldRedirectStaffFromMarketing(session.user.role)) {
+    redirect(getPostLoginRoute(session.user.role));
   }
 
   return (
     <MarketingSubscriptionShell>
+      <MarketingThemeGuard />
       <Navbar />
       <main className="bg-white text-slate-900">{children}</main>
       <MarketingSignedInExtras />

@@ -78,11 +78,11 @@ export function FinancingDocumentsForm() {
   return (
     <div className="space-y-4">
       {!kycVerified ? (
-        <div className="space-y-3 border border-amber-200 bg-amber-50 p-4 text-sm">
-          <p className="text-amber-900">
+        <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm dark:border-amber-800/50 dark:bg-amber-950/30">
+          <p className="text-amber-900 dark:text-amber-100">
             Complete identity verification before uploading financing documents.
           </p>
-          <Button className="rounded-none" asChild>
+          <Button className="bg-emerald-600 hover:bg-emerald-700" asChild>
             <Link href="/dashboard/buyer/kyc">Go to verification</Link>
           </Button>
         </div>
@@ -100,7 +100,7 @@ export function FinancingDocumentsForm() {
       {(data?.requiredTypes ?? []).map((type) => {
         const existing = docsByType.get(type);
         return (
-          <div key={type} className="space-y-2 border p-3">
+          <div key={type} className="space-y-2 rounded-lg border border-border bg-card p-3">
             <div className="flex items-center justify-between gap-2">
               <Label htmlFor={`doc-${type}`}>{FINANCING_DOC_LABELS[type]}</Label>
               {existing ? (

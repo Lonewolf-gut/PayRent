@@ -136,17 +136,6 @@ export default function TenantFinancingPage() {
         </p>
       </div>
 
-      {!kyc?.kycVerified && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
-            <p className="text-sm">Complete Ghana Card verification and bank validation before financing.</p>
-            <Button asChild size="sm" variant="outline">
-              <Link href="/dashboard/buyer/kyc">Complete KYC</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Your requests</h2>
         {isLoading ? (

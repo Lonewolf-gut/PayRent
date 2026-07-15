@@ -26,6 +26,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { PROFILE_MENU_ITEMS } from "@/lib/nav/profile-menu";
+import { getRoleSignOutPath } from "@/lib/auth/route-guards";
 import { NavQuickActions } from "@/components/dashboard/nav-quick-actions";
 import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
 import { isPaidPlan, normalizeSubscriptionPlan } from "@/lib/subscription/plans";
@@ -230,7 +231,7 @@ export function Navbar() {
                   className="cursor-pointer rounded-none"
                   onClick={() =>
                     signOut({
-                      callbackUrl: role === "ADMIN" ? "/admin/login" : "/",
+                      callbackUrl: getRoleSignOutPath(role),
                     })
                   }
                 >
