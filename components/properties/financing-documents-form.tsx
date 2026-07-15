@@ -78,8 +78,8 @@ export function FinancingDocumentsForm() {
   return (
     <div className="space-y-4">
       {!kycVerified ? (
-        <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm dark:border-amber-800/50 dark:bg-amber-950/30">
-          <p className="text-amber-900 dark:text-amber-100">
+        <div className="space-y-3 rounded-lg border border-border bg-muted/40 p-4 text-sm">
+          <p className="text-foreground">
             Complete identity verification before uploading financing documents.
           </p>
           <Button className="bg-emerald-600 hover:bg-emerald-700" asChild>

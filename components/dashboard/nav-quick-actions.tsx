@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Bookmark, MessagesSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMessagesPath, getSavedPath } from "@/lib/nav/dashboard-quick-links";
+import { countUnviewedSavedProperties } from "@/lib/nav/saved-property-views";
 import { cn } from "@/lib/utils";
 
 function formatBadgeCount(count: number) {
@@ -62,7 +63,11 @@ export function NavQuickActions({ className }: { className?: string }) {
       const res = await fetch("/api/properties/saved");
       const json = await res.json();
       if (!json.success) return 0;
-      return (json.data ?? []).length as number;
+      const propertyIds = (json.data ?? []).map(
+        (item: { propertyId?: string; property?: { id: string } }) =>
+          item.propertyId ?? item.property?.id
+      ) as string[];
+      return countUnviewedSavedProperties(propertyIds.filter(Boolean));
     },
     enabled: !!session?.user && role === "BUYER",
   });

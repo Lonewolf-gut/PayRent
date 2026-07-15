@@ -32,11 +32,7 @@ import {
   type NavItem,
 } from "@/components/dashboard/sidebar";
 import { RentVestLogo } from "@/components/rentvest/logo";
-import {
-  ADMIN_HOME_PATH,
-  COMPLIANCE_HOME_PATH,
-  getRoleSignOutPath,
-} from "@/lib/auth/route-guards";
+import { getRoleSignOutPath, getStaffPortalHomePath } from "@/lib/auth/route-guards";
 
 function getInitials(name?: string | null, email?: string | null) {
   if (name) {
@@ -225,8 +221,7 @@ export function AdminDashboardHeader({
   const [menuOpen, setMenuOpen] = useState(false);
 
   const role = session?.user?.role;
-  const staffHomePath =
-    role === "COMPLIANCE_OFFICER" ? COMPLIANCE_HOME_PATH : ADMIN_HOME_PATH;
+  const staffHomePath = getStaffPortalHomePath(sidebarTitle);
   const signOutPath = getRoleSignOutPath(role);
   const profileApiPath =
     role === "ADMIN" ? "/api/admin/settings" : "/api/settings";

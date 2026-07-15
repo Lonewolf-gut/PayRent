@@ -18,7 +18,7 @@ export default async function MarketingLayout({
 
   return (
     <MarketingSubscriptionShell>
-      <MarketingThemeGuard />
+      <MarketingThemeGuard>
       <Navbar />
       <main className="bg-white text-slate-900">{children}</main>
       <MarketingSignedInExtras />
@@ -98,6 +98,7 @@ export default async function MarketingLayout({
           &copy; {new Date().getFullYear()} PayForMe. All rights reserved.
         </div>
       </footer>
+      </MarketingThemeGuard>
     </MarketingSubscriptionShell>
   );
 }

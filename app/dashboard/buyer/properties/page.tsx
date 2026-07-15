@@ -1,12 +1,21 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { MapPin } from "lucide-react";
+import {
+  countUnviewedSavedProperties,
+  markSavedPropertyViewed,
+} from "@/lib/nav/saved-property-views";
 
 export default function TenantSavedPropertiesPage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
   const { data: saved, isLoading } = useQuery({
     queryKey: ["saved-properties"],
     queryFn: async () => {
@@ -16,10 +25,28 @@ export default function TenantSavedPropertiesPage() {
     },
   });
 
+  const propertyIds = (saved ?? []).map(
+    (item: { propertyId?: string; property: { id: string } }) =>
+      item.propertyId ?? item.property.id
+  ) as string[];
+  const unviewedCount = countUnviewedSavedProperties(propertyIds);
+
+  function handleOpenSaved(propertyId: string) {
+    markSavedPropertyViewed(propertyId);
+    queryClient.invalidateQueries({ queryKey: ["saved-property-count"] });
+    queryClient.invalidateQueries({ queryKey: ["saved-properties"] });
+    router.push(`/properties/${propertyId}`);
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Saved Properties</h1>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">Saved Properties</h1>
+          {unviewedCount > 0 ? (
+            <Badge className="bg-emerald-600">{unviewedCount}</Badge>
+          ) : null}
+        </div>
         <Button asChild variant="outline">
           <Link href="/properties">Browse more</Link>
         </Button>
@@ -31,6 +58,7 @@ export default function TenantSavedPropertiesPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {saved.map((item: {
+            propertyId?: string;
             property: {
               id: string;
               name: string;
@@ -38,9 +66,16 @@ export default function TenantSavedPropertiesPage() {
               monthlyRent: number;
               images?: { url: string }[];
             };
-          }) => (
-            <Card key={item.property.id}>
-              <div className="aspect-video bg-muted">
+          }) => {
+            const propertyId = item.propertyId ?? item.property.id;
+            const itemUnviewed = countUnviewedSavedProperties([propertyId]) > 0;
+
+            return (
+            <Card key={propertyId}>
+              <div className="relative aspect-video bg-muted">
+                {itemUnviewed ? (
+                  <Badge className="absolute left-2 top-2 z-10 bg-emerald-600">New</Badge>
+                ) : null}
                 {item.property.images?.[0]?.url && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -63,12 +98,16 @@ export default function TenantSavedPropertiesPage() {
                 </p>
               </CardContent>
               <CardFooter>
-                <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700">
-                  <Link href={`/properties/${item.property.id}`}>View</Link>
+                <Button
+                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                  onClick={() => handleOpenSaved(propertyId)}
+                >
+                  View
                 </Button>
               </CardFooter>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

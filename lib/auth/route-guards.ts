@@ -32,6 +32,12 @@ export function isCompliancePath(pathname: string) {
 export const ADMIN_HOME_PATH = "/admin";
 export const COMPLIANCE_HOME_PATH = "/compliance";
 
+export function getStaffPortalHomePath(title: string) {
+  if (title === "Admin") return ADMIN_HOME_PATH;
+  if (title === "Compliance") return COMPLIANCE_HOME_PATH;
+  return "/";
+}
+
 export function getRoleSignOutPath(role?: string | null) {
   if (role === "ADMIN") return "/admin/login";
   if (role === "COMPLIANCE_OFFICER") return "/compliance/login";

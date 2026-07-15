@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RentVestLogo } from "@/components/rentvest/logo";
+import { getStaffPortalHomePath } from "@/lib/auth/route-guards";
 import { Badge } from "@/components/ui/badge";
 import { SidebarUpgradeCard } from "@/components/dashboard/subscription-upgrade-dialog";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -97,7 +98,7 @@ export function SidebarNavContent({
     <div className="flex h-full flex-col">
       {showLogo ? (
         <div className="flex h-16 items-center border-b px-6">
-          <RentVestLogo showIcon={false} href={title === "Admin" ? "/admin" : "/"} />
+          <RentVestLogo showIcon={false} href={getStaffPortalHomePath(title)} />
         </div>
       ) : null}
       <div className="px-4 py-4">
