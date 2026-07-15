@@ -1,9 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Check, Search, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { conversationTitle } from "@/lib/messaging/display";
 import type { ConversationSummary } from "@/lib/messaging/types";
 import { cn } from "@/lib/utils";
@@ -11,6 +18,8 @@ import { ConversationList } from "./messaging-shared";
 
 const TABS = ["Focused", "Other"] as const;
 type MessagingTab = (typeof TABS)[number];
+type ReadFilter = "all" | "unread" | "read";
+type SortOrder = "newest" | "oldest";
 
 export function MessagingListPanel({
   conversations,
@@ -29,6 +38,8 @@ export function MessagingListPanel({
 }) {
   const [tab, setTab] = useState<MessagingTab>("Focused");
   const [search, setSearch] = useState("");
+  const [readFilter, setReadFilter] = useState<ReadFilter>("all");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
 
   const filtered = useMemo(() => {
     let list = conversations;
@@ -45,6 +56,13 @@ export function MessagingListPanel({
           conv.unreadCount === 0 && new Date(conv.updatedAt).getTime() < cutoff
       );
     }
+
+    if (readFilter === "unread") {
+      list = list.filter((conv) => conv.unreadCount > 0);
+    } else if (readFilter === "read") {
+      list = list.filter((conv) => conv.unreadCount === 0);
+    }
+
     if (search.trim()) {
       const query = search.trim().toLowerCase();
       list = list.filter((conv) => {
@@ -53,8 +71,15 @@ export function MessagingListPanel({
         return title.includes(query) || preview.includes(query);
       });
     }
-    return list;
-  }, [conversations, currentUserId, search, tab]);
+
+    return [...list].sort((a, b) => {
+      const aTime = new Date(a.updatedAt).getTime();
+      const bTime = new Date(b.updatedAt).getTime();
+      return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
+    });
+  }, [conversations, currentUserId, readFilter, search, sortOrder, tab]);
+
+  const filtersActive = readFilter !== "all" || sortOrder !== "newest";
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col bg-card", className)}>
@@ -70,15 +95,46 @@ export function MessagingListPanel({
               compact ? "h-9 text-sm" : "h-10"
             )}
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-            aria-label="Filter messages"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              type="button"
+              className={cn(
+                "absolute right-1 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-md hover:bg-muted",
+                filtersActive ? "text-emerald-600" : "text-muted-foreground"
+              )}
+              aria-label="Filter messages"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel>Read status</DropdownMenuLabel>
+              {(
+                [
+                  ["all", "All messages"],
+                  ["unread", "Unread only"],
+                  ["read", "Read only"],
+                ] as const
+              ).map(([value, label]) => (
+                <DropdownMenuItem key={value} onClick={() => setReadFilter(value)}>
+                  <span className="flex-1">{label}</span>
+                  {readFilter === value ? <Check className="h-4 w-4" /> : null}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+              {(
+                [
+                  ["newest", "Newest first"],
+                  ["oldest", "Oldest first"],
+                ] as const
+              ).map(([value, label]) => (
+                <DropdownMenuItem key={value} onClick={() => setSortOrder(value)}>
+                  <span className="flex-1">{label}</span>
+                  {sortOrder === value ? <Check className="h-4 w-4" /> : null}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="mt-3 flex gap-6 border-b">

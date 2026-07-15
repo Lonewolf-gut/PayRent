@@ -107,9 +107,7 @@ export function SidebarUpgradeCard() {
     <div className="mx-3 mb-4 rounded-none border bg-muted/40 p-3">
       <p className="truncate text-sm font-medium">{displayName}</p>
       <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Current plan: <span className="font-medium text-foreground">{planLabel}</span>
-      </p>
+      <p className="mt-2 text-xs font-medium text-foreground">{planLabel}</p>
       {!isPaidPlan(plan) ? (
         <Button
           className="mt-3 w-full justify-start gap-2 rounded-none bg-slate-900 text-white hover:bg-slate-800"

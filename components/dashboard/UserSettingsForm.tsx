@@ -735,7 +735,7 @@ export default function UserSettingsForm({
                   onChange={(e) => setIsDefault(e.target.checked)}
                   className="h-4 w-4 rounded border-input text-emerald-600"
                 />
-                <Label htmlFor="isDefault">Mark as default account</Label>
+                <Label htmlFor="isDefault" className="label-inline">Mark as default account</Label>
               </div>
 
               <Button

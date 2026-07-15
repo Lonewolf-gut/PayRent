@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, MessagesSquare } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { conversationTitle } from "@/lib/messaging/display";
@@ -81,14 +81,25 @@ export function MessagesWidget() {
   const badge = formatWidgetBadge(unread);
   const isExpanded = state !== "collapsed";
   const inChat = state === "chat" && !!activeId;
+  const hasConversations = conversations.length > 0;
+  const showCompactLauncher = !isExpanded && !hasConversations;
+
+  function openWidget() {
+    setState("list");
+  }
+
+  function collapseWidget() {
+    setActiveId(null);
+    setState("collapsed");
+  }
 
   return (
-    <div className="pointer-events-none fixed bottom-0 right-4 z-50 hidden sm:block">
+    <div className="pointer-events-none fixed bottom-0 right-2 z-50 sm:right-4">
       <div className="pointer-events-auto flex flex-col items-end">
         <div
           className={cn(
             "origin-bottom flex flex-col overflow-hidden rounded-t-xl border border-b-0 bg-card shadow-2xl transition-all duration-300 ease-out",
-            inChat ? "w-[min(92vw,640px)]" : "w-[min(92vw,360px)]",
+            inChat ? "w-[min(100vw-1rem,640px)]" : "w-[min(100vw-1rem,360px)]",
             isExpanded
               ? "translate-y-0 opacity-100"
               : "pointer-events-none max-h-0 translate-y-full opacity-0"
@@ -117,7 +128,7 @@ export function MessagesWidget() {
                   setState("list");
                   return;
                 }
-                setState("collapsed");
+                collapseWidget();
               }}
             >
               <ChevronDown className="h-4 w-4" />
@@ -175,35 +186,47 @@ export function MessagesWidget() {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setState(isExpanded ? "collapsed" : "list")}
-          className="flex w-[min(92vw,360px)] items-center gap-3 rounded-t-xl border border-b-0 bg-card px-3 py-2.5 shadow-xl transition hover:bg-muted/40"
-        >
-          <div className="relative">
-            <Avatar className="size-9">
-              {(profile?.image ?? session.user.image) ? (
-                <AvatarImage
-                  src={profile?.image ?? session.user.image ?? undefined}
-                  alt={displayName}
-                />
-              ) : null}
-              <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
-            </Avatar>
-            <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card bg-emerald-500" />
-          </div>
-          <span className="flex-1 text-left text-sm font-medium">Messaging</span>
-          {badge ? (
-            <span className="flex min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-              {badge}
-            </span>
-          ) : null}
-          {isExpanded ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          ) : (
+        {!isExpanded && showCompactLauncher ? (
+          <button
+            type="button"
+            onClick={openWidget}
+            aria-label="Open messaging"
+            className="relative mb-3 flex size-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700"
+          >
+            <MessagesSquare className="size-6" strokeWidth={1.75} />
+            {badge ? (
+              <span className="absolute -right-0.5 -top-0.5 flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                {badge}
+              </span>
+            ) : null}
+          </button>
+        ) : !isExpanded ? (
+          <button
+            type="button"
+            onClick={openWidget}
+            className="flex w-[min(100vw-1rem,360px)] items-center gap-3 rounded-t-xl border border-b-0 bg-card px-3 py-2.5 shadow-xl transition hover:bg-muted/40"
+          >
+            <div className="relative">
+              <Avatar className="size-9">
+                {(profile?.image ?? session.user.image) ? (
+                  <AvatarImage
+                    src={profile?.image ?? session.user.image ?? undefined}
+                    alt={displayName}
+                  />
+                ) : null}
+                <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
+              </Avatar>
+              <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card bg-emerald-500" />
+            </div>
+            <span className="flex-1 text-left text-sm font-medium">Messaging</span>
+            {badge ? (
+              <span className="flex min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                {badge}
+              </span>
+            ) : null}
             <ChevronUp className="h-4 w-4 text-muted-foreground" />
-          )}
-        </button>
+          </button>
+        ) : null}
       </div>
     </div>
   );

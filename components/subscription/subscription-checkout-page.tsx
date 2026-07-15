@@ -194,11 +194,8 @@ export function SubscriptionCheckoutPage() {
           {session?.user && canSubscribe ? (
             <div className="border-b border-emerald-100 bg-white">
               <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-                <p className="text-sm text-muted-foreground">
-                  Current plan:{" "}
-                  <span className="font-semibold text-emerald-900">
-                    {currentPlan === "FREE" ? "Free" : currentPlan}
-                  </span>
+                <p className="text-sm font-semibold text-emerald-900">
+                  {currentPlan === "FREE" ? "Free" : currentPlan}
                 </p>
               </div>
             </div>

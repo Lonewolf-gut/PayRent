@@ -94,7 +94,7 @@ export function PropertyAttributeFields({
                 disabled={disabled}
                 onChange={(e) => setValue(field.key, e.target.checked)}
               />
-              <Label htmlFor={field.key} className="cursor-pointer font-normal">
+              <Label htmlFor={field.key} className="label-inline cursor-pointer font-normal">
                 {field.label}
               </Label>
             </div>

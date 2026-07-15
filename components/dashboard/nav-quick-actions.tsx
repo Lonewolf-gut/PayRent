@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
-import { Bookmark, MessageSquare } from "lucide-react";
+import { Bookmark, MessagesSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMessagesPath, getSavedPath } from "@/lib/nav/dashboard-quick-links";
 import { cn } from "@/lib/utils";
@@ -98,7 +98,7 @@ export function NavQuickActions({ className }: { className?: string }) {
         count={unreadCount}
         active={pathname.startsWith(messagesPath)}
       >
-        <MessageSquare className="h-4 w-4" />
+        <MessagesSquare className="h-[18px] w-[18px]" strokeWidth={1.75} />
       </NavIconButton>
     </div>
   );

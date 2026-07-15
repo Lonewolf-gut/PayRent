@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { format } from "date-fns";
+import { MessageCircleMore } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -202,9 +203,20 @@ export function ConversationList({
 }) {
   if (!conversations.length) {
     return (
-      <p className={`text-sm text-muted-foreground ${compact ? "p-4" : "px-4 pb-4"}`}>
-        No messages yet
-      </p>
+      <div
+        className={cn(
+          "flex flex-col items-center justify-center text-center",
+          compact ? "px-4 py-10" : "px-6 py-14"
+        )}
+      >
+        <div className="flex size-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+          <MessageCircleMore className="size-8" strokeWidth={1.75} />
+        </div>
+        <p className="mt-4 text-sm font-medium text-foreground">No messages yet</p>
+        <p className="mt-1 max-w-[220px] text-xs text-muted-foreground">
+          When you send or receive messages, they will appear here.
+        </p>
+      </div>
     );
   }
 

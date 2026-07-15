@@ -513,11 +513,7 @@ export default function LandlordPropertiesPage() {
 
       {isPropertiesLoading ? (
         <p className="text-muted-foreground">Loading your listings...</p>
-      ) : !landlordProperties?.length ? (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-muted-foreground">
-          No listings yet. Add a property to start the onboarding process.
-        </div>
-      ) : (
+      ) : landlordProperties?.length ? (
         <div className="space-y-3">
           {landlordProperties.map((property: any) => {
             const status = statusMap[property.status] ?? { label: property.status, variant: "default" };
@@ -549,7 +545,7 @@ export default function LandlordPropertiesPage() {
             );
           })}
         </div>
-      )}
+      ) : null}
 
       {editingPropertyId && editingProperty && (
         <Card>
