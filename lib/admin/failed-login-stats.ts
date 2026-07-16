@@ -1,10 +1,38 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { notifyAllAdminsInAppAndEmail } from "@/lib/services/verification-notifications";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+const FAILED_LOGIN_NOTIFY_WINDOW_MS = 60_000;
 
 export function failedLoginWindowStart() {
   return new Date(Date.now() - TWENTY_FOUR_HOURS_MS);
+}
+
+async function notifyAdminsOfFailedLogin(params: {
+  email?: string | null;
+  userId?: string | null;
+  ipAddress?: string | null;
+}) {
+  const email = params.email?.trim().toLowerCase();
+  if (!email) return;
+
+  const recentDuplicate = await prisma.loginLog.count({
+    where: {
+      success: false,
+      createdAt: { gte: new Date(Date.now() - FAILED_LOGIN_NOTIFY_WINDOW_MS) },
+      ...(params.userId ? { userId: params.userId } : { email }),
+    },
+  });
+
+  if (recentDuplicate > 1) return;
+
+  const ipSuffix = params.ipAddress ? ` from ${params.ipAddress}` : "";
+  await notifyAllAdminsInAppAndEmail(
+    "Failed login attempt",
+    `Failed sign-in attempt for ${email}${ipSuffix}.`,
+    { email, userId: params.userId ?? null, type: "FAILED_LOGIN" }
+  );
 }
 
 async function createLoginLogResilient(
@@ -29,6 +57,7 @@ export async function recordFailedLoginAttempt(params: {
   ipAddress?: string | null;
   userAgent?: string | null;
   createdAt?: Date;
+  notifyAdmins?: boolean;
 }) {
   const email = params.email?.trim().toLowerCase();
   const base = {
@@ -52,7 +81,23 @@ export async function recordFailedLoginAttempt(params: {
       ]
     : [base, { success: false, createdAt: params.createdAt }];
 
-  return createLoginLogResilient(attempts);
+  const created = await createLoginLogResilient(attempts);
+
+  if (created && params.notifyAdmins !== false) {
+    try {
+      await notifyAdminsOfFailedLogin({
+        email,
+        userId: params.userId ?? null,
+        ipAddress: params.ipAddress ?? null,
+      });
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[LoginLog] admin notification failed:", error);
+      }
+    }
+  }
+
+  return created;
 }
 
 async function syncFailedLoginLogsFromUsers(since?: Date) {
@@ -81,6 +126,7 @@ async function syncFailedLoginLogsFromUsers(since?: Date) {
         userId: user.id,
         email: user.email,
         createdAt,
+        notifyAdmins: false,
       });
     }
   }

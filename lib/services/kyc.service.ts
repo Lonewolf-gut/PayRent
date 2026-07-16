@@ -808,6 +808,13 @@ export class KycService {
         `Your ${input.bankName} ${accountLabel} ending in ${input.accountNumber.slice(-4)} was verified and saved successfully.`
       );
     } else if (validation.status === "PENDING") {
+      const accountLabel =
+        input.accountType === "MOMO" ? "Mobile Money account" : "bank account";
+      await notifyUser(
+        userId,
+        `${accountLabel} saved for review`,
+        `Your ${input.bankName} ${accountLabel} ending in ${input.accountNumber.slice(-4)} was saved and is pending verification. We will notify you once it is approved.`
+      );
       await notifyAdmins(
         "Bank account validation exception",
         `${verifiedAccountName} submitted bank/MoMo details for manual review.`

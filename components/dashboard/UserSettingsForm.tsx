@@ -329,6 +329,7 @@ export default function UserSettingsForm({
       setBankAccounts((current) => [savedAccount, ...current]);
       queryClient.invalidateQueries({ queryKey: ["settings-bank-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       toast.success(
         json.message ??
           (savedAccount?.isVerified
