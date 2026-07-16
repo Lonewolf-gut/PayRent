@@ -19,11 +19,15 @@ import {
   type CheckoutPlanId,
 } from "@/lib/subscription/plans";
 import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
+import { useDashboardTheme } from "@/components/dashboard/dashboard-theme-provider";
+import { cn } from "@/lib/utils";
 
 export function SubscriptionUpgradeDialog() {
   const router = useRouter();
   const { data: session } = useSession();
   const { open, closeUpgrade } = useSubscriptionUpgrade();
+  const dashboardTheme = useDashboardTheme();
+  const isDark = dashboardTheme?.theme === "dark";
 
   const { data: subscriptionData } = useQuery({
     queryKey: ["subscription"],
@@ -50,14 +54,18 @@ export function SubscriptionUpgradeDialog() {
     <Dialog open={open} onOpenChange={(next) => !next && closeUpgrade()}>
       <DialogContent
         data-surface="subscription-upgrade"
-        style={{ backgroundColor: "#ffffff", borderRadius: 0 }}
-        className="max-h-[90vh] max-w-5xl overflow-y-auto !rounded-none border border-slate-200 !bg-white p-0 text-slate-900 shadow-xl ring-slate-200 sm:max-w-5xl"
+        className={cn(
+          "max-h-[90vh] max-w-5xl overflow-y-auto !rounded-none border border-border bg-popover p-0 text-popover-foreground shadow-xl sm:max-w-5xl",
+          isDark && "dark"
+        )}
       >
-        <DialogHeader className="border-b border-slate-200 px-6 py-5 text-center">
-          <DialogTitle className="text-2xl font-semibold text-slate-900">
+        <DialogHeader className="border-b border-border px-6 py-5 text-center">
+          <DialogTitle className="text-2xl font-semibold text-foreground">
             Adjust your plan
           </DialogTitle>
-          <p className="text-sm text-slate-600">Save 20% when billed annually on checkout</p>
+          <p className="text-sm text-muted-foreground">
+            Save 20% when billed annually on checkout
+          </p>
         </DialogHeader>
 
         <UpgradePlanPicker currentPlan={currentPlan} onSelectPlan={handlePlanSelect} />

@@ -33,12 +33,11 @@ export function UpgradePlanPicker({
           <div
             key={planId}
             data-plan-card={isHighlight ? "highlight" : "default"}
-            style={{ borderRadius: 0, ...(isHighlight ? {} : { backgroundColor: "#ffffff" }) }}
             className={cn(
               "flex flex-col !rounded-none border p-5",
               isHighlight
                 ? "border-emerald-600 bg-gradient-to-b from-emerald-600 to-emerald-700"
-                : "border-slate-200 !bg-white"
+                : "border-border bg-card text-card-foreground"
             )}
           >
             <div className="mb-3 flex min-h-[24px] items-center gap-2">
@@ -48,7 +47,7 @@ export function UpgradePlanPicker({
                 </span>
               ) : null}
               {isCurrent ? (
-                <span className="rounded-none border border-slate-300 px-2 py-0.5 text-[10px] font-bold tracking-wide text-slate-600">
+                <span className="rounded-none border border-border px-2 py-0.5 text-[10px] font-bold tracking-wide text-muted-foreground">
                   CURRENT PLAN
                 </span>
               ) : null}
@@ -57,7 +56,7 @@ export function UpgradePlanPicker({
             <h3
               className={cn(
                 "text-lg font-semibold",
-                isHighlight ? "text-white" : "text-slate-900"
+                isHighlight ? "text-white" : "text-foreground"
               )}
             >
               {plan.name}
@@ -65,7 +64,7 @@ export function UpgradePlanPicker({
             <p
               className={cn(
                 "mt-1 text-sm",
-                isHighlight ? "text-emerald-50/90" : "text-slate-600"
+                isHighlight ? "text-emerald-50/90" : "text-muted-foreground"
               )}
             >
               {plan.tagline}
@@ -73,7 +72,7 @@ export function UpgradePlanPicker({
             <p
               className={cn(
                 "mt-4 text-2xl font-bold",
-                isHighlight ? "text-white" : "text-slate-900"
+                isHighlight ? "text-white" : "text-foreground"
               )}
             >
               {formatPrice(planId)}
@@ -81,7 +80,7 @@ export function UpgradePlanPicker({
                 <span
                   className={cn(
                     "text-sm font-normal",
-                    isHighlight ? "text-emerald-100" : "text-slate-500"
+                    isHighlight ? "text-emerald-100" : "text-muted-foreground"
                   )}
                 >
                   {" "}
@@ -96,13 +95,13 @@ export function UpgradePlanPicker({
                   key={feature}
                   className={cn(
                     "flex items-start gap-2 text-xs leading-relaxed",
-                    isHighlight ? "text-emerald-50" : "text-slate-700"
+                    isHighlight ? "text-emerald-50" : "text-muted-foreground"
                   )}
                 >
                   <Check
                     className={cn(
                       "mt-0.5 h-3.5 w-3.5 shrink-0",
-                      isHighlight ? "text-emerald-100" : "text-emerald-600"
+                      isHighlight ? "text-emerald-100" : "text-emerald-600 dark:text-emerald-400"
                     )}
                   />
                   <span>{feature}</span>
@@ -112,14 +111,13 @@ export function UpgradePlanPicker({
 
             <Button
               type="button"
-              style={{ borderRadius: 0 }}
               className={cn(
                 "mt-5 w-full !rounded-none",
                 isCurrent
-                  ? "bg-slate-100 text-slate-400 hover:bg-slate-100"
+                  ? "bg-muted text-muted-foreground hover:bg-muted"
                   : isHighlight
                     ? "bg-white text-emerald-800 hover:bg-emerald-50"
-                    : "bg-slate-900 text-white hover:bg-slate-800"
+                    : "bg-foreground text-background hover:bg-foreground/90"
               )}
               disabled={isCurrent}
               onClick={() => onSelectPlan(planId)}
