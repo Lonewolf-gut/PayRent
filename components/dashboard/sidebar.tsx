@@ -97,7 +97,7 @@ export function SidebarNavContent({
   return (
     <div className="flex h-full flex-col">
       {showLogo ? (
-        <div className="flex h-16 items-center border-b px-6">
+        <div className="flex h-16 items-center border-b border-border px-6">
           <RentVestLogo showIcon={false} href={getStaffPortalHomePath(title)} />
         </div>
       ) : null}
@@ -138,7 +138,7 @@ export function SidebarNavContent({
         })}
       </nav>
       {showThemeToggle ? (
-        <div className="border-t px-4 py-4 lg:hidden">
+        <div className="border-t border-border px-4 py-4 lg:hidden">
           <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Appearance
           </p>

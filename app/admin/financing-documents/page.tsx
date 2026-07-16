@@ -167,7 +167,7 @@ export default function AdminFinancingDocumentsPage() {
         <SheetContent side="right" variant="wide" className="gap-0 p-0">
           {selectedGroup ? (
             <>
-              <SheetHeader className="border-b px-6 py-5 pr-14">
+              <SheetHeader className="border-b border-border px-6 py-5 pr-14">
                 <SheetTitle>{selectedGroup.summary.fullName}</SheetTitle>
                 <SheetDescription>
                   {selectedGroup.summary.email}
@@ -177,19 +177,19 @@ export default function AdminFinancingDocumentsPage() {
 
               <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="border p-3 text-sm">
+                  <div className="rounded-none border border-border bg-card p-3 text-sm">
                     <p className="font-medium">Identity</p>
                     <p className="text-muted-foreground">
                       {selectedGroup.summary.kycVerified ? "Verified" : "Not verified"}
                     </p>
                   </div>
-                  <div className="border p-3 text-sm">
+                  <div className="rounded-none border border-border bg-card p-3 text-sm">
                     <p className="font-medium">Employment</p>
                     <p className="text-muted-foreground">
                       {selectedGroup.summary.employmentVerified ? "Verified" : "Pending"}
                     </p>
                   </div>
-                  <div className="border p-3 text-sm">
+                  <div className="rounded-none border border-border bg-card p-3 text-sm">
                     <p className="font-medium">Address</p>
                     <p className="text-muted-foreground">
                       {selectedGroup.summary.addressVerified ? "Verified" : "Pending"}
@@ -220,7 +220,7 @@ export default function AdminFinancingDocumentsPage() {
                           href={doc.fileUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="border p-3 text-sm text-emerald-700 hover:underline"
+                          className="rounded-none border border-border bg-card p-3 text-sm text-emerald-600 hover:underline dark:text-emerald-400"
                         >
                           {KYC_DOCUMENT_LABELS[doc.documentType] ?? doc.documentType} ·{" "}
                           {doc.fileName}
@@ -233,7 +233,7 @@ export default function AdminFinancingDocumentsPage() {
                 <div className="space-y-4">
                   <p className="font-medium">Financing submissions</p>
                   {selectedGroup.documents.map((doc) => (
-                    <div key={doc.id} className="space-y-3 border bg-muted/20 p-4">
+                    <div key={doc.id} className="space-y-3 rounded-none border border-border bg-muted/20 p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <p className="font-medium">{FINANCING_DOC_LABELS[doc.documentType]}</p>

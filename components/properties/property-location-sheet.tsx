@@ -70,7 +70,7 @@ export function PropertyLocationSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" variant="wide" className="gap-0 p-0">
-        <SheetHeader className="border-b px-6 py-5 pr-14">
+        <SheetHeader className="border-b border-border px-6 py-5 pr-14">
           <SheetTitle>Property location</SheetTitle>
           <SheetDescription>{property.name}</SheetDescription>
         </SheetHeader>
