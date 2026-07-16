@@ -52,12 +52,23 @@ export const GET = withAuth(async (req: NextRequest) => {
     });
   }
 
-  const providers = await listPaystackBanks({ type: "ghipss" });
-  return apiResponse({
-    configured: true,
-    providers: providers.map((bank) => ({
-      code: bank.code,
-      name: bank.name,
-    })),
-  });
+  try {
+    const providers = await listPaystackBanks({ type: "ghipss" });
+    return apiResponse({
+      configured: true,
+      providers: providers.map((bank) => ({
+        code: bank.code,
+        name: bank.name,
+      })),
+    });
+  } catch (error) {
+    return apiResponse({
+      configured: false,
+      providers: [],
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not load bank list. You can still enter details manually.",
+    });
+  }
 });

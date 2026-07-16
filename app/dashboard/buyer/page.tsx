@@ -27,7 +27,7 @@ export default function TenantDashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Tenant Dashboard</h1>
+        <h1 className="text-2xl font-bold">Buyer Dashboard</h1>
         <p className="text-muted-foreground">
           Search listings, manage applications, Pay for Rent financing, mandates, and repayments
         </p>

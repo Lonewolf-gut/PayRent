@@ -227,7 +227,7 @@ export default function VerifyEmailPage() {
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
-              className="h-11"
+              className="h-11 bg-white text-slate-900"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
               placeholder="000000"

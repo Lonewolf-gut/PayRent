@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/accordion";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { AccountNameConfirmation } from "@/components/dashboard/account-name-confirmation";
+import { getApiErrorMessage, readApiJson } from "@/lib/utils/api-message";
 import { toast } from "sonner";
 
 type BankAccount = {
@@ -36,20 +37,6 @@ type UserSettingsFormProps = {
   updateSessionAfterUpload?: boolean;
   showBankSection?: boolean;
 };
-
-function getApiErrorMessage(json: {
-  success?: boolean;
-  message?: string;
-  errors?: Array<{ message?: string }>;
-  data?: { error?: unknown };
-}) {
-  return (
-    json.errors?.[0]?.message ??
-    (typeof json.data?.error === "string" ? json.data.error : null) ??
-    json.message ??
-    "Request failed"
-  );
-}
 
 export default function UserSettingsForm({
   settingsApi = "/api/settings",
@@ -88,6 +75,7 @@ export default function UserSettingsForm({
   const [resolveLoading, setResolveLoading] = useState(false);
   const [resolveError, setResolveError] = useState<string | null>(null);
   const [accountVerified, setAccountVerified] = useState(false);
+  const [payoutVerificationConfigured, setPayoutVerificationConfigured] = useState(true);
 
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [twoFaPending, setTwoFaPending] = useState(false);
@@ -135,11 +123,20 @@ export default function UserSettingsForm({
       setProvidersLoading(true);
       try {
         const res = await fetch(`/api/bank-accounts/providers?accountType=${accountType}`);
-        const json = await res.json();
+        const json = await readApiJson(res);
         if (json.success) {
-          setProviders(json.data.providers ?? []);
+          const data = json.data as {
+            configured?: boolean;
+            providers?: Array<{ code: string; name: string }>;
+          };
+          setPayoutVerificationConfigured(data.configured !== false);
+          setProviders(data.providers ?? []);
+        } else {
+          setPayoutVerificationConfigured(false);
+          setProviders([]);
         }
       } catch {
+        setPayoutVerificationConfigured(false);
         setProviders([]);
       } finally {
         setProvidersLoading(false);
@@ -154,6 +151,7 @@ export default function UserSettingsForm({
     setResolveError(null);
     setAccountVerified(false);
 
+    if (!payoutVerificationConfigured) return;
     if (!bankCode || accountNumber.trim().length < 8) return;
 
     const timer = window.setTimeout(async () => {
@@ -166,22 +164,35 @@ export default function UserSettingsForm({
           bankCode,
         });
         const res = await fetch(`/api/bank-accounts/resolve?${params.toString()}`);
-        const json = await res.json();
-        if (!json.success || !json.data?.verified) {
-          throw new Error(json.data?.error ?? json.message ?? "Could not verify account");
+        const json = await readApiJson(res);
+        const data = json.data as {
+          verified?: boolean;
+          accountName?: string;
+          error?: string;
+        } | null;
+        if (!res.ok || !json.success || !data?.verified) {
+          throw new Error(
+            data?.error ??
+              getApiErrorMessage(json, "Could not verify this account. Check the details and try again.")
+          );
         }
-        setAccountName(json.data.accountName);
+        setAccountName(data.accountName ?? "");
         setAccountVerified(true);
       } catch (error: unknown) {
         setAccountVerified(false);
-        setResolveError(error instanceof Error ? error.message : String(error));
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Could not verify this account. Check the details and try again.";
+        setResolveError(message);
+        toast.error(message);
       } finally {
         setResolveLoading(false);
       }
     }, 600);
 
     return () => window.clearTimeout(timer);
-  }, [accountType, accountNumber, bankCode]);
+  }, [accountType, accountNumber, bankCode, payoutVerificationConfigured]);
 
   async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -273,8 +284,22 @@ export default function UserSettingsForm({
   async function handleAddBankAccount(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!accountVerified || !accountName.trim()) {
-      toast.error("Verify your account number first so we can confirm the account holder name.");
+    if (!bankName.trim()) {
+      toast.error("Select a bank or mobile money provider.");
+      return;
+    }
+
+    const canSave =
+      payoutVerificationConfigured
+        ? accountVerified && accountName.trim()
+        : accountName.trim().length >= 2;
+
+    if (!canSave) {
+      toast.error(
+        payoutVerificationConfigured
+          ? "Verify your account number first so we can confirm the account holder name."
+          : "Enter the account holder name as it appears on the bank or MoMo account."
+      );
       return;
     }
 
@@ -289,20 +314,26 @@ export default function UserSettingsForm({
           bankCode: bankCode || undefined,
           bankName,
           accountNumber,
-          accountName,
+          accountName: accountName.trim(),
           isDefault,
         }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.message ?? "Request failed");
+      const json = await readApiJson(res);
+      if (!res.ok || !json.success) {
+        throw new Error(
+          getApiErrorMessage(json, "Could not save your bank or MoMo details. Please try again.")
+        );
+      }
 
-      setBankAccounts((current) => [json.data, ...current]);
+      const savedAccount = json.data as BankAccount;
+      setBankAccounts((current) => [savedAccount, ...current]);
       queryClient.invalidateQueries({ queryKey: ["settings-bank-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
       toast.success(
-        json.data?.isVerified
-          ? "Account verified and saved successfully."
-          : "Bank/MoMo details saved."
+        json.message ??
+          (savedAccount?.isVerified
+            ? "Account verified and saved successfully."
+            : "Bank or MoMo details saved for review.")
       );
       setBankName("");
       setBankCode("");
@@ -312,7 +343,11 @@ export default function UserSettingsForm({
       setAccountVerified(false);
       setResolveError(null);
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : String(error));
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not save your bank or MoMo details. Please try again."
+      );
     } finally {
       setBankLoading(false);
     }
@@ -324,8 +359,10 @@ export default function UserSettingsForm({
     setDeletingAccountId(accountId);
     try {
       const res = await fetch(`${bankApi}/${accountId}`, { method: "DELETE" });
-      const json = await res.json();
-      if (!json.success) throw new Error(getApiErrorMessage(json));
+      const json = await readApiJson(res);
+      if (!res.ok || !json.success) {
+        throw new Error(getApiErrorMessage(json, "Could not remove this account."));
+      }
 
       setBankAccounts((current) => current.filter((account) => account.id !== accountId));
       queryClient.invalidateQueries({ queryKey: ["settings-bank-accounts"] });
@@ -415,6 +452,12 @@ export default function UserSettingsForm({
 
   const hasPayoutAccount = bankAccounts.length > 0;
   const verifiedAccounts = bankAccounts.filter((a) => a.isVerified).length;
+  const canSubmitBankDetails =
+    bankName.trim().length > 0 &&
+    accountNumber.trim().length >= 8 &&
+    (payoutVerificationConfigured
+      ? accountVerified && accountName.trim().length > 0
+      : accountName.trim().length >= 2);
 
   return (
     <div className="w-full">
@@ -449,7 +492,7 @@ export default function UserSettingsForm({
                     value={fullName}
                     readOnly
                     disabled
-                    className="bg-muted/40"
+                    className="bg-muted/40 text-foreground"
                   />
                   <p className="text-xs text-muted-foreground">
                     Your name is set at registration and cannot be changed here.
@@ -464,7 +507,7 @@ export default function UserSettingsForm({
                   value={email}
                   readOnly
                   disabled
-                  className="bg-muted/40"
+                  className="bg-muted/40 text-foreground"
                 />
                 <p className="text-xs text-muted-foreground">
                   Email is set at registration and cannot be changed here.
@@ -665,7 +708,7 @@ export default function UserSettingsForm({
                 <select
                   value={accountType}
                   onChange={(e) => setAccountType(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 >
                   <option value="BANK">Bank</option>
                   <option value="MOMO">MoMo</option>
@@ -674,6 +717,7 @@ export default function UserSettingsForm({
 
               <div className="grid gap-2">
                 <Label>{accountType === "MOMO" ? "Mobile money network" : "Bank"}</Label>
+                {providers.length > 0 ? (
                 <select
                   value={bankCode}
                   onChange={(e) => {
@@ -681,8 +725,8 @@ export default function UserSettingsForm({
                     setBankCode(e.target.value);
                     setBankName(selected?.name ?? "");
                   }}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                  disabled={providersLoading || !providers.length}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  disabled={providersLoading}
                 >
                   <option value="">
                     {providersLoading
@@ -697,6 +741,16 @@ export default function UserSettingsForm({
                     </option>
                   ))}
                 </select>
+                ) : (
+                  <Input
+                    value={bankName}
+                    onChange={(e) => {
+                      setBankName(e.target.value);
+                      setBankCode(e.target.value ? "MANUAL" : "");
+                    }}
+                    placeholder={accountType === "MOMO" ? "Mobile money network" : "Bank name"}
+                  />
+                )}
               </div>
 
               <div className="grid gap-2">
@@ -709,20 +763,37 @@ export default function UserSettingsForm({
                 />
               </div>
 
-              {(resolveLoading || resolveError || accountVerified) && bankCode && accountNumber ? (
-                <AccountNameConfirmation
-                  accountName={accountName}
-                  accountNumber={accountNumber}
-                  providerName={bankName || (accountType === "MOMO" ? "Mobile Money" : "Bank")}
-                  loading={resolveLoading}
-                  error={resolveError}
-                />
-              ) : bankCode && accountNumber.trim().length >= 8 ? (
-                <p className="text-xs text-muted-foreground">
-                  Enter your {accountType === "MOMO" ? "MoMo number" : "account number"} and we&apos;ll
-                  confirm the registered account name automatically.
-                </p>
-              ) : null}
+              {payoutVerificationConfigured ? (
+                <>
+                  {(resolveLoading || resolveError || accountVerified) && bankCode && accountNumber ? (
+                    <AccountNameConfirmation
+                      accountName={accountName}
+                      accountNumber={accountNumber}
+                      providerName={bankName || (accountType === "MOMO" ? "Mobile Money" : "Bank")}
+                      loading={resolveLoading}
+                      error={resolveError}
+                    />
+                  ) : bankCode && accountNumber.trim().length >= 8 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Enter your {accountType === "MOMO" ? "MoMo number" : "account number"} and we&apos;ll
+                      confirm the registered account name automatically.
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <div className="grid gap-2">
+                  <Label>Account holder name</Label>
+                  <Input
+                    value={accountName}
+                    onChange={(e) => setAccountName(e.target.value)}
+                    placeholder="Name on the bank or MoMo account"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Automatic account lookup is unavailable. Enter the holder name exactly as it appears on
+                    the account.
+                  </p>
+                </div>
+              )}
 
               <input type="hidden" name="bankName" value={bankName} />
               <input type="hidden" name="accountName" value={accountName} />
@@ -740,7 +811,7 @@ export default function UserSettingsForm({
 
               <Button
                 type="submit"
-                disabled={bankLoading || !accountVerified}
+                disabled={bankLoading || !canSubmitBankDetails}
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
                 {bankLoading ? "Saving…" : "Add Bank/MoMo details"}

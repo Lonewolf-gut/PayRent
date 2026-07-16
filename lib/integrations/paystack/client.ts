@@ -25,7 +25,17 @@ export async function paystackRequest<T>(
     },
   });
 
-  const json = (await response.json()) as PaystackApiResponse<T>;
+  const raw = await response.text();
+  let json: PaystackApiResponse<T>;
+  try {
+    json = JSON.parse(raw) as PaystackApiResponse<T>;
+  } catch {
+    throw new Error(
+      response.ok
+        ? "Paystack returned an unexpected response. Please try again."
+        : `Paystack request failed (${response.status}). Check your API keys and try again.`
+    );
+  }
 
   if (!response.ok || !json.status) {
     throw new Error(json.message || `Paystack request failed (${response.status})`);

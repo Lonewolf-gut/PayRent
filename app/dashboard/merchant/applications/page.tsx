@@ -39,7 +39,7 @@ export default function LandlordApplicationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Tenant applications</h1>
+        <h1 className="text-2xl font-bold">Buyer applications</h1>
         <p className="text-muted-foreground">
           Review applications, request clarification, and approve tenancy decisions.
         </p>

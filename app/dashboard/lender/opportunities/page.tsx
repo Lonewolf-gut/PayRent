@@ -130,7 +130,7 @@ export default function LenderOpportunitiesPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-2 text-sm sm:grid-cols-2">
-                  <p>Tenant: {req.tenant?.fullName ?? req.tenant?.user?.email}</p>
+                  <p>Buyer: {req.tenant?.fullName ?? req.tenant?.user?.email}</p>
                   <p>Income: GHS {Number(req.tenant?.monthlyIncome ?? 0).toLocaleString()}</p>
                   <p>Requested: GHS {Number(req.requestedAmount).toLocaleString()}</p>
                   <p>Duration: {req.durationMonths} months</p>

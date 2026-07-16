@@ -42,8 +42,8 @@ export default function LandlordDashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Landlord Dashboard</h1>
-        <p className="text-muted-foreground">Manage listings, agents, and earnings</p>
+        <h1 className="text-2xl font-bold">Merchant Dashboard</h1>
+        <p className="text-muted-foreground">Manage listings, affiliates, and earnings</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Active Listings" value={`${stats.listingCount}`} icon={Building2} />

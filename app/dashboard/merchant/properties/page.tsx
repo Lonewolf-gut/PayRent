@@ -520,10 +520,10 @@ export default function LandlordPropertiesPage() {
             return (
               <div
                 key={property.id}
-                className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 rounded-xl bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
-                  <span className="font-medium text-slate-900">{property.name}</span>
+                  <span className="font-medium text-foreground">{property.name}</span>
                   <Badge variant="secondary">
                     {PROPERTY_TYPE_LABELS[property.propertyType as PropertyType] ??
                       property.propertyType}
