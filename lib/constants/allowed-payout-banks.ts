@@ -5,6 +5,7 @@ import {
   type PaystackBank,
 } from "@/lib/integrations/paystack/banks";
 import { AppError } from "@/lib/errors";
+import { payoutBankConfigService } from "@/lib/services/payout-bank-config.service";
 
 export type PayoutBankProvider = {
   code: string;
@@ -111,20 +112,43 @@ export function findAllowedPayoutBankProvider(
   );
 }
 
+export function mergePayoutBankProviders(
+  primary: PayoutBankProvider[],
+  additional: PayoutBankProvider[]
+): PayoutBankProvider[] {
+  const merged = [...primary];
+
+  for (const provider of additional) {
+    const exists = merged.some(
+      (item) =>
+        item.code === provider.code ||
+        item.resolveCode === provider.resolveCode ||
+        item.name.toLowerCase() === provider.name.toLowerCase()
+    );
+    if (!exists) merged.push(provider);
+  }
+
+  return merged;
+}
+
 export async function getAllowedPayoutBankProviders(): Promise<PayoutBankProvider[]> {
+  const adminProviders = await payoutBankConfigService.listActiveProviders();
+
   if (!isPaystackConfigured()) {
-    return ALLOWED_PAYOUT_BANK_FALLBACKS;
+    return mergePayoutBankProviders(ALLOWED_PAYOUT_BANK_FALLBACKS, adminProviders);
   }
 
   const banks = await listPaystackBanks({ type: "ghipss", country: "ghana" });
   const filtered = filterAllowedPaystackBanks(banks);
-  if (filtered.length) return filtered;
+  if (!filtered.length && !adminProviders.length) {
+    throw new AppError(
+      "Could not load supported bank codes from Paystack. Please try again shortly.",
+      503,
+      "PAYOUT_BANKS_UNAVAILABLE"
+    );
+  }
 
-  throw new AppError(
-    "Could not load supported bank codes from Paystack. Please try again shortly.",
-    503,
-    "PAYOUT_BANKS_UNAVAILABLE"
-  );
+  return mergePayoutBankProviders(filtered, adminProviders);
 }
 
 export function isAllowedPayoutBankCode(
@@ -162,8 +186,11 @@ export function assertAllowedPayoutBank(params: {
 
   if (isAllowedPayoutBankName(bankName)) return;
 
+  const allowedNames = providers.map((provider) => provider.name).join(", ");
   throw new AppError(
-    "Only GCB Bank, Consolidated Bank Ghana (CBG), Agricultural Development Bank (ADB), and Zenith Bank accounts can be added.",
+    allowedNames
+      ? `Only these banks are supported for payout accounts: ${allowedNames}.`
+      : "This bank is not supported for payout accounts.",
     400,
     "BANK_NOT_ALLOWED"
   );

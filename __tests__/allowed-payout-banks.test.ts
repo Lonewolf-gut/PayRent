@@ -5,6 +5,7 @@ import {
   findAllowedPayoutBankProvider,
   isAllowedPayoutBankCode,
   isAllowedPayoutBankName,
+  mergePayoutBankProviders,
 } from "@/lib/constants/allowed-payout-banks";
 import { filterPaystackMomoProviders } from "@/lib/integrations/paystack/banks";
 
@@ -71,7 +72,22 @@ describe("allowed payout banks", () => {
         bankName: "Ecobank Ghana Limited",
         providers,
       })
-    ).toThrow(/Only GCB Bank/);
+    ).toThrow(/Only these banks are supported/);
+  });
+
+  it("merges admin banks without duplicating defaults", () => {
+    expect(
+      mergePayoutBankProviders(
+        [{ code: "040", name: "GCB Bank", resolveCode: "040" }],
+        [
+          { code: "040", name: "GCB Bank", resolveCode: "040" },
+          { code: "130", name: "Ecobank Ghana", resolveCode: "130" },
+        ]
+      )
+    ).toEqual([
+      { code: "040", name: "GCB Bank", resolveCode: "040" },
+      { code: "130", name: "Ecobank Ghana", resolveCode: "130" },
+    ]);
   });
 
   it("does not restrict MoMo accounts", () => {

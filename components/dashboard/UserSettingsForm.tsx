@@ -75,6 +75,7 @@ export default function UserSettingsForm({
   const [resolveLoading, setResolveLoading] = useState(false);
   const [resolveError, setResolveError] = useState<string | null>(null);
   const [accountVerified, setAccountVerified] = useState(false);
+  const resolveRequestRef = useRef(0);
   const [payoutVerificationConfigured, setPayoutVerificationConfigured] = useState(true);
 
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
@@ -147,52 +148,81 @@ export default function UserSettingsForm({
   }, [accountType]);
 
   useEffect(() => {
-    setAccountName("");
-    setResolveError(null);
-    setAccountVerified(false);
+    if (!payoutVerificationConfigured) {
+      setAccountName("");
+      setResolveError(null);
+      setAccountVerified(false);
+      return;
+    }
 
-    if (!payoutVerificationConfigured) return;
     const minLength = accountType === "MOMO" ? 10 : 8;
-    if (!bankCode || accountNumber.trim().length < minLength) return;
+    const trimmedAccountNumber = accountNumber.trim();
+    if (!bankCode || trimmedAccountNumber.length < minLength) {
+      setAccountName("");
+      setResolveError(null);
+      setAccountVerified(false);
+      setResolveLoading(false);
+      return;
+    }
 
+    const controller = new AbortController();
     const timer = window.setTimeout(async () => {
+      const requestId = ++resolveRequestRef.current;
       setResolveLoading(true);
       setResolveError(null);
+      setAccountVerified(false);
+      setAccountName("");
+
       try {
         const params = new URLSearchParams({
           accountType,
-          accountNumber: accountNumber.trim(),
+          accountNumber: trimmedAccountNumber,
           bankCode,
         });
-        const res = await fetch(`/api/bank-accounts/resolve?${params.toString()}`);
+        const res = await fetch(`/api/bank-accounts/resolve?${params.toString()}`, {
+          signal: controller.signal,
+        });
         const json = await readApiJson(res);
         const data = json.data as {
           verified?: boolean;
           accountName?: string;
           error?: string;
         } | null;
+
+        if (requestId !== resolveRequestRef.current) return;
+
         if (!res.ok || !json.success || !data?.verified) {
           throw new Error(
             data?.error ??
               getApiErrorMessage(json, "Could not verify this account. Check the details and try again.")
           );
         }
+
         setAccountName(data.accountName ?? "");
         setAccountVerified(true);
+        setResolveError(null);
       } catch (error: unknown) {
+        if (controller.signal.aborted) return;
+        if (requestId !== resolveRequestRef.current) return;
+
         setAccountVerified(false);
+        setAccountName("");
         const message =
           error instanceof Error
             ? error.message
             : "Could not verify this account. Check the details and try again.";
         setResolveError(message);
-        toast.error(message);
       } finally {
-        setResolveLoading(false);
+        if (requestId === resolveRequestRef.current) {
+          setResolveLoading(false);
+        }
       }
     }, 600);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, [accountType, accountNumber, bankCode, payoutVerificationConfigured]);
 
   async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {

@@ -1223,3 +1223,18 @@ model BusinessRuleConfig {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
+
+model PayoutBankConfig {
+  id              String   @id @default(cuid())
+  name            String
+  paystackCode    String
+  resolveCode     String?
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([paystackCode])
+  @@index([isActive, sortOrder])
+}
