@@ -216,4 +216,9 @@
     border-radius: 0 !important;
   }
 
+  [data-slot="dialog-content"][data-surface="subscription-upgrade"].dark > .bg-background {
+    background-color: oklch(0.12 0 0);
+    color: oklch(0.96 0.01 160);
+  }
+
 }

@@ -55,20 +55,26 @@ export function SubscriptionUpgradeDialog() {
       <DialogContent
         data-surface="subscription-upgrade"
         className={cn(
-          "max-h-[90vh] max-w-5xl overflow-y-auto !rounded-none border border-border bg-popover p-0 text-popover-foreground shadow-xl sm:max-w-5xl",
+          "max-h-[90vh] max-w-5xl gap-0 overflow-hidden border-0 bg-transparent p-0 shadow-none ring-0 sm:max-w-5xl",
           isDark && "dark"
         )}
       >
-        <DialogHeader className="border-b border-border px-6 py-5 text-center">
-          <DialogTitle className="text-2xl font-semibold text-foreground">
-            Adjust your plan
-          </DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            Save 20% when billed annually on checkout
-          </p>
-        </DialogHeader>
+        <div className="flex max-h-[90vh] flex-col overflow-y-auto border border-border bg-background text-foreground shadow-xl">
+          <DialogHeader className="border-b border-border px-6 py-5 text-center">
+            <DialogTitle className="text-2xl font-semibold text-foreground">
+              Adjust your plan
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Save 20% when billed annually on checkout
+            </p>
+          </DialogHeader>
 
-        <UpgradePlanPicker currentPlan={currentPlan} onSelectPlan={handlePlanSelect} />
+          <UpgradePlanPicker
+            currentPlan={currentPlan}
+            onSelectPlan={handlePlanSelect}
+            isDark={isDark}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );
