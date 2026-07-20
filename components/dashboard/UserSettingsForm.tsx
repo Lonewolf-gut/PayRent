@@ -734,7 +734,7 @@ export default function UserSettingsForm({
                       ? "Loading providers…"
                       : accountType === "MOMO"
                         ? "Select MTN, Telecel, or AirtelTigo"
-                        : "Select your bank"}
+                        : "Select GCB, CBG, ADB, or Zenith Bank"}
                   </option>
                   {providers.map((provider) => (
                     <option key={provider.code} value={provider.code}>

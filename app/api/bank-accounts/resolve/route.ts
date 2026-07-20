@@ -5,6 +5,10 @@ import {
   normalizeGhanaPhoneNumber,
   resolvePaystackAccount,
 } from "@/lib/integrations/paystack/banks";
+import {
+  assertAllowedPayoutBank,
+  getAllowedPayoutBankProviders,
+} from "@/lib/constants/allowed-payout-banks";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 
 export const GET = withAuth(async (req: NextRequest) => {
@@ -22,6 +26,31 @@ export const GET = withAuth(async (req: NextRequest) => {
 
   if (!parsed.success) {
     return apiResponse({ error: "Account number and provider are required" }, 400);
+  }
+
+  if (parsed.data.accountType === "BANK") {
+    const allowedProviders = await getAllowedPayoutBankProviders();
+    try {
+      assertAllowedPayoutBank({
+        accountType: "BANK",
+        bankCode: parsed.data.bankCode,
+        bankName:
+          allowedProviders.find((bank) => bank.code === parsed.data.bankCode)?.name ??
+          "",
+        providers: allowedProviders,
+      });
+    } catch (error) {
+      return apiResponse(
+        {
+          verified: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "This bank is not supported for account lookup.",
+        },
+        400
+      );
+    }
   }
 
   if (!isPaystackConfigured()) {

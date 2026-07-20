@@ -15,6 +15,10 @@ import {
 import { auditService } from "@/lib/services/audit.service";
 import { AppError } from "@/lib/errors";
 import { saveKycDocument } from "@/lib/integrations/documents";
+import {
+  assertAllowedPayoutBank,
+  getAllowedPayoutBankProviders,
+} from "@/lib/constants/allowed-payout-banks";
 import type {
   ProfileInput,
   IdentityVerifyInput,
@@ -710,6 +714,16 @@ export class KycService {
   }
 
   async addBankAccount(userId: string, input: BankAccountInput) {
+    if (input.accountType === "BANK") {
+      const allowedProviders = await getAllowedPayoutBankProviders();
+      assertAllowedPayoutBank({
+        accountType: input.accountType,
+        bankCode: input.bankCode,
+        bankName: input.bankName,
+        providers: allowedProviders,
+      });
+    }
+
     let validation: BankValidationOutcome;
     let providerName: string;
     let verifiedAccountName = input.accountName.trim();

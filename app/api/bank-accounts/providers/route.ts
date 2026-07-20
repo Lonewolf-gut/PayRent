@@ -2,9 +2,10 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { isPaystackConfigured } from "@/lib/integrations/paystack/config";
 import {
-  GHANA_MOMO_NETWORKS,
-  listPaystackBanks,
-} from "@/lib/integrations/paystack/banks";
+  getAllowedPayoutBankProviders,
+  ALLOWED_PAYOUT_BANK_FALLBACKS,
+} from "@/lib/constants/allowed-payout-banks";
+import { GHANA_MOMO_NETWORKS } from "@/lib/integrations/paystack/banks";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 
 export const GET = withAuth(async (req: NextRequest) => {
@@ -20,18 +21,16 @@ export const GET = withAuth(async (req: NextRequest) => {
     return apiResponse({ error: "Invalid account type" }, 400);
   }
 
-  if (!isPaystackConfigured()) {
-    return apiResponse({
-      configured: false,
-      providers:
-        parsed.data.accountType === "MOMO"
-          ? GHANA_MOMO_NETWORKS
-          : [],
-    });
-  }
-
   if (parsed.data.accountType === "MOMO") {
+    if (!isPaystackConfigured()) {
+      return apiResponse({
+        configured: false,
+        providers: GHANA_MOMO_NETWORKS,
+      });
+    }
+
     try {
+      const { listPaystackBanks } = await import("@/lib/integrations/paystack/banks");
       const providers = await listPaystackBanks({ type: "mobile_money" });
       if (providers.length) {
         return apiResponse({
@@ -52,23 +51,12 @@ export const GET = withAuth(async (req: NextRequest) => {
     });
   }
 
-  try {
-    const providers = await listPaystackBanks({ type: "ghipss" });
-    return apiResponse({
-      configured: true,
-      providers: providers.map((bank) => ({
-        code: bank.code,
-        name: bank.name,
-      })),
-    });
-  } catch (error) {
-    return apiResponse({
-      configured: false,
-      providers: [],
-      error:
-        error instanceof Error
-          ? error.message
-          : "Could not load bank list. You can still enter details manually.",
-    });
-  }
+  const allowedBanks = isPaystackConfigured()
+    ? await getAllowedPayoutBankProviders()
+    : ALLOWED_PAYOUT_BANK_FALLBACKS;
+
+  return apiResponse({
+    configured: isPaystackConfigured(),
+    providers: allowedBanks,
+  });
 });
