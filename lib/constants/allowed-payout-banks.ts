@@ -1,3 +1,4 @@
+import { isPaystackConfigured } from "@/lib/integrations/paystack/config";
 import { listPaystackBanks, type PaystackBank } from "@/lib/integrations/paystack/banks";
 import { AppError } from "@/lib/errors";
 
@@ -33,12 +34,12 @@ export const ALLOWED_PAYOUT_BANK_DEFINITIONS = [
   },
 ] as const;
 
-/** Used when Paystack is unavailable; codes are resolved from Paystack when configured. */
+/** Shown when Paystack is unavailable — manual entry only (no live lookup). */
 export const ALLOWED_PAYOUT_BANK_FALLBACKS: PayoutBankProvider[] = [
-  { code: "040", name: "GCB Bank" },
-  { code: "340", name: "Consolidated Bank Ghana" },
-  { code: "080", name: "Agricultural Development Bank" },
-  { code: "1201", name: "Zenith Bank" },
+  { code: "GCB", name: "GCB Bank" },
+  { code: "CBG", name: "Consolidated Bank Ghana" },
+  { code: "ADB", name: "Agricultural Development Bank" },
+  { code: "ZENITH", name: "Zenith Bank" },
 ];
 
 export function isAllowedPayoutBankName(bankName: string) {
@@ -66,15 +67,28 @@ export function filterAllowedPaystackBanks(
 }
 
 export async function getAllowedPayoutBankProviders(): Promise<PayoutBankProvider[]> {
-  try {
-    const banks = await listPaystackBanks({ type: "ghipss" });
-    const filtered = filterAllowedPaystackBanks(banks);
-    if (filtered.length) return filtered;
-  } catch {
-    // Fall back to static list below.
+  if (!isPaystackConfigured()) {
+    return ALLOWED_PAYOUT_BANK_FALLBACKS;
   }
 
-  return ALLOWED_PAYOUT_BANK_FALLBACKS;
+  const banks = await listPaystackBanks({ type: "ghipss", country: "ghana" });
+  const filtered = filterAllowedPaystackBanks(banks);
+  if (filtered.length) return filtered;
+
+  throw new AppError(
+    "Could not load supported bank codes from Paystack. Please try again shortly.",
+    503,
+    "PAYOUT_BANKS_UNAVAILABLE"
+  );
+}
+
+export function isAllowedPayoutBankCode(
+  bankCode: string,
+  providers: PayoutBankProvider[]
+) {
+  const normalized = bankCode.trim();
+  if (!normalized) return false;
+  return providers.some((provider) => provider.code === normalized);
 }
 
 export function assertAllowedPayoutBank(params: {
@@ -89,19 +103,20 @@ export function assertAllowedPayoutBank(params: {
   const bankCode = params.bankCode?.trim();
   const bankName = params.bankName.trim();
 
-  const byCode = bankCode
-    ? providers.find((provider) => provider.code === bankCode)
-    : null;
+  if (bankCode && isAllowedPayoutBankCode(bankCode, providers)) {
+    return;
+  }
+
   const byProviderName = providers.find(
     (provider) => provider.name.toLowerCase() === bankName.toLowerCase()
   );
-  const byMatcher = isAllowedPayoutBankName(bankName);
+  if (byProviderName) return;
 
-  if (!byCode && !byProviderName && !byMatcher) {
-    throw new AppError(
-      "Only GCB Bank, Consolidated Bank Ghana (CBG), Agricultural Development Bank (ADB), and Zenith Bank accounts can be added.",
-      400,
-      "BANK_NOT_ALLOWED"
-    );
-  }
+  if (isAllowedPayoutBankName(bankName)) return;
+
+  throw new AppError(
+    "Only GCB Bank, Consolidated Bank Ghana (CBG), Agricultural Development Bank (ADB), and Zenith Bank accounts can be added.",
+    400,
+    "BANK_NOT_ALLOWED"
+  );
 }

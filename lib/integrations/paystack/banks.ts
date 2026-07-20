@@ -11,10 +11,12 @@ export type PaystackBank = {
 
 export async function listPaystackBanks(params?: {
   currency?: string;
+  country?: string;
   type?: "ghipss" | "mobile_money";
 }) {
   const search = new URLSearchParams({
     currency: params?.currency ?? "GHS",
+    country: params?.country ?? "ghana",
   });
   if (params?.type) search.set("type", params.type);
 
@@ -50,8 +52,41 @@ export async function resolvePaystackAccount(params: {
 export const GHANA_MOMO_NETWORKS = [
   { code: "MTN", name: "MTN Mobile Money" },
   { code: "VOD", name: "Telecel Cash (Vodafone)" },
-  { code: "TIG", name: "AirtelTigo Money" },
+  { code: "ATL", name: "AirtelTigo Money" },
 ] as const;
+
+const GHANA_MOMO_DEFINITIONS = [
+  {
+    name: "MTN Mobile Money",
+    matches: (bankName: string) => /\bmtn\b/i.test(bankName),
+  },
+  {
+    name: "Telecel Cash (Vodafone)",
+    matches: (bankName: string) => /vodafone|telecel|\bvod\b/i.test(bankName),
+  },
+  {
+    name: "AirtelTigo Money",
+    matches: (bankName: string) => /airteltigo|\btigo\b|\batl\b/i.test(bankName),
+  },
+] as const;
+
+export function filterPaystackMomoProviders(
+  banks: Array<Pick<PaystackBank, "code" | "name">>
+) {
+  const providers: Array<{ code: string; name: string }> = [];
+
+  for (const definition of GHANA_MOMO_DEFINITIONS) {
+    const match = banks.find((bank) => definition.matches(bank.name));
+    if (match) {
+      providers.push({
+        code: match.code,
+        name: definition.name,
+      });
+    }
+  }
+
+  return providers.length ? providers : [...GHANA_MOMO_NETWORKS];
+}
 
 export function normalizeGhanaPhoneNumber(value: string) {
   const digits = value.replace(/\D/g, "");

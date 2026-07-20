@@ -10,6 +10,7 @@ import {
   getAllowedPayoutBankProviders,
 } from "@/lib/constants/allowed-payout-banks";
 import { apiResponse, withAuth } from "@/lib/api/handler";
+import { AppError } from "@/lib/errors";
 
 export const GET = withAuth(async (req: NextRequest) => {
   const parsed = z
@@ -29,17 +30,19 @@ export const GET = withAuth(async (req: NextRequest) => {
   }
 
   if (parsed.data.accountType === "BANK") {
-    const allowedProviders = await getAllowedPayoutBankProviders();
     try {
+      const allowedProviders = await getAllowedPayoutBankProviders();
+      const selectedBank = allowedProviders.find(
+        (bank) => bank.code === parsed.data.bankCode
+      );
       assertAllowedPayoutBank({
         accountType: "BANK",
         bankCode: parsed.data.bankCode,
-        bankName:
-          allowedProviders.find((bank) => bank.code === parsed.data.bankCode)?.name ??
-          "",
+        bankName: selectedBank?.name ?? "",
         providers: allowedProviders,
       });
     } catch (error) {
+      const status = error instanceof AppError ? error.statusCode : 400;
       return apiResponse(
         {
           verified: false,
@@ -48,7 +51,7 @@ export const GET = withAuth(async (req: NextRequest) => {
               ? error.message
               : "This bank is not supported for account lookup.",
         },
-        400
+        status
       );
     }
   }

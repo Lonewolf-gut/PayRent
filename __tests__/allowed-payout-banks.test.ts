@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   assertAllowedPayoutBank,
   filterAllowedPaystackBanks,
+  isAllowedPayoutBankCode,
   isAllowedPayoutBankName,
 } from "@/lib/constants/allowed-payout-banks";
+import { filterPaystackMomoProviders } from "@/lib/integrations/paystack/banks";
 
 describe("allowed payout banks", () => {
   const paystackBanks = [
@@ -24,24 +26,27 @@ describe("allowed payout banks", () => {
   });
 
   it("accepts allowed bank names and codes", () => {
+    const providers = filterAllowedPaystackBanks(paystackBanks);
     expect(isAllowedPayoutBankName("GCB Bank Limited")).toBe(true);
+    expect(isAllowedPayoutBankCode("040", providers)).toBe(true);
     expect(() =>
       assertAllowedPayoutBank({
         accountType: "BANK",
         bankCode: "040",
         bankName: "GCB Bank",
-        providers: filterAllowedPaystackBanks(paystackBanks),
+        providers,
       })
     ).not.toThrow();
   });
 
   it("rejects unsupported banks", () => {
+    const providers = filterAllowedPaystackBanks(paystackBanks);
     expect(() =>
       assertAllowedPayoutBank({
         accountType: "BANK",
         bankCode: "130",
         bankName: "Ecobank Ghana Limited",
-        providers: filterAllowedPaystackBanks(paystackBanks),
+        providers,
       })
     ).toThrow(/Only GCB Bank/);
   });
@@ -54,5 +59,21 @@ describe("allowed payout banks", () => {
         bankName: "MTN Mobile Money",
       })
     ).not.toThrow();
+  });
+});
+
+describe("momo providers", () => {
+  it("maps Paystack mobile money providers to the Ghana networks", () => {
+    expect(
+      filterPaystackMomoProviders([
+        { code: "MTN", name: "MTN Mobile Money" },
+        { code: "VOD", name: "Vodafone Cash" },
+        { code: "ATL", name: "AirtelTigo Money" },
+      ])
+    ).toEqual([
+      { code: "MTN", name: "MTN Mobile Money" },
+      { code: "VOD", name: "Telecel Cash (Vodafone)" },
+      { code: "ATL", name: "AirtelTigo Money" },
+    ]);
   });
 });

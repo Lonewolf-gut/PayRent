@@ -5,8 +5,12 @@ import {
   getAllowedPayoutBankProviders,
   ALLOWED_PAYOUT_BANK_FALLBACKS,
 } from "@/lib/constants/allowed-payout-banks";
-import { GHANA_MOMO_NETWORKS } from "@/lib/integrations/paystack/banks";
-import { apiResponse, withAuth } from "@/lib/api/handler";
+import {
+  filterPaystackMomoProviders,
+  GHANA_MOMO_NETWORKS,
+  listPaystackBanks,
+} from "@/lib/integrations/paystack/banks";
+import { apiError, apiResponse, withAuth } from "@/lib/api/handler";
 
 export const GET = withAuth(async (req: NextRequest) => {
   const parsed = z
@@ -21,8 +25,10 @@ export const GET = withAuth(async (req: NextRequest) => {
     return apiResponse({ error: "Invalid account type" }, 400);
   }
 
+  const paystackReady = isPaystackConfigured();
+
   if (parsed.data.accountType === "MOMO") {
-    if (!isPaystackConfigured()) {
+    if (!paystackReady) {
       return apiResponse({
         configured: false,
         providers: GHANA_MOMO_NETWORKS,
@@ -30,33 +36,40 @@ export const GET = withAuth(async (req: NextRequest) => {
     }
 
     try {
-      const { listPaystackBanks } = await import("@/lib/integrations/paystack/banks");
-      const providers = await listPaystackBanks({ type: "mobile_money" });
-      if (providers.length) {
-        return apiResponse({
-          configured: true,
-          providers: providers.map((bank) => ({
-            code: bank.code,
-            name: bank.name,
-          })),
-        });
-      }
-    } catch {
-      // Fall back to static list when Paystack mobile list is unavailable.
+      const paystackProviders = await listPaystackBanks({
+        type: "mobile_money",
+        country: "ghana",
+      });
+      return apiResponse({
+        configured: true,
+        providers: filterPaystackMomoProviders(paystackProviders),
+      });
+    } catch (error) {
+      return apiResponse({
+        configured: true,
+        providers: GHANA_MOMO_NETWORKS,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Could not refresh MoMo providers from Paystack.",
+      });
     }
+  }
 
+  if (!paystackReady) {
     return apiResponse({
-      configured: true,
-      providers: GHANA_MOMO_NETWORKS,
+      configured: false,
+      providers: ALLOWED_PAYOUT_BANK_FALLBACKS,
     });
   }
 
-  const allowedBanks = isPaystackConfigured()
-    ? await getAllowedPayoutBankProviders()
-    : ALLOWED_PAYOUT_BANK_FALLBACKS;
-
-  return apiResponse({
-    configured: isPaystackConfigured(),
-    providers: allowedBanks,
-  });
+  try {
+    const allowedBanks = await getAllowedPayoutBankProviders();
+    return apiResponse({
+      configured: true,
+      providers: allowedBanks,
+    });
+  } catch (error) {
+    return apiError(error);
+  }
 });

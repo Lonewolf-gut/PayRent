@@ -152,7 +152,8 @@ export default function UserSettingsForm({
     setAccountVerified(false);
 
     if (!payoutVerificationConfigured) return;
-    if (!bankCode || accountNumber.trim().length < 8) return;
+    const minLength = accountType === "MOMO" ? 10 : 8;
+    if (!bankCode || accountNumber.trim().length < minLength) return;
 
     const timer = window.setTimeout(async () => {
       setResolveLoading(true);
@@ -453,9 +454,10 @@ export default function UserSettingsForm({
 
   const hasPayoutAccount = bankAccounts.length > 0;
   const verifiedAccounts = bankAccounts.filter((a) => a.isVerified).length;
+  const minAccountDigits = accountType === "MOMO" ? 10 : 8;
   const canSubmitBankDetails =
     bankName.trim().length > 0 &&
-    accountNumber.trim().length >= 8 &&
+    accountNumber.trim().length >= minAccountDigits &&
     (payoutVerificationConfigured
       ? accountVerified && accountName.trim().length > 0
       : accountName.trim().length >= 2);
@@ -734,7 +736,7 @@ export default function UserSettingsForm({
                       ? "Loading providers…"
                       : accountType === "MOMO"
                         ? "Select MTN, Telecel, or AirtelTigo"
-                        : "Select GCB, CBG, ADB, or Zenith Bank"}
+                        : "Select your bank"}
                   </option>
                   {providers.map((provider) => (
                     <option key={provider.code} value={provider.code}>
@@ -774,7 +776,7 @@ export default function UserSettingsForm({
                       loading={resolveLoading}
                       error={resolveError}
                     />
-                  ) : bankCode && accountNumber.trim().length >= 8 ? (
+                  ) : bankCode && accountNumber.trim().length >= minAccountDigits ? (
                     <p className="text-xs text-muted-foreground">
                       Enter your {accountType === "MOMO" ? "MoMo number" : "account number"} and we&apos;ll
                       confirm the registered account name automatically.
