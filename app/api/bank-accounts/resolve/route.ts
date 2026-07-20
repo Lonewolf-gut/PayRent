@@ -7,6 +7,7 @@ import {
 } from "@/lib/integrations/paystack/banks";
 import {
   assertAllowedPayoutBank,
+  findAllowedPayoutBankProvider,
   getAllowedPayoutBankProviders,
 } from "@/lib/constants/allowed-payout-banks";
 import { apiResponse, withAuth } from "@/lib/api/handler";
@@ -30,10 +31,19 @@ export const GET = withAuth(async (req: NextRequest) => {
   }
 
   if (parsed.data.accountType === "BANK") {
+    if (!isPaystackConfigured()) {
+      return apiResponse(
+        { error: "Account verification is unavailable until Paystack is configured." },
+        503
+      );
+    }
+
+    let selectedBank;
     try {
       const allowedProviders = await getAllowedPayoutBankProviders();
-      const selectedBank = allowedProviders.find(
-        (bank) => bank.code === parsed.data.bankCode
+      selectedBank = findAllowedPayoutBankProvider(
+        parsed.data.bankCode,
+        allowedProviders
       );
       assertAllowedPayoutBank({
         accountType: "BANK",
@@ -52,6 +62,33 @@ export const GET = withAuth(async (req: NextRequest) => {
               : "This bank is not supported for account lookup.",
         },
         status
+      );
+    }
+
+    const accountNumber = parsed.data.accountNumber.trim();
+
+    try {
+      const resolved = await resolvePaystackAccount({
+        accountNumber,
+        bankCode: selectedBank!.resolveCode,
+        alternateBankCodes: selectedBank!.alternateResolveCodes,
+      });
+
+      return apiResponse({
+        accountNumber: resolved.accountNumber,
+        accountName: resolved.accountName,
+        verified: true,
+      });
+    } catch (error) {
+      return apiResponse(
+        {
+          verified: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Could not verify this account. Check the number and provider.",
+        },
+        400
       );
     }
   }

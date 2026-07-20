@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors";
+import { findAllowedPayoutBankProvider, getAllowedPayoutBankProviders } from "@/lib/constants/allowed-payout-banks";
 import { isPaystackConfigured } from "@/lib/integrations/paystack/config";
 import {
   normalizeGhanaPhoneNumber,
@@ -22,10 +23,23 @@ export async function validateBankAccountWithPaystack(
       ? normalizeGhanaPhoneNumber(input.accountNumber)
       : input.accountNumber.trim();
 
+  let bankCode = input.bankCode.trim();
+  let alternateBankCodes: string[] | undefined;
+
+  if (input.accountType === "BANK") {
+    const allowedProviders = await getAllowedPayoutBankProviders();
+    const selectedBank = findAllowedPayoutBankProvider(bankCode, allowedProviders);
+    if (selectedBank) {
+      bankCode = selectedBank.resolveCode;
+      alternateBankCodes = selectedBank.alternateResolveCodes;
+    }
+  }
+
   try {
     const resolved = await resolvePaystackAccount({
       accountNumber,
-      bankCode: input.bankCode.trim(),
+      bankCode,
+      alternateBankCodes,
     });
 
     return {

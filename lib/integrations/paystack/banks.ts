@@ -5,20 +5,35 @@ export type PaystackBank = {
   name: string;
   slug: string;
   code: string;
+  longcode?: string;
   type: string;
   currency: string;
 };
+
+/** Primary code for Paystack `/bank/resolve` — always the list-banks `code`. */
+export function paystackBankResolveCode(bank: Pick<PaystackBank, "code" | "longcode">) {
+  return bank.code.trim();
+}
 
 export async function listPaystackBanks(params?: {
   currency?: string;
   country?: string;
   type?: "ghipss" | "mobile_money";
 }) {
-  const search = new URLSearchParams({
-    currency: params?.currency ?? "GHS",
-    country: params?.country ?? "ghana",
-  });
-  if (params?.type) search.set("type", params.type);
+  const search = new URLSearchParams();
+  const country = params?.country ?? "ghana";
+  const type = params?.type;
+
+  // Ghana channel lists use country + type (not currency) per Paystack docs.
+  if (type === "ghipss" || type === "mobile_money") {
+    search.set("country", country);
+    search.set("type", type);
+  } else if (params?.country) {
+    search.set("country", params.country);
+    if (params.currency) search.set("currency", params.currency);
+  } else {
+    search.set("currency", params?.currency ?? "GHS");
+  }
 
   const response = await paystackRequest<PaystackBank[]>(`/bank?${search.toString()}`, {
     method: "GET",
@@ -27,7 +42,7 @@ export async function listPaystackBanks(params?: {
   return response.data;
 }
 
-export async function resolvePaystackAccount(params: {
+async function resolvePaystackAccountWithCode(params: {
   accountNumber: string;
   bankCode: string;
 }) {
@@ -47,6 +62,36 @@ export async function resolvePaystackAccount(params: {
     accountName: response.data.account_name,
     bankId: response.data.bank_id,
   };
+}
+
+export async function resolvePaystackAccount(params: {
+  accountNumber: string;
+  bankCode: string;
+  alternateBankCodes?: string[];
+}) {
+  const primaryCode = params.bankCode.trim();
+  const alternates = (params.alternateBankCodes ?? [])
+    .map((code) => code.trim())
+    .filter((code) => code && code !== primaryCode);
+
+  try {
+    return await resolvePaystackAccountWithCode({
+      accountNumber: params.accountNumber,
+      bankCode: primaryCode,
+    });
+  } catch (error) {
+    for (const bankCode of alternates) {
+      try {
+        return await resolvePaystackAccountWithCode({
+          accountNumber: params.accountNumber,
+          bankCode,
+        });
+      } catch {
+        // Try the next known code variant for this bank.
+      }
+    }
+    throw error;
+  }
 }
 
 export const GHANA_MOMO_NETWORKS = [

@@ -1,10 +1,17 @@
 import { isPaystackConfigured } from "@/lib/integrations/paystack/config";
-import { listPaystackBanks, type PaystackBank } from "@/lib/integrations/paystack/banks";
+import {
+  listPaystackBanks,
+  paystackBankResolveCode,
+  type PaystackBank,
+} from "@/lib/integrations/paystack/banks";
 import { AppError } from "@/lib/errors";
 
 export type PayoutBankProvider = {
   code: string;
   name: string;
+  /** Code sent to Paystack `/bank/resolve` (may differ from dropdown `code`). */
+  resolveCode: string;
+  alternateResolveCodes?: string[];
 };
 
 /** Canonical partner banks accepted for payout account lookup. */
@@ -12,17 +19,20 @@ export const ALLOWED_PAYOUT_BANK_DEFINITIONS = [
   {
     key: "gcb",
     name: "GCB Bank",
+    paystackCodes: ["040"],
     matches: (bankName: string) =>
       /\bgcb\b/i.test(bankName) || /ghana commercial/i.test(bankName),
   },
   {
     key: "cbg",
     name: "Consolidated Bank Ghana",
+    paystackCodes: ["340"],
     matches: (bankName: string) => /consolidated bank/i.test(bankName),
   },
   {
     key: "adb",
     name: "Agricultural Development Bank",
+    paystackCodes: ["080"],
     matches: (bankName: string) =>
       /agricultural development/i.test(bankName) ||
       /\badb\b/i.test(bankName),
@@ -30,17 +40,46 @@ export const ALLOWED_PAYOUT_BANK_DEFINITIONS = [
   {
     key: "zenith",
     name: "Zenith Bank",
+    paystackCodes: ["1201"],
     matches: (bankName: string) => /zenith/i.test(bankName),
   },
 ] as const;
 
 /** Shown when Paystack is unavailable — manual entry only (no live lookup). */
 export const ALLOWED_PAYOUT_BANK_FALLBACKS: PayoutBankProvider[] = [
-  { code: "GCB", name: "GCB Bank" },
-  { code: "CBG", name: "Consolidated Bank Ghana" },
-  { code: "ADB", name: "Agricultural Development Bank" },
-  { code: "ZENITH", name: "Zenith Bank" },
+  { code: "GCB", name: "GCB Bank", resolveCode: "GCB" },
+  { code: "CBG", name: "Consolidated Bank Ghana", resolveCode: "CBG" },
+  { code: "ADB", name: "Agricultural Development Bank", resolveCode: "ADB" },
+  { code: "ZENITH", name: "Zenith Bank", resolveCode: "ZENITH" },
 ];
+
+function pickAllowedPaystackBank(
+  banks: Array<Pick<PaystackBank, "code" | "longcode" | "name" | "slug">>,
+  definition: (typeof ALLOWED_PAYOUT_BANK_DEFINITIONS)[number]
+) {
+  const matches = banks.filter((bank) => definition.matches(bank.name));
+  if (!matches.length) return null;
+
+  const preferred =
+    matches.find((bank) => definition.paystackCodes.includes(bank.code.trim())) ??
+    matches[0];
+
+  const resolveCode = paystackBankResolveCode(preferred);
+  const alternateResolveCodes = [
+    preferred.longcode?.trim(),
+    ...definition.paystackCodes,
+  ].filter(
+    (code, index, all): code is string =>
+      Boolean(code) && all.indexOf(code) === index && code !== resolveCode
+  );
+
+  return {
+    code: preferred.code.trim(),
+    name: definition.name,
+    resolveCode,
+    alternateResolveCodes,
+  } satisfies PayoutBankProvider;
+}
 
 export function isAllowedPayoutBankName(bankName: string) {
   const normalized = bankName.trim();
@@ -49,21 +88,27 @@ export function isAllowedPayoutBankName(bankName: string) {
 }
 
 export function filterAllowedPaystackBanks(
-  banks: Array<Pick<PaystackBank, "code" | "name">>
+  banks: Array<Pick<PaystackBank, "code" | "longcode" | "name" | "slug">>
 ): PayoutBankProvider[] {
   const providers: PayoutBankProvider[] = [];
 
   for (const definition of ALLOWED_PAYOUT_BANK_DEFINITIONS) {
-    const match = banks.find((bank) => definition.matches(bank.name));
-    if (match) {
-      providers.push({
-        code: match.code,
-        name: definition.name,
-      });
-    }
+    const match = pickAllowedPaystackBank(banks, definition);
+    if (match) providers.push(match);
   }
 
   return providers;
+}
+
+export function findAllowedPayoutBankProvider(
+  bankCode: string,
+  providers: PayoutBankProvider[]
+) {
+  const normalized = bankCode.trim();
+  return providers.find(
+    (provider) =>
+      provider.code === normalized || provider.resolveCode === normalized
+  );
 }
 
 export async function getAllowedPayoutBankProviders(): Promise<PayoutBankProvider[]> {
@@ -88,7 +133,10 @@ export function isAllowedPayoutBankCode(
 ) {
   const normalized = bankCode.trim();
   if (!normalized) return false;
-  return providers.some((provider) => provider.code === normalized);
+  return providers.some(
+    (provider) =>
+      provider.code === normalized || provider.resolveCode === normalized
+  );
 }
 
 export function assertAllowedPayoutBank(params: {
