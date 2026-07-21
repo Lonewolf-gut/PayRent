@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/accordion";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { AccountNameConfirmation } from "@/components/dashboard/account-name-confirmation";
+import { TwoFactorSetupPanel } from "@/components/dashboard/two-factor-setup-panel";
 import { getApiErrorMessage, readApiJson } from "@/lib/utils/api-message";
 import { toast } from "sonner";
 
@@ -421,7 +422,7 @@ export default function UserSettingsForm({
       setTwoFaSecret(json.data.secret);
       setTwoFaOtpauthUrl(json.data.otpauthUrl);
       setTwoFaPending(true);
-      toast.success("Scan the secret in your authenticator app, then enter the code below.");
+      toast.success("Scan the QR code in your authenticator app, then enter the code below.");
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
@@ -500,7 +501,7 @@ export default function UserSettingsForm({
           <AccordionTrigger className="rounded-none border-0 px-0 py-5 hover:no-underline">
             <div className="flex flex-1 items-center justify-between gap-4 pr-2 text-left">
               <div>
-                <p className="text-base font-medium">Profile</p>
+                <p className="text-base font-medium text-foreground">Profile</p>
                 <p className="text-sm font-normal text-muted-foreground">
                   Name, email, password, and profile picture.
                 </p>
@@ -633,7 +634,7 @@ export default function UserSettingsForm({
           <AccordionTrigger className="rounded-none border-0 px-0 py-5 hover:no-underline">
             <div className="flex flex-1 items-center justify-between gap-4 pr-2 text-left">
               <div>
-                <p className="text-base font-medium">Two-factor authentication</p>
+                <p className="text-base font-medium text-foreground">Two-factor authentication</p>
                 <p className="text-sm font-normal text-muted-foreground">
                   Required to confirm wallet withdrawals.
                 </p>
@@ -650,65 +651,18 @@ export default function UserSettingsForm({
               for a code after OTP verification.
             </p>
 
-            {twoFactorEnabled ? (
-              <div className="space-y-3">
-                <p className="text-sm text-emerald-700">2FA is active on your account.</p>
-                <div className="grid gap-2 max-w-xs">
-                  <Label>Authenticator code</Label>
-                  <Input
-                    value={twoFaToken}
-                    onChange={(e) => setTwoFaToken(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="6-digit code"
-                    maxLength={6}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={twoFaLoading}
-                  onClick={handleDisable2Fa}
-                >
-                  Disable 2FA
-                </Button>
-              </div>
-            ) : twoFaPending ? (
-              <div className="space-y-3">
-                {twoFaSecret ? (
-                  <p className="text-sm font-mono break-all rounded-md border bg-muted/40 p-3">
-                    Secret: {twoFaSecret}
-                  </p>
-                ) : null}
-                {twoFaOtpauthUrl ? (
-                  <p className="text-xs text-muted-foreground break-all">{twoFaOtpauthUrl}</p>
-                ) : null}
-                <div className="grid gap-2 max-w-xs">
-                  <Label>Verification code</Label>
-                  <Input
-                    value={twoFaToken}
-                    onChange={(e) => setTwoFaToken(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="6-digit code"
-                    maxLength={6}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                  disabled={twoFaLoading}
-                  onClick={handleVerify2Fa}
-                >
-                  Confirm 2FA setup
-                </Button>
-              </div>
-            ) : (
-              <Button
-                type="button"
-                className="bg-emerald-600 hover:bg-emerald-700"
-                disabled={twoFaLoading}
-                onClick={handleEnable2Fa}
-              >
-                Enable 2FA
-              </Button>
-            )}
+            <TwoFactorSetupPanel
+              enabled={twoFactorEnabled}
+              pending={twoFaPending}
+              secret={twoFaSecret}
+              otpauthUrl={twoFaOtpauthUrl}
+              token={twoFaToken}
+              loading={twoFaLoading}
+              onTokenChange={setTwoFaToken}
+              onEnable={handleEnable2Fa}
+              onVerify={handleVerify2Fa}
+              onDisable={handleDisable2Fa}
+            />
           </AccordionContent>
         </AccordionItem>
 
