@@ -21,6 +21,7 @@ import { getProfileDisplayName } from "@/lib/utils/display-name";
 import { SUPPORT_EMAIL, PLATFORM_NAME } from "@/constants/platform";
 import { sendEmail, buildEmailTemplate } from "@/lib/services/email.service";
 import { consentService } from "@/lib/services/consent.service";
+import { normalizeGhanaPhoneNumber } from "@/lib/integrations/paystack/banks";
 
 export type RegisterContext = {
   ipAddress?: string;
@@ -250,7 +251,87 @@ export class AuthService {
       where: { id: userId },
       data: { phoneVerified: new Date() },
     });
+    await prisma.verification.create({
+      data: {
+        userId,
+        type: "PHONE",
+        status: "APPROVED",
+      },
+    });
+
+    const displayName = await getUserDisplayName(userId);
+    await notifyUserInAppAndEmail(
+      userId,
+      "Phone number verified",
+      `Hi ${displayName}, your mobile number is verified. You can now use wallet withdrawals and other secured features.`
+    );
+
     return true;
+  }
+
+  async requestPhoneVerification(userId: string, phone?: string) {
+    const normalized = phone ? normalizeGhanaPhoneNumber(phone) : "";
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { phone: true, phoneVerified: true },
+    });
+
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    if (user.phoneVerified) {
+      throw new AppError("Your phone number is already verified.", 400);
+    }
+
+    const targetPhone = normalized || user.phone?.trim() || "";
+    if (!targetPhone || targetPhone.length < 10) {
+      throw new AppError("Enter a valid mobile number before requesting a code.", 400);
+    }
+
+    if (normalized && normalized !== user.phone) {
+      const taken = await prisma.user.findFirst({
+        where: {
+          phone: normalized,
+          id: { not: userId },
+          phoneVerified: { not: null },
+        },
+        select: { id: true },
+      });
+      if (taken) {
+        throw new AppError("This mobile number is already linked to another account.", 409);
+      }
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: { phone: normalized, phoneVerified: null },
+      });
+    }
+
+    const code = await otpService.create(userId, "PHONE_VERIFY", 10);
+    const smsBody = `Your ${PLATFORM_NAME} verification code is ${code}. It expires in 10 minutes.`;
+
+    await notificationService.create({
+      userId,
+      title: "Verify your mobile number",
+      body: smsBody,
+      channel: "SMS",
+      sendSms: true,
+    });
+
+    await notificationService.create({
+      userId,
+      title: "Verify your mobile number",
+      body: `Your verification code is: ${code}. It expires in 10 minutes.`,
+      channel: "IN_APP",
+      sendEmail: false,
+    });
+
+    return {
+      phone: normalized || user.phone,
+      code,
+      smsProvider: (process.env.SMS_PROVIDER || "log").trim().toLowerCase(),
+    };
   }
 
   async generateTokens(userId: string, email: string, role: UserRole) {

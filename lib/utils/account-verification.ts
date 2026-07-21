@@ -1,5 +1,6 @@
 export type VerificationStatusSnapshot = {
   emailVerified?: boolean;
+  phoneVerified?: boolean;
   profileStatus?: string;
   kycVerified?: boolean;
   identityVerified?: boolean;
@@ -17,12 +18,14 @@ export type VerificationChecklistItem = {
 export function getVerificationChecklist(status?: VerificationStatusSnapshot) {
   if (!status) {
     return [
+      { id: "phone", label: "Verify your mobile number", complete: false },
       { id: "profile", label: "Complete your profile", complete: false },
       { id: "identity", label: "Verify your identity (KYC)", complete: false },
       { id: "bank", label: "Add and verify a bank account", complete: false },
     ] satisfies VerificationChecklistItem[];
   }
 
+  const phoneVerified = Boolean(status.phoneVerified);
   const profileComplete =
     status.profileStatus === "PROFILE_COMPLETED" || status.profileStatus === "KYC_VERIFIED";
   const identityVerified = Boolean(status.kycVerified || status.identityVerified);
@@ -34,6 +37,11 @@ export function getVerificationChecklist(status?: VerificationStatusSnapshot) {
     status.bankAccounts?.some((item) => item.validationStatus === "PENDING") ?? false;
 
   return [
+    {
+      id: "phone",
+      label: "Verify your mobile number",
+      complete: phoneVerified,
+    },
     {
       id: "profile",
       label: "Complete your profile",
@@ -56,10 +64,15 @@ export function getVerificationChecklist(status?: VerificationStatusSnapshot) {
 
 export function isAccountFullyVerified(
   status?: VerificationStatusSnapshot,
-  emailVerified = false
+  emailVerified = false,
+  phoneVerified = false
 ) {
   const checklist = getVerificationChecklist(status);
-  return emailVerified && checklist.every((item) => item.complete);
+  return (
+    emailVerified &&
+    phoneVerified &&
+    checklist.every((item) => item.complete)
+  );
 }
 
 export function deriveAccountStatusLabel(status?: VerificationStatusSnapshot) {

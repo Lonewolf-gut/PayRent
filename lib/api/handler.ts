@@ -17,6 +17,7 @@ export type AppSession = Session & {
     image?: string | null;
     twoFactorEnabled: boolean;
     emailVerified: boolean;
+    phoneVerified: boolean;
   };
 };
 

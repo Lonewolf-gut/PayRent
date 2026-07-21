@@ -82,7 +82,6 @@ export default function UserSettingsForm({
 
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [twoFaPending, setTwoFaPending] = useState(false);
-  const [twoFaSecret, setTwoFaSecret] = useState<string | null>(null);
   const [twoFaOtpauthUrl, setTwoFaOtpauthUrl] = useState<string | null>(null);
   const [twoFaToken, setTwoFaToken] = useState("");
   const [twoFaLoading, setTwoFaLoading] = useState(false);
@@ -420,7 +419,6 @@ export default function UserSettingsForm({
       const json = await res.json();
       if (!json.success) throw new Error(getApiErrorMessage(json));
       const otpauthUrl = json.data.otpauthUrl as string | undefined;
-      setTwoFaSecret(json.data.secret);
       setTwoFaOtpauthUrl(otpauthUrl ?? null);
       setTwoFaPending(true);
       if (otpauthUrl) {
@@ -450,7 +448,6 @@ export default function UserSettingsForm({
       if (!json.success) throw new Error(getApiErrorMessage(json));
       setTwoFactorEnabled(true);
       setTwoFaPending(false);
-      setTwoFaSecret(null);
       setTwoFaOtpauthUrl(null);
       setTwoFaToken("");
       await updateSession();

@@ -14,7 +14,7 @@ import { AuthSplitLayout } from "@/components/rentvest/auth-split-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getPostLoginRoute } from "@/lib/auth/permissions";
+import { getPostAuthRoute } from "@/lib/auth/post-auth-route";
 import { ADMIN_HOME_PATH, COMPLIANCE_HOME_PATH } from "@/lib/auth/route-guards";
 import { stripSensitiveQueryParams } from "@/lib/utils/api-message";
 import { getSignInErrorMessage } from "@/lib/utils/auth-toast-messages";
@@ -173,9 +173,11 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
         return;
       }
 
-      const destination = session.user.role
-        ? getPostLoginRoute(session.user.role as UserRole)
-        : callbackUrl;
+      const destination = getPostAuthRoute({
+        role: session.user.role as UserRole,
+        emailVerified: Boolean(session.user.emailVerified),
+        phoneVerified: Boolean(session.user.phoneVerified),
+      });
       window.location.assign(destination);
       return;
     } catch (error) {

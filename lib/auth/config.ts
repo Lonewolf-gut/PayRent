@@ -25,6 +25,7 @@ declare module "next-auth" {
       image?: string | null;
       twoFactorEnabled: boolean;
       emailVerified: boolean;
+      phoneVerified: boolean;
     };
   }
 
@@ -32,6 +33,7 @@ declare module "next-auth" {
     role: UserRole;
     twoFactorEnabled: boolean;
     emailVerified: boolean;
+    phoneVerified: boolean;
   }
 }
 
@@ -41,6 +43,7 @@ declare module "@auth/core/jwt" {
     role: UserRole;
     twoFactorEnabled: boolean;
     emailVerified: boolean;
+    phoneVerified: boolean;
     picture?: string | null;
   }
 }
@@ -148,6 +151,7 @@ export const authConfig: NextAuthConfig = {
           image: user.image,
           twoFactorEnabled: user.twoFactorEnabled,
           emailVerified: Boolean(user.emailVerified),
+          phoneVerified: Boolean(user.phoneVerified),
         };
       },
     }),
@@ -161,6 +165,7 @@ export const authConfig: NextAuthConfig = {
         token.role = user.role;
         token.twoFactorEnabled = user.twoFactorEnabled;
         token.emailVerified = Boolean(user.emailVerified);
+        token.phoneVerified = Boolean(user.phoneVerified);
         token.picture = user.image ?? null;
 
         const now = Math.floor(Date.now() / 1000);
@@ -185,6 +190,7 @@ export const authConfig: NextAuthConfig = {
               image: true,
               email: true,
               emailVerified: true,
+              phoneVerified: true,
               twoFactorEnabled: true,
             },
           });
@@ -192,6 +198,7 @@ export const authConfig: NextAuthConfig = {
             token.picture = dbUser.image;
             token.email = dbUser.email;
             token.emailVerified = Boolean(dbUser.emailVerified);
+            token.phoneVerified = Boolean(dbUser.phoneVerified);
             token.twoFactorEnabled = dbUser.twoFactorEnabled;
           }
         }
@@ -206,6 +213,7 @@ export const authConfig: NextAuthConfig = {
         session.user.twoFactorEnabled = token.twoFactorEnabled as boolean;
         session.user.image = (token.picture as string | null | undefined) ?? null;
         (session.user as Session["user"]).emailVerified = Boolean(token.emailVerified);
+        (session.user as Session["user"]).phoneVerified = Boolean(token.phoneVerified);
       }
       return session;
     },

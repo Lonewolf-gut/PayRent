@@ -13,38 +13,31 @@ import { toast } from "sonner";
 import { getPostAuthRoute } from "@/lib/auth/post-auth-route";
 import type { UserRole } from "@prisma/client";
 
-type VerificationDelivery = {
-  deliveryMode?: "smtp" | "ethereal" | "log" | null;
-  previewUrl?: string | null;
+type PhoneVerificationDelivery = {
+  phone?: string | null;
   devCode?: string | null;
-  realEmailExpected?: boolean;
   hasPendingCode?: boolean;
+  smsConfigured?: boolean;
 };
 
-export default function VerifyEmailPage() {
+export default function VerifyPhonePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: session, update } = useSession();
+  const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [devCode, setDevCode] = useState<string | null>(null);
-  const [realEmailExpected, setRealEmailExpected] = useState(false);
+  const [smsConfigured, setSmsConfigured] = useState(false);
 
-  const email = session?.user?.email ?? "";
-
-  const applyDelivery = useCallback((data: VerificationDelivery | null | undefined) => {
+  const applyDelivery = useCallback((data: PhoneVerificationDelivery | null | undefined) => {
     if (!data) return;
-
-    setPreviewUrl(data.previewUrl ?? null);
+    if (data.phone) setPhone(data.phone);
     setDevCode(data.devCode ?? null);
-    setRealEmailExpected(Boolean(data.realEmailExpected));
-
-    if (data.devCode) {
-      setCode(data.devCode);
-    }
+    setSmsConfigured(Boolean(data.smsConfigured));
+    if (data.devCode) setCode(data.devCode);
   }, []);
 
   useEffect(() => {
@@ -52,40 +45,19 @@ export default function VerifyEmailPage() {
 
     async function loadVerification() {
       try {
-        const statusRes = await fetch("/api/auth/resend-verification");
+        const statusRes = await fetch("/api/auth/resend-phone-verification");
         const statusJson = await statusRes.json();
         if (cancelled) return;
 
         if (statusJson.success) {
-          const statusData = statusJson.data as VerificationDelivery;
-          applyDelivery(statusData);
-
-          if (statusData.hasPendingCode || statusData.realEmailExpected) {
-            setBootstrapping(false);
-            return;
-          }
-
-          if (statusData.devCode) {
-            setBootstrapping(false);
-            return;
-          }
-        }
-
-        const res = await fetch("/api/auth/resend-verification", { method: "POST" });
-        const json = await res.json();
-        if (cancelled) return;
-
-        if (json.success) {
-          applyDelivery(json.data as VerificationDelivery);
+          applyDelivery(statusJson.data as PhoneVerificationDelivery);
         }
       } catch {
         if (!cancelled) {
-          toast.error("Could not load your verification code. Click resend to try again.");
+          toast.error("Could not load your verification status.");
         }
       } finally {
-        if (!cancelled) {
-          setBootstrapping(false);
-        }
+        if (!cancelled) setBootstrapping(false);
       }
     }
 
@@ -100,16 +72,52 @@ export default function VerifyEmailPage() {
     };
   }, [session?.user, applyDelivery]);
 
+  async function sendCode(targetPhone?: string) {
+    const normalized = (targetPhone ?? phone).trim();
+    if (normalized.length < 10) {
+      toast.error("Enter a valid mobile number first.");
+      return;
+    }
+
+    setResending(true);
+    try {
+      const res = await fetch("/api/auth/resend-phone-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: normalized }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        toast.error(json.errors?.[0]?.message ?? json.message ?? "Could not send code");
+        return;
+      }
+
+      const data = json.data as PhoneVerificationDelivery;
+      applyDelivery(data);
+
+      if (data.devCode) {
+        toast.success("Your verification code is shown below.");
+        return;
+      }
+
+      toast.success(`Verification code sent to ${data.phone ?? normalized}.`);
+    } catch {
+      toast.error("Could not send verification code");
+    } finally {
+      setResending(false);
+    }
+  }
+
   const onVerify = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!code.trim()) return;
+    if (code.trim().length !== 6) return;
 
     setLoading(true);
     try {
       const res = await fetch("/api/otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: code.trim(), purpose: "EMAIL_VERIFY" }),
+        body: JSON.stringify({ code: code.trim(), purpose: "PHONE_VERIFY" }),
       });
       const json = await res.json();
       if (!json.success) {
@@ -119,22 +127,22 @@ export default function VerifyEmailPage() {
 
       await update();
       await queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
-      toast.success("Email verified successfully");
+      toast.success("Mobile number verified successfully");
 
       const role = session?.user?.role as UserRole | undefined;
       if (session?.user?.id) {
         sessionStorage.removeItem(`verification-prompt-dismissed:${session.user.id}`);
       }
       sessionStorage.setItem("fresh-dashboard-login", "1");
-      router.push(
-        role
-          ? getPostAuthRoute({
-              role,
-              emailVerified: true,
-              phoneVerified: Boolean(session?.user?.phoneVerified),
-            })
-          : "/verify-phone"
-      );
+
+      const destination = role
+        ? getPostAuthRoute({
+            role,
+            emailVerified: true,
+            phoneVerified: true,
+          })
+        : "/";
+      router.push(destination);
       router.refresh();
     } catch {
       toast.error("Verification failed. Please try again.");
@@ -143,46 +151,10 @@ export default function VerifyEmailPage() {
     }
   };
 
-  const onResend = async () => {
-    setResending(true);
-    try {
-      const res = await fetch("/api/auth/resend-verification", { method: "POST" });
-      const json = await res.json();
-      if (!json.success) {
-        toast.error(json.errors?.[0]?.message ?? "Could not resend code");
-        return;
-      }
-
-      const data = json.data as VerificationDelivery;
-      applyDelivery(data);
-
-      if (data.devCode) {
-        toast.success("Your verification code is shown below.");
-        return;
-      }
-
-      if (data.previewUrl) {
-        toast.success("Open the preview link below to view your verification email.");
-        return;
-      }
-
-      if (data.realEmailExpected) {
-        toast.success("A new verification code was sent to your email inbox.");
-        return;
-      }
-
-      toast.success("Verification code updated.");
-    } catch {
-      toast.error("Could not resend code");
-    } finally {
-      setResending(false);
-    }
-  };
-
   return (
     <AuthSplitLayout
       hero={
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1400&q=80')] bg-cover bg-center">
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1400&q=80')] bg-cover bg-center">
           <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/60 via-emerald-900/20 to-transparent" />
         </div>
       }
@@ -192,27 +164,21 @@ export default function VerifyEmailPage() {
           <RentVestLogo showIcon={false} />
         </div>
         <div className="text-center">
-          <h1 className="text-2xl font-semibold text-slate-900">Verify your email</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">Verify your mobile number</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {realEmailExpected ? (
-              <>
-                Enter the 6-digit code sent to{" "}
-                <span className="font-medium text-foreground">{email || "your email"}</span>.
-              </>
+            {smsConfigured ? (
+              <>We&apos;ll send a 6-digit code by SMS to confirm your number.</>
             ) : (
-              <>
-                Local development mode — use the code below for{" "}
-                <span className="font-medium text-foreground">{email || "your email"}</span>.
-              </>
+              <>Local development mode — your SMS code will appear below after you send it.</>
             )}
           </p>
         </div>
 
         {bootstrapping ? (
-          <p className="mt-6 text-center text-sm text-muted-foreground">Loading your code…</p>
+          <p className="mt-6 text-center text-sm text-muted-foreground">Loading…</p>
         ) : null}
 
-        {!realEmailExpected && devCode ? (
+        {!smsConfigured && devCode ? (
           <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
             <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
               Your verification code
@@ -220,14 +186,22 @@ export default function VerifyEmailPage() {
             <p className="mt-2 font-mono text-3xl font-bold tracking-[0.35em] text-amber-950">
               {devCode}
             </p>
-            <p className="mt-2 text-xs text-amber-900/80">
-              In local development, codes are shown here. They are not sent to your real inbox
-              unless SMTP is fully configured with a verified sending domain.
-            </p>
           </div>
         ) : null}
 
         <form onSubmit={onVerify} className="mt-8 space-y-4">
+          <div>
+            <Label htmlFor="phone">Mobile number</Label>
+            <Input
+              id="phone"
+              inputMode="tel"
+              autoComplete="tel"
+              className="h-11 bg-white text-slate-900"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="0551234567"
+            />
+          </div>
           <div>
             <Label htmlFor="code">Verification code</Label>
             <Input
@@ -246,28 +220,18 @@ export default function VerifyEmailPage() {
             className="h-11 w-full rounded-full bg-emerald-600 hover:bg-emerald-700"
             disabled={loading || code.length !== 6 || bootstrapping}
           >
-            {loading ? "Verifying..." : "Verify email"}
+            {loading ? "Verifying..." : "Verify mobile number"}
           </Button>
         </form>
 
         <div className="mt-4 flex flex-col gap-2 text-center text-sm">
-          {previewUrl ? (
-            <a
-              href={previewUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 font-medium text-emerald-800 hover:bg-emerald-100"
-            >
-              Open email preview
-            </a>
-          ) : null}
           <button
             type="button"
             className="text-emerald-700 hover:text-emerald-900 disabled:opacity-60"
-            onClick={onResend}
-            disabled={resending || bootstrapping}
+            onClick={() => sendCode()}
+            disabled={resending || bootstrapping || phone.trim().length < 10}
           >
-            {resending ? "Sending..." : "Resend code"}
+            {resending ? "Sending..." : "Send verification code"}
           </button>
           <button
             type="button"
@@ -275,7 +239,15 @@ export default function VerifyEmailPage() {
             onClick={() => {
               const role = session?.user?.role as UserRole | undefined;
               sessionStorage.setItem("fresh-dashboard-login", "1");
-              router.push(role ? getPostLoginRoute(role) : "/");
+              router.push(
+                role
+                  ? getPostAuthRoute({
+                      role,
+                      emailVerified: true,
+                      phoneVerified: true,
+                    })
+                  : "/"
+              );
             }}
           >
             Skip for now

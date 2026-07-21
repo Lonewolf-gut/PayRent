@@ -65,9 +65,21 @@ export function VerificationPromptDialog() {
 
   const emailVerified =
     Boolean(session?.user?.emailVerified) || Boolean(status?.emailVerified);
+  const phoneVerified =
+    Boolean(session?.user?.phoneVerified) || Boolean(status?.phoneVerified);
   const kycRoute = role ? KYC_ROUTES[role] : undefined;
   const checklist = getVerificationChecklist(status);
-  const fullyVerified = isAccountFullyVerified(status, emailVerified);
+  const fullyVerified = isAccountFullyVerified(status, emailVerified, phoneVerified);
+  const continueHref = !emailVerified
+    ? "/verify-email"
+    : !phoneVerified
+      ? "/verify-phone"
+      : kycRoute;
+  const continueLabel = !emailVerified
+    ? "Verify email first"
+    : !phoneVerified
+      ? "Verify mobile number"
+      : "Continue verification";
 
   useEffect(() => {
     if (!emailVerified || session?.user?.emailVerified) return;
@@ -100,7 +112,7 @@ export function VerificationPromptDialog() {
 
     const dismissedThisSession = sessionStorage.getItem(dismissedKey) === "true";
     setOpen(!dismissedThisSession);
-  }, [showVerificationUi, userId, isLoading, fullyVerified, status, emailVerified]);
+  }, [showVerificationUi, userId, isLoading, fullyVerified, status, emailVerified, phoneVerified]);
 
   const dismissDialog = () => {
     if (userId) {
@@ -183,8 +195,8 @@ export function VerificationPromptDialog() {
             Remind me later
           </Button>
           <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
-            <Link href={emailVerified ? kycRoute : "/verify-email"} onClick={dismissDialog}>
-              {emailVerified ? "Continue verification" : "Verify email first"}
+            <Link href={continueHref ?? "/verify-email"} onClick={dismissDialog}>
+              {continueLabel}
             </Link>
           </Button>
         </DialogFooter>

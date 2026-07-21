@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { redirect } from "next/navigation";
 import type { UserRole } from "@prisma/client";
 
-export default async function VerifyEmailLayout({
+export default async function VerifyPhoneLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -14,17 +14,21 @@ export default async function VerifyEmailLayout({
 
   const role = session.user.role as UserRole;
 
-  if (session.user.emailVerified || role === "ADMIN") {
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { phoneVerified: true },
-    });
+  if (!session.user.emailVerified && role !== "ADMIN") {
+    redirect("/verify-email");
+  }
 
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { phoneVerified: true },
+  });
+
+  if (user?.phoneVerified || role === "ADMIN" || role === "COMPLIANCE_OFFICER") {
     redirect(
       getPostAuthRoute({
         role,
-        emailVerified: true,
-        phoneVerified: Boolean(user?.phoneVerified),
+        emailVerified: Boolean(session.user.emailVerified),
+        phoneVerified: true,
       })
     );
   }

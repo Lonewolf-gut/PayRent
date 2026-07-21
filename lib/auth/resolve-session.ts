@@ -27,6 +27,7 @@ export async function resolveAppSession(req: NextRequest): Promise<AppSession | 
         image: true,
         twoFactorEnabled: true,
         emailVerified: true,
+        phoneVerified: true,
         isActive: true,
       },
     });
@@ -41,6 +42,7 @@ export async function resolveAppSession(req: NextRequest): Promise<AppSession | 
         image: user.image,
         twoFactorEnabled: user.twoFactorEnabled,
         emailVerified: Boolean(user.emailVerified),
+        phoneVerified: Boolean(user.phoneVerified),
       },
       expires: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     } as Session as AppSession;

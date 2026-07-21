@@ -939,6 +939,7 @@ export class KycService {
 
     return {
       emailVerified: Boolean(user?.emailVerified),
+      phoneVerified: Boolean(user?.phoneVerified),
       email: user?.email ?? null,
       image: withProfileImageVersion(user?.image, user?.updatedAt),
       phone: user?.phone ?? null,

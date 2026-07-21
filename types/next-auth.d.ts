@@ -8,12 +8,16 @@ declare module "next-auth" {
       role: UserRole;
       image?: string | null;
       twoFactorEnabled: boolean;
+      emailVerified: boolean;
+      phoneVerified: boolean;
     };
   }
 
   interface User {
     role: UserRole;
     twoFactorEnabled: boolean;
+    emailVerified: boolean;
+    phoneVerified: boolean;
   }
 }
 
@@ -22,6 +26,8 @@ declare module "@auth/core/jwt" {
     id: string;
     role: UserRole;
     twoFactorEnabled: boolean;
+    emailVerified: boolean;
+    phoneVerified: boolean;
     picture?: string | null;
   }
 }
