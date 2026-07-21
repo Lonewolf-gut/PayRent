@@ -419,10 +419,14 @@ export default function UserSettingsForm({
       });
       const json = await res.json();
       if (!json.success) throw new Error(getApiErrorMessage(json));
+      const otpauthUrl = json.data.otpauthUrl as string | undefined;
       setTwoFaSecret(json.data.secret);
-      setTwoFaOtpauthUrl(json.data.otpauthUrl);
+      setTwoFaOtpauthUrl(otpauthUrl ?? null);
       setTwoFaPending(true);
-      toast.success("Open your authenticator app to add PayForMe, then enter the code below.");
+      if (otpauthUrl) {
+        window.location.href = otpauthUrl;
+      }
+      toast.success("Check your authenticator app and enter the 6-digit code below.");
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
@@ -459,8 +463,8 @@ export default function UserSettingsForm({
   }
 
   async function handleDisable2Fa() {
-    if (!twoFaToken) {
-      toast.error("Enter your current 2FA code to disable.");
+    if (twoFaToken.length !== 6) {
+      toast.error("Enter your current 6-digit authenticator code to turn off 2FA.");
       return;
     }
     setTwoFaLoading(true);
@@ -476,7 +480,7 @@ export default function UserSettingsForm({
       setTwoFaPending(false);
       setTwoFaToken("");
       await updateSession();
-      toast.success("Two-factor authentication disabled.");
+      toast.success("Two-factor authentication turned off.");
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
@@ -654,7 +658,6 @@ export default function UserSettingsForm({
             <TwoFactorSetupPanel
               enabled={twoFactorEnabled}
               pending={twoFaPending}
-              secret={twoFaSecret}
               otpauthUrl={twoFaOtpauthUrl}
               token={twoFaToken}
               loading={twoFaLoading}
