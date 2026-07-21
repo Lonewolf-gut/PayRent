@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { toast } from "sonner";
 
 type AdminPayoutBank = {
@@ -104,6 +105,14 @@ export function PayoutBanksPanel() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  function handleRemove(bank: AdminPayoutBank) {
+    const confirmed = window.confirm(
+      `Remove ${bank.name} from the user payout bank list? Users will no longer be able to add accounts from this bank.`
+    );
+    if (!confirmed) return;
+    deleteMutation.mutate(bank.id);
+  }
+
   function handleAddFromPaystack(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedPaystackBank) {
@@ -136,7 +145,8 @@ export function PayoutBanksPanel() {
       <div>
         <p className="text-sm text-muted-foreground">
           GCB, CBG, ADB, and Zenith are always available. Add more banks here and they will appear
-          in the user bank dropdown with live Paystack account lookup.
+          in the user bank dropdown with live Paystack account lookup. You can remove any additional
+          bank at any time using the Remove button.
         </p>
         <ul className="mt-3 space-y-1 text-sm">
           {DEFAULT_BANKS.map((name) => (
@@ -165,14 +175,14 @@ export function PayoutBanksPanel() {
                 </div>
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 text-destructive hover:text-destructive"
-                  onClick={() => deleteMutation.mutate(bank.id)}
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 rounded-none text-destructive hover:text-destructive"
+                  onClick={() => handleRemove(bank)}
                   disabled={deleteMutation.isPending}
-                  aria-label={`Remove ${bank.name}`}
                 >
-                  <Trash2 className="size-4" />
+                  <Trash2 className="mr-1.5 size-4" />
+                  Remove
                 </Button>
               </div>
             ))}
@@ -236,7 +246,7 @@ export function PayoutBanksPanel() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="paystack-bank">Paystack bank</Label>
-              <select
+              <NativeSelect
                 id="paystack-bank"
                 value={selectedPaystackCode}
                 onChange={(e) => {
@@ -245,7 +255,7 @@ export function PayoutBanksPanel() {
                   setCustomName(bank?.name ?? "");
                   setResolveCode(bank?.longcode ?? "");
                 }}
-                className="w-full rounded-none border border-input bg-background px-3 py-2 text-sm text-foreground"
+                className="rounded-none"
                 required
               >
                 <option value="">Select a Ghana bank</option>
@@ -254,7 +264,7 @@ export function PayoutBanksPanel() {
                     {bank.name} ({bank.code})
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
             <div className="space-y-2">
               <Label htmlFor="display-name">Display name</Label>

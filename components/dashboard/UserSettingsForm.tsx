@@ -7,6 +7,7 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Accordion,
   AccordionContent,
@@ -738,27 +739,25 @@ export default function UserSettingsForm({
             <form onSubmit={handleAddBankAccount} className="space-y-4">
               <div className="grid gap-2">
                 <Label>Account type</Label>
-                <select
+                <NativeSelect
                   value={accountType}
                   onChange={(e) => setAccountType(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                 >
                   <option value="BANK">Bank</option>
                   <option value="MOMO">MoMo</option>
-                </select>
+                </NativeSelect>
               </div>
 
               <div className="grid gap-2">
                 <Label>{accountType === "MOMO" ? "Mobile money network" : "Bank"}</Label>
                 {providers.length > 0 ? (
-                <select
+                <NativeSelect
                   value={bankCode}
                   onChange={(e) => {
                     const selected = providers.find((item) => item.code === e.target.value);
                     setBankCode(e.target.value);
                     setBankName(selected?.name ?? "");
                   }}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                   disabled={providersLoading}
                 >
                   <option value="">
@@ -773,7 +772,7 @@ export default function UserSettingsForm({
                       {provider.name}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
                 ) : (
                   <Input
                     value={bankName}
