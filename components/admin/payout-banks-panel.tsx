@@ -19,6 +19,8 @@ type AdminPayoutBank = {
 };
 
 type PaystackBankOption = {
+  id: number;
+  slug: string;
   code: string;
   name: string;
   longcode?: string | null;
@@ -33,7 +35,7 @@ const DEFAULT_BANKS = [
 
 export function PayoutBanksPanel() {
   const queryClient = useQueryClient();
-  const [selectedPaystackCode, setSelectedPaystackCode] = useState("");
+  const [selectedPaystackBankId, setSelectedPaystackBankId] = useState("");
   const [customName, setCustomName] = useState("");
   const [customCode, setCustomCode] = useState("");
   const [resolveCode, setResolveCode] = useState("");
@@ -62,8 +64,8 @@ export function PayoutBanksPanel() {
 
   const paystackBanks = paystackOptions?.banks ?? [];
   const selectedPaystackBank = useMemo(
-    () => paystackBanks.find((bank) => bank.code === selectedPaystackCode),
-    [paystackBanks, selectedPaystackCode]
+    () => paystackBanks.find((bank) => String(bank.id) === selectedPaystackBankId),
+    [paystackBanks, selectedPaystackBankId]
   );
 
   const addMutation = useMutation({
@@ -83,7 +85,7 @@ export function PayoutBanksPanel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-payout-banks"] });
-      setSelectedPaystackCode("");
+      setSelectedPaystackBankId("");
       setCustomName("");
       setCustomCode("");
       setResolveCode("");
@@ -248,10 +250,12 @@ export function PayoutBanksPanel() {
               <Label htmlFor="paystack-bank">Paystack bank</Label>
               <NativeSelect
                 id="paystack-bank"
-                value={selectedPaystackCode}
+                value={selectedPaystackBankId}
                 onChange={(e) => {
-                  setSelectedPaystackCode(e.target.value);
-                  const bank = paystackBanks.find((item) => item.code === e.target.value);
+                  setSelectedPaystackBankId(e.target.value);
+                  const bank = paystackBanks.find(
+                    (item) => String(item.id) === e.target.value
+                  );
                   setCustomName(bank?.name ?? "");
                   setResolveCode(bank?.longcode ?? "");
                 }}
@@ -260,7 +264,7 @@ export function PayoutBanksPanel() {
               >
                 <option value="">Select a Ghana bank</option>
                 {paystackBanks.map((bank) => (
-                  <option key={bank.code} value={bank.code}>
+                  <option key={bank.id} value={String(bank.id)}>
                     {bank.name} ({bank.code})
                   </option>
                 ))}

@@ -16,6 +16,8 @@ export const GET = withAuth(
       return apiResponse({
         configured: true,
         banks: banks.map((bank) => ({
+          id: bank.id,
+          slug: bank.slug,
           code: bank.code,
           name: bank.name,
           longcode: bank.longcode ?? null,
