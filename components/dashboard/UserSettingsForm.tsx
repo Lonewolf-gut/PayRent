@@ -422,7 +422,7 @@ export default function UserSettingsForm({
       setTwoFaSecret(json.data.secret);
       setTwoFaOtpauthUrl(json.data.otpauthUrl);
       setTwoFaPending(true);
-      toast.success("Scan the QR code in your authenticator app, then enter the code below.");
+      toast.success("Open your authenticator app to add PayForMe, then enter the code below.");
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
@@ -672,7 +672,7 @@ export default function UserSettingsForm({
           <AccordionTrigger className="rounded-none border-0 px-0 py-5 hover:no-underline">
             <div className="flex flex-1 items-center justify-between gap-4 pr-2 text-left">
               <div>
-                <p className="text-base font-medium">Bank & MoMo details</p>
+                <p className="text-base font-medium text-foreground">Bank & MoMo details</p>
                 <p className="text-sm font-normal text-muted-foreground">
                   Payout destinations for withdrawals, mandates, and settlements.
                 </p>
@@ -810,7 +810,7 @@ export default function UserSettingsForm({
           <AccordionTrigger className="rounded-none border-0 px-0 py-5 hover:no-underline">
             <div className="flex flex-1 items-center justify-between gap-4 pr-2 text-left">
               <div>
-                <p className="text-base font-medium">Saved accounts</p>
+                <p className="text-base font-medium text-foreground">Saved accounts</p>
                 <p className="text-sm font-normal text-muted-foreground">
                   Your active bank and MoMo destinations.
                 </p>

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import QRCode from "react-qr-code";
-import { CheckCircle2, Copy, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Copy, ExternalLink, ShieldCheck, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,42 +85,54 @@ export function TwoFactorSetupPanel({
     return (
       <div className="space-y-4 rounded-xl border border-border bg-card p-4">
         <div>
-          <p className="text-sm font-medium text-foreground">Set up your authenticator app</p>
+          <p className="text-sm font-medium text-foreground">Add PayForMe to your authenticator app</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Scan the QR code with Google Authenticator, Authy, or another TOTP app. If you
-            cannot scan, enter the secret key manually.
+            Tap the button below to add this account in your authenticator app. Then enter the
+            6-digit code the app shows you.
           </p>
         </div>
 
         {otpauthUrl ? (
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
-              <QRCode value={otpauthUrl} size={168} />
-            </div>
+          <div className="space-y-3">
+            <Button
+              type="button"
+              className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 sm:w-auto"
+              asChild
+            >
+              <a href={otpauthUrl}>
+                <Smartphone className="size-4" />
+                Open in authenticator app
+                <ExternalLink className="size-4 opacity-80" />
+              </a>
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Works with Google Authenticator, Authy, Microsoft Authenticator, and other TOTP
+              apps. On desktop, use the secret key below if your browser does not open the app.
+            </p>
+          </div>
+        ) : null}
 
-            {secret ? (
-              <div className="min-w-0 flex-1 space-y-2">
-                <Label className="text-foreground">Secret key</Label>
-                <div className="rounded-lg border border-border bg-muted/40 p-3">
-                  <p className="font-mono text-sm break-all text-foreground">{secret}</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={copySecret}
-                  className="gap-2"
-                >
-                  {copied ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}
-                  {copied ? "Copied" : "Copy secret"}
-                </Button>
-              </div>
-            ) : null}
+        {secret ? (
+          <div className="space-y-2">
+            <Label className="text-foreground">Or enter this secret manually</Label>
+            <div className="rounded-lg border border-border bg-muted/40 p-3">
+              <p className="font-mono text-sm break-all text-foreground">{secret}</p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={copySecret}
+              className="gap-2"
+            >
+              {copied ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}
+              {copied ? "Copied" : "Copy secret"}
+            </Button>
           </div>
         ) : null}
 
         <div className="grid max-w-xs gap-2">
-          <Label className="text-foreground">Verification code</Label>
+          <Label className="text-foreground">Verification code from your app</Label>
           <Input
             value={token}
             onChange={(e) => onTokenChange(e.target.value.replace(/\D/g, "").slice(0, 6))}
