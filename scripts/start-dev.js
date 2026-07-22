@@ -15,10 +15,17 @@ const projectRoot = path.join(__dirname, "..");
 const nextCli = path.join(projectRoot, "node_modules", "next", "dist", "bin", "next");
 
 function resolveBundler() {
+  const cliArg = process.argv.find((arg) => arg === "--webpack" || arg === "--turbo" || arg === "--turbopack");
+  if (cliArg === "--webpack") return "webpack";
+  if (cliArg === "--turbo" || cliArg === "--turbopack") return "turbopack";
+
   const forced = process.env.DEV_BUNDLER?.toLowerCase();
   if (forced === "webpack" || forced === "turbo" || forced === "turbopack") {
     return forced === "webpack" ? "webpack" : "turbopack";
   }
+
+  // Turbopack can crash on Windows with Rust OOM ("memory allocation ... failed").
+  if (process.platform === "win32") return "webpack";
 
   return "turbopack";
 }
@@ -29,10 +36,15 @@ const bundlerArgs = bundler === "webpack" ? ["--webpack"] : ["--turbopack"];
 console.log("");
 if (bundler === "webpack") {
   console.log("Starting PayRent dev server (webpack)…");
+  if (process.platform === "win32") {
+    console.log("Webpack is the default on Windows (Turbopack can crash with memory errors).");
+  }
   console.log("First compile can take 2–5 minutes. Keep this terminal open.");
 } else {
   console.log("Starting PayRent dev server (Turbopack)…");
-  console.log("If you see FATAL Turbopack errors on Windows, run: npm run dev:webpack");
+  if (process.platform === "win32") {
+    console.log("On Windows, prefer: npm run dev (webpack). Use dev:turbo only if you need Turbopack.");
+  }
 }
 console.log("After Ready, open http://localhost:3000");
 console.log("");
