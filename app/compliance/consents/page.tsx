@@ -28,10 +28,13 @@ export default function ComplianceConsentsPage() {
     queryFn: async () => {
       const res = await fetch("/api/compliance/consents?limit=100");
       const json = await res.json();
-      return (json.data?.items ?? []) as ConsentRow[];
+      return json.data as { items: ConsentRow[]; total: number };
     },
     refetchInterval: 30_000,
   });
+
+  const rows = data?.items ?? [];
+  const total = data?.total ?? rows.length;
 
   return (
     <div className="space-y-6">
@@ -39,6 +42,7 @@ export default function ComplianceConsentsPage() {
         <h1 className="text-2xl font-bold">Consent records</h1>
         <p className="text-sm text-muted-foreground">
           Data collection and processing consent captured at registration and financing.
+          {!isLoading ? ` ${total} record${total === 1 ? "" : "s"} on file.` : ""}
         </p>
       </div>
       <Card className="rounded-none">
@@ -48,7 +52,7 @@ export default function ComplianceConsentsPage() {
         <CardContent>
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading consent records…</p>
-          ) : !data?.length ? (
+          ) : !rows.length ? (
             <p className="text-sm text-muted-foreground">No consent records found.</p>
           ) : (
             <Table>
@@ -62,7 +66,7 @@ export default function ComplianceConsentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.map((row) => (
+                {rows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell>
                       <div className="text-sm font-medium">{row.user.email}</div>

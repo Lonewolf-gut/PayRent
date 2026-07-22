@@ -36,10 +36,13 @@ export default function ComplianceFeeDisclosuresPage() {
     queryFn: async () => {
       const res = await fetch("/api/compliance/fee-disclosures?limit=100");
       const json = await res.json();
-      return (json.data?.items ?? []) as FeeDisclosureRow[];
+      return json.data as { items: FeeDisclosureRow[]; total: number };
     },
     refetchInterval: 30_000,
   });
+
+  const rows = data?.items ?? [];
+  const total = data?.total ?? rows.length;
 
   return (
     <div className="space-y-6">
@@ -47,6 +50,7 @@ export default function ComplianceFeeDisclosuresPage() {
         <h1 className="text-2xl font-bold">Fee disclosure records</h1>
         <p className="text-sm text-muted-foreground">
           Immutable fee disclosures for each accepted financing agreement.
+          {!isLoading ? ` ${total} record${total === 1 ? "" : "s"} on file.` : ""}
         </p>
       </div>
       <Card className="rounded-none">
@@ -56,7 +60,7 @@ export default function ComplianceFeeDisclosuresPage() {
         <CardContent>
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading fee disclosures…</p>
-          ) : !data?.length ? (
+          ) : !rows.length ? (
             <p className="text-sm text-muted-foreground">No fee disclosure records yet.</p>
           ) : (
             <Table>
@@ -71,7 +75,7 @@ export default function ComplianceFeeDisclosuresPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.map((row) => (
+                {rows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell>{row.financingRequest.property.name}</TableCell>
                     <TableCell>{row.tenantUser.email}</TableCell>

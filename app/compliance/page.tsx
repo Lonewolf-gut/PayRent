@@ -22,7 +22,7 @@ export default function ComplianceOverviewPage() {
       return json.data as {
         pendingKyc?: number;
         failedLogins?: number;
-        auditLogs24h?: number;
+        auditLogCount?: number;
         consentCount?: number;
         feeDisclosureCount?: number;
         suspicious?: {
@@ -89,10 +89,10 @@ export default function ComplianceOverviewPage() {
         </Card>
         <Card className="rounded-none">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Audit events (24h)</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Audit events (total)</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{data?.auditLogs24h ?? "—"}</p>
+            <p className="text-2xl font-bold">{data?.auditLogCount ?? "—"}</p>
           </CardContent>
         </Card>
       </div>

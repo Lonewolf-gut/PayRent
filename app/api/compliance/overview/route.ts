@@ -6,18 +6,17 @@ import { apiResponse, withAuth } from "@/lib/api/handler";
 
 export const GET = withAuth(
   async () => {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const [
       pendingKyc,
       failedLogins,
-      auditLogs24h,
+      auditLogCount,
       consentCount,
       feeDisclosureCount,
       suspicious,
     ] = await Promise.all([
       kycService.getPendingKycReviews().then((rows) => rows.length),
       countAllFailedLogins(),
-      prisma.auditLog.count({ where: { createdAt: { gte: since } } }),
+      prisma.auditLog.count(),
       prisma.dataConsent.count(),
       prisma.feeDisclosureRecord.count(),
       countSuspiciousActivityByCategory(),
@@ -26,7 +25,7 @@ export const GET = withAuth(
     return apiResponse({
       pendingKyc,
       failedLogins,
-      auditLogs24h,
+      auditLogCount,
       consentCount,
       feeDisclosureCount,
       suspicious,

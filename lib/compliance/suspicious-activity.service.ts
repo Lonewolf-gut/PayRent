@@ -21,19 +21,14 @@ export type SuspiciousActivityFlag = {
 
 const FAILED_PAYMENT_THRESHOLD = 3;
 const LENDER_APPROVAL_SPIKE_THRESHOLD = 5;
-const LENDER_APPROVAL_WINDOW_HOURS = 24;
+const FAILED_LOGIN_THRESHOLD = 5;
 
 export async function detectSuspiciousActivity(): Promise<SuspiciousActivityFlag[]> {
-  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const flags: SuspiciousActivityFlag[] = [];
 
   const failedDeductions = await prisma.deductionEvent.groupBy({
     by: ["mandateId"],
-    where: {
-      status: "FAILED",
-      attemptedAt: { gte: since7d },
-    },
+    where: { status: "FAILED" },
     _count: { id: true },
     having: { id: { _count: { gte: FAILED_PAYMENT_THRESHOLD } } },
   });
@@ -61,7 +56,7 @@ export async function detectSuspiciousActivity(): Promise<SuspiciousActivityFlag
         category: "FAILED_PAYMENTS",
         severity: row._count.id >= 5 ? "HIGH" : "MEDIUM",
         title: "Repeated failed repayments",
-        description: `${row._count.id} failed deduction attempts in the last 7 days for mandate ${row.mandateId.slice(0, 8)}…`,
+        description: `${row._count.id} failed deduction attempts on record for mandate ${row.mandateId.slice(0, 8)}…`,
         entityType: "Mandate",
         entityId: row.mandateId,
         userId: tenantUser?.id,
@@ -78,9 +73,7 @@ export async function detectSuspiciousActivity(): Promise<SuspiciousActivityFlag
   const reconciliationFlags = await prisma.reconciliationException.findMany({
     where: {
       status: { in: ["UNDER_REVIEW", "UNMATCHED_PAYMENT", "MISSING_CONFIRMATION"] },
-      createdAt: { gte: since7d },
     },
-    take: 50,
     orderBy: { createdAt: "desc" },
   });
 
@@ -101,9 +94,9 @@ export async function detectSuspiciousActivity(): Promise<SuspiciousActivityFlag
     });
   }
 
-  const recentApprovals = await prisma.financingRequest.findMany({
+  const approvedRequests = await prisma.financingRequest.findMany({
     where: {
-      approvedAt: { gte: since24h },
+      approvedAt: { not: null },
       status: { in: ["REPAYMENT_ACTIVE", "DISBURSED", "FUNDED", "APPROVED"] },
     },
     include: {
@@ -120,7 +113,7 @@ export async function detectSuspiciousActivity(): Promise<SuspiciousActivityFlag
     { count: number; email: string; lenderUserId: string }
   >();
 
-  for (const request of recentApprovals) {
+  for (const request of approvedRequests) {
     const lenderUser = request.investment?.lender?.user;
     if (!lenderUser) continue;
     const current = approvalsByLender.get(lenderUser.id) ?? {
@@ -138,8 +131,8 @@ export async function detectSuspiciousActivity(): Promise<SuspiciousActivityFlag
       id: `lender-spike-${lenderUserId}`,
       category: "UNUSUAL_LENDER_ACTIVITY",
       severity: stats.count >= 10 ? "HIGH" : "MEDIUM",
-      title: "Unusual lender approval volume",
-      description: `${stats.email} approved ${stats.count} financing agreements in the last ${LENDER_APPROVAL_WINDOW_HOURS} hours.`,
+      title: "High lender approval volume",
+      description: `${stats.email} has approved ${stats.count} financing agreements on record.`,
       entityType: "User",
       entityId: lenderUserId,
       userId: lenderUserId,
@@ -151,13 +144,7 @@ export async function detectSuspiciousActivity(): Promise<SuspiciousActivityFlag
 
   const suspiciousListings = await prisma.property.findMany({
     where: {
-      OR: [
-        { status: "PENDING_VERIFICATION" },
-        {
-          status: "INACTIVE",
-          updatedAt: { gte: since7d },
-        },
-      ],
+      OR: [{ status: "PENDING_VERIFICATION" }, { status: "INACTIVE" }],
     },
     include: {
       landlord: {
@@ -177,7 +164,6 @@ export async function detectSuspiciousActivity(): Promise<SuspiciousActivityFlag
         },
       },
     },
-    take: 40,
     orderBy: { updatedAt: "desc" },
   });
 
@@ -193,10 +179,10 @@ export async function detectSuspiciousActivity(): Promise<SuspiciousActivityFlag
       id: `listing-${property.id}`,
       category: "FRAUDULENT_LISTING",
       severity: unverifiedMerchant ? "HIGH" : "MEDIUM",
-      title: isPending ? "Listing pending verification" : "Recently suspended listing",
+      title: isPending ? "Listing pending verification" : "Suspended listing",
       description: isPending
         ? `"${property.name}" from ${landlordUser.email} awaits verification.`
-        : `"${property.name}" was suspended or rejected recently.`,
+        : `"${property.name}" from ${landlordUser.email} is inactive or suspended.`,
       entityType: "Property",
       entityId: property.id,
       userId: landlordUser.id,
@@ -213,11 +199,10 @@ export async function detectSuspiciousActivity(): Promise<SuspiciousActivityFlag
     by: ["email"],
     where: {
       success: false,
-      createdAt: { gte: since24h },
       email: { not: null },
     },
     _count: { id: true },
-    having: { id: { _count: { gte: 5 } } },
+    having: { id: { _count: { gte: FAILED_LOGIN_THRESHOLD } } },
   });
 
   for (const row of failedLogins) {
@@ -227,7 +212,7 @@ export async function detectSuspiciousActivity(): Promise<SuspiciousActivityFlag
       category: "LOGIN_ANOMALY",
       severity: row._count.id >= 10 ? "HIGH" : "MEDIUM",
       title: "Repeated failed login attempts",
-      description: `${row._count.id} failed logins for ${row.email} in the last 24 hours.`,
+      description: `${row._count.id} failed logins on record for ${row.email}.`,
       entityType: "LoginLog",
       entityId: row.email,
       email: row.email,

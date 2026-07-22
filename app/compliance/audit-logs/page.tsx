@@ -40,10 +40,13 @@ export default function ComplianceAuditLogsPage() {
       if (entityFilter.trim()) params.set("entity", entityFilter.trim());
       const res = await fetch(`/api/compliance/audit-logs?${params}`);
       const json = await res.json();
-      return (json.data?.logs ?? []) as AuditLogRow[];
+      return json.data as { logs: AuditLogRow[]; total: number };
     },
     refetchInterval: 30_000,
   });
+
+  const logs = data?.logs ?? [];
+  const total = data?.total ?? logs.length;
 
   return (
     <div className="space-y-6">
@@ -51,6 +54,7 @@ export default function ComplianceAuditLogsPage() {
         <h1 className="text-2xl font-bold">Audit logs</h1>
         <p className="text-sm text-muted-foreground">
           Audit trail for approvals, product changes, repayments, and dispute decisions.
+          {!isLoading ? ` ${total} event${total === 1 ? "" : "s"} on file.` : ""}
         </p>
       </div>
 
@@ -84,7 +88,7 @@ export default function ComplianceAuditLogsPage() {
         <CardContent className="p-0 sm:p-6">
           {isLoading ? (
             <p className="px-6 pb-6 text-sm text-muted-foreground sm:px-0">Loading audit logs…</p>
-          ) : !data?.length ? (
+          ) : !logs.length ? (
             <p className="px-6 pb-6 text-sm text-muted-foreground sm:px-0">No audit logs found.</p>
           ) : (
             <ScrollableTable>
@@ -99,7 +103,7 @@ export default function ComplianceAuditLogsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.map((log) => (
+                {logs.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell className="font-medium">{log.action}</TableCell>
                     <TableCell>
