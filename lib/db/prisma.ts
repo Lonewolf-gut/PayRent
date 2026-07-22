@@ -20,26 +20,33 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 
-let connectPromise: Promise<void> | undefined;
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-/** Retry DB connect on cold Docker Desktop / Windows networking. */
-export async function ensureDbConnection(retries = 3): Promise<void> {
-  if (!connectPromise) {
-    connectPromise = (async () => {
-      for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-          await prisma.$connect();
-          return;
-        } catch (error) {
-          if (attempt === retries) {
-            connectPromise = undefined;
-            throw error;
-          }
-          await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
-        }
+/** Retry DB connect on cold Docker Desktop / dropped connections. */
+export async function ensureDbConnection(retries = 5): Promise<void> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      return;
+    } catch {
+      try {
+        await prisma.$disconnect();
+      } catch {
+        // ignore disconnect errors
       }
-    })();
-  }
 
-  return connectPromise;
+      try {
+        await prisma.$connect();
+        await prisma.$queryRaw`SELECT 1`;
+        return;
+      } catch (error) {
+        if (attempt === retries) {
+          throw error;
+        }
+        await sleep(Math.min(attempt * 1500, 5000));
+      }
+    }
+  }
 }

@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveAppSession } from "@/lib/auth/resolve-session";
+import { ensureDbConnection } from "@/lib/db/prisma";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { handleApiError } from "@/lib/errors";
 import type { UserRole } from "@prisma/client";
@@ -102,6 +103,7 @@ export function withAuth(
         );
       }
 
+      await ensureDbConnection();
       return await handler(req, context, appSession);
     } catch (error) {
       return apiError(error);
@@ -123,6 +125,7 @@ export function withPublicHandler(
           { status: 429 }
         );
       }
+      await ensureDbConnection();
       return await handler(req, context);
     } catch (error) {
       return apiError(error);
