@@ -34,7 +34,8 @@ export function SubscriptionUpgradeDialog() {
     queryFn: async () => {
       const res = await fetch("/api/subscriptions");
       const json = await res.json();
-      return json.data;
+      if (!res.ok || json.success === false) return null;
+      return json.data ?? null;
     },
     enabled: open && !!session?.user,
   });
@@ -90,7 +91,8 @@ export function SidebarUpgradeCard() {
     queryFn: async () => {
       const res = await fetch("/api/settings");
       const json = await res.json();
-      return json.data?.user as {
+      if (!res.ok || json.success === false) return null;
+      return (json.data?.user ?? null) as {
         fullName?: string | null;
         email?: string;
       } | null;
@@ -103,7 +105,8 @@ export function SidebarUpgradeCard() {
     queryFn: async () => {
       const res = await fetch("/api/subscriptions");
       const json = await res.json();
-      return json.data;
+      if (!res.ok || json.success === false) return null;
+      return json.data ?? null;
     },
     enabled: !!session?.user,
   });
