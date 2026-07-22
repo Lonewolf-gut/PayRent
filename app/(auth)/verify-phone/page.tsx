@@ -166,11 +166,7 @@ export default function VerifyPhonePage() {
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-slate-900">Verify your mobile number</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {smsConfigured ? (
-              <>We&apos;ll send a 6-digit code by SMS to confirm your number.</>
-            ) : (
-              <>Local development mode — your SMS code will appear below after you send it.</>
-            )}
+            We&apos;ll send a 6-digit code by SMS to confirm your number.
           </p>
         </div>
 
