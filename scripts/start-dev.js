@@ -4,6 +4,8 @@ const path = require("node:path");
 require("./stop-dev.js");
 require("./remove-dev-cache-link.js");
 
+const { pruneTurbopackCache } = require("./prune-turbopack-cache.js");
+
 const nodeOptions = [
   process.env.NODE_OPTIONS,
   "--max-old-space-size=8192",
@@ -30,6 +32,10 @@ function resolveBundler() {
 const bundler = resolveBundler();
 const bundlerArgs = bundler === "webpack" ? ["--webpack"] : ["--turbopack"];
 
+if (bundler === "turbopack") {
+  pruneTurbopackCache();
+}
+
 console.log("");
 if (bundler === "webpack") {
   console.log("Starting PayRent dev server (webpack)…");
@@ -37,7 +43,11 @@ if (bundler === "webpack") {
 } else {
   console.log("Starting PayRent dev server (Turbopack)…");
   if (process.platform === "win32") {
-    console.log("If Turbopack crashes with memory errors, run: npm run dev:webpack");
+    if (process.env.TURBOPACK_FS_CACHE !== "1") {
+      console.log("Windows: Turbopack disk cache off (prevents paging-file crashes).");
+      console.log("Faster warm starts: set TURBOPACK_FS_CACHE=1 in .env (needs a larger page file).");
+    }
+    console.log("Add this folder to Windows Defender exclusions if compiles stay slow.");
   }
 }
 console.log("After Ready, open http://localhost:3000");
@@ -59,7 +69,11 @@ child.on("exit", (code, signal) => {
   } else if (code && code !== 0) {
     console.error(`\nDev server exited with code ${code}.`);
     if (bundler === "turbopack") {
-      console.error("Try: npm run dev:webpack");
+      console.error("Try: npm run clean && npm run dev");
+      console.error("Or: npm run dev:webpack");
+      if (process.platform === "win32") {
+        console.error("503 errors? Start Docker: docker compose up -d postgres redis");
+      }
     } else {
       console.error("Try: npm run clean && npm run dev:webpack");
     }

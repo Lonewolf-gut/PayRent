@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const isProductionBuild = process.env.npm_lifecycle_event === "build";
+const isWindowsDev = process.platform === "win32" && !isProductionBuild;
+const turboFsCacheEnabled = process.env.TURBOPACK_FS_CACHE === "1";
 
 const nextConfig: NextConfig = {
   distDir: isProductionBuild ? ".next" : ".next-dev",
@@ -29,6 +31,12 @@ const nextConfig: NextConfig = {
       "recharts",
       "@radix-ui/react-tooltip",
     ],
+    // Next 16 enables Turbopack FS cache by default. On Windows it can mmap 200MB+ SST
+    // files and crash with "paging file is too small" (os error 1455). Opt in with
+    // TURBOPACK_FS_CACHE=1 if you have a large page file and want faster warm starts.
+    ...(isWindowsDev && !turboFsCacheEnabled
+      ? { turbopackFileSystemCacheForDev: false }
+      : {}),
   },
 };
 
