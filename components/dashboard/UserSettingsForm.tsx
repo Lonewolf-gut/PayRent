@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, FormEvent } from "react";
 import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { SETTINGS_PROFILE_QUERY_KEY } from "@/hooks/use-settings-profile";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -251,9 +252,7 @@ export default function UserSettingsForm({
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      await queryClient.invalidateQueries({ queryKey: ["dashboard-profile"] });
-      await queryClient.invalidateQueries({ queryKey: ["navbar-profile"] });
-      await queryClient.invalidateQueries({ queryKey: ["sidebar-profile"] });
+      await queryClient.invalidateQueries({ queryKey: SETTINGS_PROFILE_QUERY_KEY });
       await queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
       if (updateSessionAfterUpload) await updateSession();
     } catch (error: unknown) {
@@ -287,19 +286,12 @@ export default function UserSettingsForm({
       if (fileInputRef.current) fileInputRef.current.value = "";
       toast.success("Profile image saved.");
       queryClient.setQueryData(
-        ["dashboard-profile"],
-        (current: { fullName?: string | null; email?: string; image?: string | null } | undefined) =>
-          current ? { ...current, image: imageUrl } : { image: imageUrl, fullName: null, email }
-      );
-      queryClient.setQueryData(
-        ["navbar-profile"],
+        SETTINGS_PROFILE_QUERY_KEY,
         (current: { fullName?: string | null; email?: string; image?: string | null } | undefined) =>
           current ? { ...current, image: imageUrl } : { image: imageUrl, fullName: null, email }
       );
       await queryClient.invalidateQueries({ queryKey: ["admin-profile"] });
-      await queryClient.invalidateQueries({ queryKey: ["dashboard-profile"] });
-      await queryClient.invalidateQueries({ queryKey: ["navbar-profile"] });
-      await queryClient.invalidateQueries({ queryKey: ["sidebar-profile"] });
+      await queryClient.invalidateQueries({ queryKey: SETTINGS_PROFILE_QUERY_KEY });
       await queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
       if (updateSessionAfterUpload) {
         await updateSession({

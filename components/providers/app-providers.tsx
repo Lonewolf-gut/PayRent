@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "@/components/ui/sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -14,6 +14,18 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         },
       })
   );
+
+  useEffect(() => {
+    // Drop legacy profile query keys that could return undefined and crash React Query.
+    for (const legacyKey of [
+      ["sidebar-profile"],
+      ["dashboard-profile"],
+      ["navbar-profile"],
+      ["widget-profile"],
+    ]) {
+      queryClient.removeQueries({ queryKey: legacyKey });
+    }
+  }, [queryClient]);
 
   return (
     <SessionProvider refetchOnWindowFocus={false} refetchInterval={0}>

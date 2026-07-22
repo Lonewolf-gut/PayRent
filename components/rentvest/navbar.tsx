@@ -32,6 +32,7 @@ import { useSubscriptionUpgrade } from "@/components/subscription/subscription-u
 import { isPaidPlan, normalizeSubscriptionPlan } from "@/lib/subscription/plans";
 import { roleRequiresSubscription } from "@/lib/subscription/roles";
 import { cn } from "@/lib/utils";
+import { useSettingsProfile } from "@/hooks/use-settings-profile";
 import type { UserRole } from "@prisma/client";
 
 const MARKETING_LINKS = [
@@ -73,20 +74,7 @@ export function Navbar() {
     closeTimer.current = setTimeout(() => setMenuOpen(false), 150);
   };
 
-  const { data: profile } = useQuery({
-    queryKey: ["navbar-profile"],
-    queryFn: async () => {
-      const res = await fetch("/api/settings");
-      const json = await res.json();
-      if (!json.success) return null;
-      return json.data?.user as {
-        fullName?: string | null;
-        email?: string;
-        image?: string | null;
-      } | null;
-    },
-    enabled: !!session?.user?.id,
-  });
+  const { data: profile } = useSettingsProfile(!!session?.user?.id);
 
   const email = session?.user?.email ?? profile?.email ?? "";
   const fullName = profile?.fullName?.trim();

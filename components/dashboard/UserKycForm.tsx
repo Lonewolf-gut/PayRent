@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { SETTINGS_PROFILE_QUERY_KEY } from "@/hooks/use-settings-profile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -223,7 +224,7 @@ export function UserKycForm({
     onSuccess: async (json) => {
       toast.success(json.message ?? "Profile saved");
       await queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
-      await queryClient.invalidateQueries({ queryKey: ["dashboard-profile"] });
+      await queryClient.invalidateQueries({ queryKey: SETTINGS_PROFILE_QUERY_KEY });
       const { data: fresh } = await refetch();
       if (fresh) {
         applyStatusToForm(fresh, setEntityType, setEmploymentStatus, setProfile, setIdentity);

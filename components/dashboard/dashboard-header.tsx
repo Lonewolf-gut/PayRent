@@ -33,6 +33,7 @@ import {
 } from "@/components/dashboard/sidebar";
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { getRoleSignOutPath, getStaffPortalHomePath } from "@/lib/auth/route-guards";
+import { useSettingsProfile } from "@/hooks/use-settings-profile";
 
 function getInitials(name?: string | null, email?: string | null) {
   if (name) {
@@ -61,20 +62,7 @@ export function DashboardHeader({
   const [menuOpen, setMenuOpen] = useState(false);
   const role = session?.user?.role;
 
-  const { data: profile } = useQuery({
-    queryKey: ["dashboard-profile"],
-    queryFn: async () => {
-      const res = await fetch("/api/settings");
-      const json = await res.json();
-      if (!res.ok || json.success === false) return null;
-      return (json.data?.user ?? null) as {
-        fullName?: string | null;
-        email?: string;
-        image?: string | null;
-      } | null;
-    },
-    enabled: !!session?.user?.id,
-  });
+  const { data: profile } = useSettingsProfile(!!session?.user?.id);
 
   const { data: subscriptionData } = useQuery({
     queryKey: ["subscription"],

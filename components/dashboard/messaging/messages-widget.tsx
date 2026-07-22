@@ -10,6 +10,7 @@ import { conversationTitle } from "@/lib/messaging/display";
 import { cn } from "@/lib/utils";
 import { ChatThread, useMessaging } from "./messaging-shared";
 import { MessagingListPanel } from "./messaging-list-panel";
+import { useSettingsProfile } from "@/hooks/use-settings-profile";
 
 type WidgetState = "collapsed" | "list" | "chat";
 
@@ -40,19 +41,7 @@ export function MessagesWidget() {
     typers,
   } = useMessaging();
 
-  const { data: profile } = useQuery({
-    queryKey: ["widget-profile"],
-    queryFn: async () => {
-      const res = await fetch("/api/settings");
-      const json = await res.json();
-      return json.data?.user as {
-        fullName?: string | null;
-        email?: string;
-        image?: string | null;
-      } | null;
-    },
-    enabled: !!session?.user?.id,
-  });
+  const { data: profile } = useSettingsProfile(!!session?.user?.id);
 
   const { data: unread = 0 } = useQuery({
     queryKey: ["messages-unread-count"],

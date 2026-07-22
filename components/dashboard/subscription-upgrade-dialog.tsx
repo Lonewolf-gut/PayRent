@@ -20,7 +20,7 @@ import {
 } from "@/lib/subscription/plans";
 import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
 import { useDashboardTheme } from "@/components/dashboard/dashboard-theme-provider";
-import { fetchSettingsUserProfile } from "@/lib/api/fetch-settings-profile";
+import { useSettingsProfile } from "@/hooks/use-settings-profile";
 import { cn } from "@/lib/utils";
 
 export function SubscriptionUpgradeDialog() {
@@ -87,12 +87,7 @@ export function SidebarUpgradeCard() {
   const { openUpgrade } = useSubscriptionUpgrade();
   const role = session?.user?.role;
 
-  const { data: profile = null } = useQuery({
-    queryKey: ["sidebar-profile"],
-    queryFn: fetchSettingsUserProfile,
-    enabled: !!session?.user?.id,
-    initialData: null,
-  });
+  const { data: profile } = useSettingsProfile(!!session?.user?.id);
 
   const { data: subscriptionData } = useQuery({
     queryKey: ["subscription"],
