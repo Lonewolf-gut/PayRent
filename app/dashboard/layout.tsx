@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { getPostAuthRoute } from "@/lib/auth/post-auth-route";
-import { prisma } from "@/lib/db/prisma";
+import { getUserVerificationState } from "@/lib/auth/user-verification-state";
 import { redirect } from "next/navigation";
 import { DashboardThemeProvider } from "@/components/dashboard/dashboard-theme-provider";
 import type { UserRole } from "@prisma/client";
@@ -12,13 +12,7 @@ export default async function DashboardLayout({
   if (!session?.user) redirect("/login");
 
   const role = session.user.role as UserRole;
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { emailVerified: true, phoneVerified: true },
-  });
-
-  const emailVerified = Boolean(user?.emailVerified ?? session.user.emailVerified);
-  const phoneVerified = Boolean(user?.phoneVerified ?? session.user.phoneVerified);
+  const { emailVerified, phoneVerified } = await getUserVerificationState(session);
 
   const nextStep = getPostAuthRoute({ role, emailVerified, phoneVerified });
   const dashboardHome = getPostAuthRoute({

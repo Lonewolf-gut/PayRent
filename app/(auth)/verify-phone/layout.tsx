@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { getPostAuthRoute } from "@/lib/auth/post-auth-route";
-import { prisma } from "@/lib/db/prisma";
+import { getUserVerificationState } from "@/lib/auth/user-verification-state";
 import { redirect } from "next/navigation";
 import type { UserRole } from "@prisma/client";
 
@@ -18,12 +18,9 @@ export default async function VerifyPhoneLayout({
     redirect("/verify-email");
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { phoneVerified: true },
-  });
+  const { phoneVerified } = await getUserVerificationState(session);
 
-  if (user?.phoneVerified || role === "ADMIN" || role === "COMPLIANCE_OFFICER") {
+  if (phoneVerified || role === "ADMIN" || role === "COMPLIANCE_OFFICER") {
     redirect(
       getPostAuthRoute({
         role,
