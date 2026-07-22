@@ -253,6 +253,7 @@ export default function UserSettingsForm({
       setConfirmPassword("");
       await queryClient.invalidateQueries({ queryKey: ["dashboard-profile"] });
       await queryClient.invalidateQueries({ queryKey: ["navbar-profile"] });
+      await queryClient.invalidateQueries({ queryKey: ["sidebar-profile"] });
       await queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
       if (updateSessionAfterUpload) await updateSession();
     } catch (error: unknown) {
@@ -298,6 +299,7 @@ export default function UserSettingsForm({
       await queryClient.invalidateQueries({ queryKey: ["admin-profile"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard-profile"] });
       await queryClient.invalidateQueries({ queryKey: ["navbar-profile"] });
+      await queryClient.invalidateQueries({ queryKey: ["sidebar-profile"] });
       await queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
       if (updateSessionAfterUpload) {
         await updateSession({
