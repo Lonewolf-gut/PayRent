@@ -1,4 +1,5 @@
 import { logger } from "@/lib/logger";
+import { sendArkeselSms, isArkeselConfigured } from "@/lib/integrations/sms/arkesel";
 import { sendHubtelSms, isHubtelConfigured } from "@/lib/integrations/sms/hubtel";
 
 export interface SendSmsParams {
@@ -51,6 +52,27 @@ export async function sendSms(params: SendSmsParams) {
       const message = error instanceof Error ? error.message : String(error);
       if (process.env.NODE_ENV === "development") {
         logger.error("Hubtel SMS failed; falling back to log provider", { message });
+        return logDevSms(params);
+      }
+      throw error;
+    }
+  }
+
+  if (smsProvider === "arkesel") {
+    if (!isArkeselConfigured()) {
+      if (process.env.NODE_ENV === "development") {
+        return logDevSms(params);
+      }
+      throw new Error("Arkesel SMS configuration missing");
+    }
+
+    try {
+      const result = await sendArkeselSms(params);
+      return { provider: "arkesel" as const, ...result };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (process.env.NODE_ENV === "development") {
+        logger.error("Arkesel SMS failed; falling back to log provider", { message });
         return logDevSms(params);
       }
       throw error;

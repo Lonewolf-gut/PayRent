@@ -147,6 +147,7 @@ Authenticated browser requests use **session cookies**. API/mobile clients may s
 These require external credentials and are not fully live without them:
 
 - **Hubtel payments** — `PAYMENT_PROVIDER=hubtel` + Hubtel keys + public webhook URL
+- **Arkesel SMS** — `SMS_PROVIDER=arkesel` + `SMS_API_KEY` + `ARKESEL_SMS_SENDER_ID`
 - **Hubtel SMS** — `SMS_PROVIDER=hubtel`
 - **Dojah KYC** — `KYC_PROVIDER=dojah` + Dojah keys (default is manual admin review)
 - **Bank mandates / direct debit** — `BANK_API_KEY` + `BANK_API_URL` for GhIPSS or sponsor bank
