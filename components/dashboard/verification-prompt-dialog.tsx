@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Circle, Clock3, ShieldCheck } from "lucide-react";
@@ -41,6 +42,7 @@ function getCompleteStorageKey(userId: string) {
 }
 
 export function VerificationPromptDialog() {
+  const pathname = usePathname();
   const { data: session, update } = useSession();
   const dashboardTheme = useDashboardTheme();
   const isDark = dashboardTheme?.theme === "dark";
@@ -50,7 +52,7 @@ export function VerificationPromptDialog() {
 
   const showVerificationUi = !!role && role in KYC_ROUTES;
 
-  const { data: status, isLoading } = useQuery({
+  const { data: status, isFetched } = useQuery({
     queryKey: ["kyc-status"],
     queryFn: async () => {
       const res = await fetch("/api/kyc");
@@ -67,9 +69,27 @@ export function VerificationPromptDialog() {
     Boolean(session?.user?.emailVerified) || Boolean(status?.emailVerified);
   const phoneVerified =
     Boolean(session?.user?.phoneVerified) || Boolean(status?.phoneVerified);
+
+  const mergedStatus = useMemo<VerificationStatusSnapshot>(
+    () => ({
+      ...(status ?? {}),
+      emailVerified,
+      phoneVerified,
+    }),
+    [status, emailVerified, phoneVerified]
+  );
+
   const kycRoute = role ? KYC_ROUTES[role] : undefined;
-  const checklist = getVerificationChecklist(status);
-  const fullyVerified = isAccountFullyVerified(status, emailVerified, phoneVerified);
+  const checklist = getVerificationChecklist(mergedStatus);
+  const fullyVerified = isAccountFullyVerified(
+    mergedStatus,
+    emailVerified,
+    phoneVerified
+  );
+  const needsVerificationPrompt =
+    !emailVerified ||
+    !phoneVerified ||
+    checklist.some((item) => !item.complete);
   const continueHref = !emailVerified
     ? "/verify-email"
     : !phoneVerified
@@ -92,13 +112,14 @@ export function VerificationPromptDialog() {
   }, [phoneVerified, session?.user?.phoneVerified, update]);
 
   useEffect(() => {
-    if (!showVerificationUi || !userId || isLoading) return;
+    if (!showVerificationUi || !userId || !isFetched) return;
+    if (!pathname.startsWith("/dashboard")) return;
 
     const completeKey = getCompleteStorageKey(userId);
     const dismissedKey = getDismissedSessionKey(userId);
     const freshLogin = sessionStorage.getItem(FRESH_LOGIN_KEY) === "1";
 
-    if (fullyVerified) {
+    if (!needsVerificationPrompt || fullyVerified) {
       localStorage.setItem(completeKey, "true");
       sessionStorage.removeItem(FRESH_LOGIN_KEY);
       sessionStorage.removeItem(dismissedKey);
@@ -117,7 +138,17 @@ export function VerificationPromptDialog() {
 
     const dismissedThisSession = sessionStorage.getItem(dismissedKey) === "true";
     setOpen(!dismissedThisSession);
-  }, [showVerificationUi, userId, isLoading, fullyVerified, status, emailVerified, phoneVerified]);
+  }, [
+    showVerificationUi,
+    userId,
+    isFetched,
+    pathname,
+    fullyVerified,
+    needsVerificationPrompt,
+    status,
+    emailVerified,
+    phoneVerified,
+  ]);
 
   const dismissDialog = () => {
     if (userId) {
