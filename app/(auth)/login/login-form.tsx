@@ -274,19 +274,21 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
           {loading ? "Signing in..." : needs2Fa ? "Verify and sign in" : "Sign in"}        </Button>
       </form>
       <div className="mt-6 space-y-2 text-center text-sm text-muted-foreground">
-        <p>
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="font-medium text-emerald-600 hover:underline">
-            Register
-          </Link>
-        </p>
-        {!adminMode ? (
-          <p>
-            Select a different role?{" "}
-            <Link href="/login" className="font-medium text-emerald-600 hover:underline">
-              Change role
-            </Link>
-          </p>
+        {!adminMode && !complianceMode ? (
+          <>
+            <p>
+              Don&apos;t have an account?{" "}
+              <Link href="/register" className="font-medium text-emerald-600 hover:underline">
+                Register
+              </Link>
+            </p>
+            <p>
+              Select a different role?{" "}
+              <Link href="/login" className="font-medium text-emerald-600 hover:underline">
+                Change role
+              </Link>
+            </p>
+          </>
         ) : null}
         <p>
           Forgot your password?{" "}
