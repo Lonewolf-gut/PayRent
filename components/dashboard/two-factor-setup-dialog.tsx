@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, ExternalLink, Smartphone } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,13 @@ export function TwoFactorSetupDialog({
   onVerify,
 }: TwoFactorSetupDialogProps) {
   const [copied, setCopied] = useState(false);
+  const [step, setStep] = useState<"scan" | "verify">("scan");
+
+  useEffect(() => {
+    if (!open) return;
+    setStep("scan");
+    onTokenChange("");
+  }, [open]);
 
   async function copySecret() {
     if (!secret) return;
@@ -51,14 +58,69 @@ export function TwoFactorSetupDialog({
     }
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      setStep("scan");
+    }
+    onOpenChange(nextOpen);
+  }
+
+  function goToVerify() {
+    onTokenChange("");
+    setStep("verify");
+  }
+
+  if (step === "verify") {
+    return (
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-md" showCloseButton>
+          <DialogHeader>
+            <DialogTitle>Verify authenticator setup</DialogTitle>
+            <DialogDescription>
+              Open your authenticator app, find PayForMe, and enter the 6-digit code it shows
+              right now.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-2">
+            <Label htmlFor="two-factor-setup-code">Verification code</Label>
+            <Input
+              id="two-factor-setup-code"
+              value={token}
+              onChange={(e) => onTokenChange(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="6-digit code from your app"
+              maxLength={6}
+              inputMode="numeric"
+              autoFocus
+            />
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setStep("scan")}>
+              Back
+            </Button>
+            <Button
+              type="button"
+              className="bg-emerald-600 hover:bg-emerald-700"
+              disabled={loading || token.length !== 6}
+              onClick={onVerify}
+            >
+              {loading ? "Confirming…" : "Confirm 2FA setup"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md" showCloseButton>
         <DialogHeader>
           <DialogTitle>Set up authenticator app</DialogTitle>
           <DialogDescription>
-            Scan the QR code with Google Authenticator, Authy, or another TOTP app. Then enter
-            the 6-digit code it shows for PayForMe.
+            Scan the QR code with Google Authenticator, Authy, or another TOTP app to add
+            PayForMe to your account.
           </DialogDescription>
         </DialogHeader>
 
@@ -103,32 +165,18 @@ export function TwoFactorSetupDialog({
               </div>
             </div>
           ) : null}
-
-          <div className="grid gap-2">
-            <Label htmlFor="two-factor-setup-code">Verification code</Label>
-            <Input
-              id="two-factor-setup-code"
-              value={token}
-              onChange={(e) => onTokenChange(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder="6-digit code from your app"
-              maxLength={6}
-              inputMode="numeric"
-              autoFocus
-            />
-          </div>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button
             type="button"
             className="bg-emerald-600 hover:bg-emerald-700"
-            disabled={loading || token.length !== 6}
-            onClick={onVerify}
+            onClick={goToVerify}
           >
-            {loading ? "Confirming…" : "Confirm 2FA setup"}
+            I&apos;ve added PayForMe — verify now
           </Button>
         </DialogFooter>
       </DialogContent>
