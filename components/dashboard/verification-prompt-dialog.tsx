@@ -87,6 +87,11 @@ export function VerificationPromptDialog() {
   }, [emailVerified, session?.user?.emailVerified, update]);
 
   useEffect(() => {
+    if (!phoneVerified || session?.user?.phoneVerified) return;
+    void update();
+  }, [phoneVerified, session?.user?.phoneVerified, update]);
+
+  useEffect(() => {
     if (!showVerificationUi || !userId || isLoading) return;
 
     const completeKey = getCompleteStorageKey(userId);
