@@ -64,12 +64,9 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
   );
 
   return apiResponse(
-    {
-      checkout,
-      message:
-        checkout.message ??
-        "Approve the MoMo prompt on your phone to activate your subscription.",
-    },
-    checkout.status === "FAILED" ? 400 : 202
+    { checkout },
+    checkout.status === "FAILED" ? 400 : 202,
+    checkout.message ??
+      "Approve the MoMo prompt on your phone to activate your subscription."
   );
 });

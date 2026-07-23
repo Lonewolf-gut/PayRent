@@ -102,9 +102,11 @@ export function WalletPanel({
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? json.error?.message ?? "Deposit failed");
-      return json.data as {
-        payment?: { checkoutUrl?: string; method?: string; reference?: string };
-        message?: string;
+      return {
+        payment: json.data?.payment as
+          | { checkoutUrl?: string; method?: string; reference?: string }
+          | undefined,
+        message: json.message as string | undefined,
       };
     },
     onSuccess: (data) => {

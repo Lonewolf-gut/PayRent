@@ -16,7 +16,11 @@ export function isPaymentCollectionConfigured() {
   if (provider === "paystack") return isPaystackConfigured();
   if (provider === "hubtel") return isHubtelPaymentsConfigured();
   if (provider === "momo") {
-    return Boolean(process.env.MOMO_API_KEY?.trim() && process.env.MOMO_SUBSCRIPTION_KEY?.trim());
+    return Boolean(
+      process.env.MOMO_API_KEY?.trim() &&
+        process.env.MOMO_SUBSCRIPTION_KEY?.trim() &&
+        process.env.MOMO_API_USER?.trim()
+    );
   }
   return false;
 }

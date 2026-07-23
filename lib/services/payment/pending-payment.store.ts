@@ -8,6 +8,7 @@ type PendingPaymentBase = {
   userId: string;
   amount: number;
   provider: "hubtel" | "paystack" | "momo";
+  momoReferenceId?: string;
 };
 
 export type WalletDepositPendingSession = PendingPaymentBase & {

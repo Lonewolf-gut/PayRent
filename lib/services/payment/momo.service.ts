@@ -1,6 +1,5 @@
 import { logger } from "@/lib/logger";
 import { v4 as uuidv4 } from "uuid";
-import crypto from "crypto";
 
 export interface MomoPaymentRequest {
   amount: number;
@@ -12,6 +11,7 @@ export interface MomoPaymentRequest {
 
 export interface MomoPaymentResult {
   reference: string;
+  momoReferenceId: string;
   status: "PENDING" | "SUCCESSFUL" | "FAILED";
   externalId?: string;
   message?: string;
@@ -20,13 +20,15 @@ export interface MomoPaymentResult {
 /**
  * MTN MoMo collection integration
  * Supports both sandbox and production environments via MTN MoMo Open API
- * 
+ *
  * Environment Variables:
  * - MOMO_API_KEY: API key for authorization
  * - MOMO_SUBSCRIPTION_KEY: Subscription key for Collections product
  * - MOMO_API_USER: API user for authentication
  * - MOMO_API_URL: Base URL (https://sandbox.momodeveloper.mtn.com or production)
  * - MOMO_CALLBACK_URL: Webhook callback URL for payment confirmations
+ * - MOMO_TARGET_ENVIRONMENT: sandbox | mtnghana | etc. (auto-detected from URL)
+ * - MOMO_CURRENCY: EUR for sandbox, GHS for Ghana production
  */
 export class MomoService {
   private apiKey = process.env.MOMO_API_KEY || "";
@@ -35,119 +37,144 @@ export class MomoService {
   private apiUrl = process.env.MOMO_API_URL || "https://sandbox.momodeveloper.mtn.com";
   private callbackUrl = process.env.MOMO_CALLBACK_URL || "";
 
+  private get targetEnvironment() {
+    const configured = process.env.MOMO_TARGET_ENVIRONMENT?.trim();
+    if (configured) return configured;
+    return this.apiUrl.includes("sandbox") ? "sandbox" : "mtnghana";
+  }
+
+  private get currency() {
+    const configured = process.env.MOMO_CURRENCY?.trim();
+    if (configured) return configured;
+    return this.apiUrl.includes("sandbox") ? "EUR" : "GHS";
+  }
+
+  private isConfigured() {
+    return Boolean(this.apiKey && this.subscriptionKey && this.apiUser);
+  }
+
+  private isSandbox() {
+    return this.targetEnvironment === "sandbox" || this.apiUrl.includes("sandbox");
+  }
+
   /**
    * Request a payment from a customer via MoMo
    * This initiates an asynchronous payment flow
    */
   async requestPayment(input: MomoPaymentRequest): Promise<MomoPaymentResult> {
     const reference = input.reference ?? `MOMO-${uuidv4().slice(0, 8).toUpperCase()}`;
-    const correlationId = uuidv4();
+    const momoReferenceId = uuidv4();
 
     logger.info("MoMo payment requested", {
       reference,
+      momoReferenceId,
       amount: input.amount,
       phone: input.phone.slice(-4),
+      environment: this.targetEnvironment,
     });
 
-    // Sandbox/Development mode
-    if (!this.isProductionMode()) {
+    if (!this.isConfigured()) {
       return {
         reference,
-        status: "PENDING",
-        externalId: `sandbox-${reference}`,
-        message: "Sandbox payment initiated - webhook simulation in 5 seconds",
+        momoReferenceId,
+        status: "FAILED",
+        message:
+          "MoMo is not fully configured. Set MOMO_SUBSCRIPTION_KEY, MOMO_API_USER, and MOMO_API_KEY in your .env file.",
       };
     }
 
     try {
-      // Production: Call MTN MoMo Request-to-Pay API
       const payload = {
         amount: input.amount.toString(),
-        currency: "GHS",
+        currency: this.currency,
         externalId: reference,
         payer: {
           partyIdType: "MSISDN",
           partyId: this.normalizePhoneNumber(input.phone),
         },
-        payerMessage: input.description || "RentVest Payment",
-        payeeNote: "Payment for RentVest platform",
-        callbackUrl: input.callbackUrl || this.callbackUrl,
+        payerMessage: input.description || "PayForMe Payment",
+        payeeNote: "Payment for PayForMe",
       };
 
-      const response = await fetch(
-        `${this.apiUrl}/v1_0/requesttopay`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${await this.getAccessToken()}`,
-            "X-Reference-Id": correlationId,
-            "X-Target-Environment": "production",
-            "Ocp-Apim-Subscription-Key": this.subscriptionKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      const response = await fetch(`${this.apiUrl}/collection/v1_0/requesttopay`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${await this.getAccessToken()}`,
+          "X-Reference-Id": momoReferenceId,
+          "X-Target-Environment": this.targetEnvironment,
+          "Ocp-Apim-Subscription-Key": this.subscriptionKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
       if (!response.ok) {
         const error = await response.text();
         logger.error("MoMo API error", {
           reference,
+          momoReferenceId,
           status: response.status,
           error,
         });
 
         return {
           reference,
+          momoReferenceId,
           status: "FAILED",
-          message: `API Error: ${response.status}`,
+          message: `MoMo API error (${response.status}). Check server logs and your MoMo credentials.`,
         };
       }
 
       logger.info("MoMo payment request accepted", {
         reference,
-        correlationId,
+        momoReferenceId,
       });
 
       return {
         reference,
+        momoReferenceId,
         status: "PENDING",
-        externalId: reference,
-        message: "Payment initiated - awaiting customer confirmation",
+        externalId: momoReferenceId,
+        message: this.isSandbox()
+          ? "Sandbox payment request accepted. MTN sandbox does not send real USSD prompts to your phone — use MTN test numbers or poll payment status in the app."
+          : "Approve the MoMo prompt on your phone to complete payment.",
       };
     } catch (error) {
       logger.error("MoMo payment request failed", {
         reference,
+        momoReferenceId,
         error: error instanceof Error ? error.message : "Unknown error",
       });
 
       return {
         reference,
+        momoReferenceId,
         status: "FAILED",
-        message: "Payment request failed - please try again",
+        message: "Payment request failed — check your MoMo credentials and internet connection.",
       };
     }
   }
 
   /**
-   * Verify payment status
-   * Polls the MoMo API to check transaction status
+   * Verify payment status using the MTN transaction reference (X-Reference-Id)
    */
-  async verifyPayment(reference: string): Promise<MomoPaymentResult> {
-    logger.info("MoMo payment verify", { reference });
+  async verifyPayment(momoReferenceId: string, clientReference?: string): Promise<MomoPaymentResult> {
+    const reference = clientReference ?? momoReferenceId;
 
-    if (!this.isProductionMode()) {
-      return { reference, status: "SUCCESSFUL" };
+    logger.info("MoMo payment verify", { reference, momoReferenceId });
+
+    if (!this.isConfigured()) {
+      return { reference, momoReferenceId, status: "PENDING" };
     }
 
     try {
       const response = await fetch(
-        `${this.apiUrl}/v1_0/requesttopay/${reference}`,
+        `${this.apiUrl}/collection/v1_0/requesttopay/${momoReferenceId}`,
         {
           method: "GET",
           headers: {
             Authorization: `Bearer ${await this.getAccessToken()}`,
-            "X-Target-Environment": "production",
+            "X-Target-Environment": this.targetEnvironment,
             "Ocp-Apim-Subscription-Key": this.subscriptionKey,
           },
         }
@@ -156,25 +183,33 @@ export class MomoService {
       if (!response.ok) {
         logger.warn("MoMo verify error", {
           reference,
+          momoReferenceId,
           status: response.status,
         });
-        return { reference, status: "PENDING" };
+        return { reference, momoReferenceId, status: "PENDING" };
       }
 
       const data = await response.json();
-      const status = data.status === "SUCCESSFUL" ? "SUCCESSFUL" : data.status === "FAILED" ? "FAILED" : "PENDING";
+      const status =
+        data.status === "SUCCESSFUL"
+          ? "SUCCESSFUL"
+          : data.status === "FAILED"
+            ? "FAILED"
+            : "PENDING";
 
       return {
         reference,
+        momoReferenceId,
         status: status as "PENDING" | "SUCCESSFUL" | "FAILED",
         externalId: data.externalId,
       };
     } catch (error) {
       logger.error("MoMo verify failed", {
         reference,
+        momoReferenceId,
         error: error instanceof Error ? error.message : "Unknown error",
       });
-      return { reference, status: "PENDING" };
+      return { reference, momoReferenceId, status: "PENDING" };
     }
   }
 
@@ -182,30 +217,25 @@ export class MomoService {
    * Get OAuth 2.0 access token for API calls
    */
   private async getAccessToken(): Promise<string> {
-    try {
-      const response = await fetch(`${this.apiUrl}/oauth2/token`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Basic ${Buffer.from(
-            `${this.apiUser}:${this.apiKey}`
-          ).toString("base64")}`,
-        },
-        body: "grant_type=client_credentials",
-      });
+    const response = await fetch(`${this.apiUrl}/collection/token/`, {
+      method: "POST",
+      headers: {
+        "Ocp-Apim-Subscription-Key": this.subscriptionKey,
+        Authorization: `Basic ${Buffer.from(`${this.apiUser}:${this.apiKey}`).toString("base64")}`,
+      },
+    });
 
-      if (!response.ok) {
-        throw new Error(`Token request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.access_token;
-    } catch (error) {
+    if (!response.ok) {
+      const error = await response.text();
       logger.error("Failed to get MoMo access token", {
-        error: error instanceof Error ? error.message : "Unknown error",
+        status: response.status,
+        error,
       });
-      throw error;
+      throw new Error(`Token request failed: ${response.status}`);
     }
+
+    const data = await response.json();
+    return data.access_token as string;
   }
 
   /**
@@ -213,28 +243,17 @@ export class MomoService {
    * Converts local format (0xx) to international (+233xx)
    */
   private normalizePhoneNumber(phone: string): string {
-    // Remove all non-digits
     const digits = phone.replace(/\D/g, "");
 
-    // Convert 0-prefixed to +233
     if (digits.startsWith("0")) {
-      return `+233${digits.slice(1)}`;
+      return `233${digits.slice(1)}`;
     }
 
-    // If already has country code
     if (digits.startsWith("233")) {
-      return `+${digits}`;
+      return digits;
     }
 
-    // Assume it's a local number without country code
-    return `+233${digits.slice(-9)}`;
-  }
-
-  /**
-   * Check if running in production mode
-   */
-  private isProductionMode(): boolean {
-    return this.apiKey !== "" && this.subscriptionKey !== "";
+    return `233${digits.slice(-9)}`;
   }
 }
 

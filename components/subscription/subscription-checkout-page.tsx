@@ -124,7 +124,10 @@ export function SubscriptionCheckoutPage() {
         throw new Error(message);
       }
 
-      return json.data;
+      return {
+        message: json.message as string | undefined,
+        checkout: json.data?.checkout,
+      };
     },
     onSuccess: (data) => {
       toast.success(

@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { BillingCycle, SubscriptionPlan, UserRole, WalletType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { momoService } from "@/lib/services/payment/momo.service";
-import { savePendingPayment } from "@/lib/services/payment/pending-payment.store";
+import { getPendingPayment, savePendingPayment } from "@/lib/services/payment/pending-payment.store";
 import {
   getDepositPhoneFromAccount,
   getVerifiedUserBankAccount,
@@ -64,6 +64,7 @@ export class MomoPaymentService {
       method,
       phone,
       provider: "momo",
+      momoReferenceId: payment.momoReferenceId,
     });
 
     const payment = await momoService.requestPayment({
@@ -114,6 +115,7 @@ export class MomoPaymentService {
       plan: input.plan,
       billingCycle: input.billingCycle,
       role: input.role,
+      momoReferenceId: payment.momoReferenceId,
     });
 
     const payment = await momoService.requestPayment({
@@ -136,7 +138,9 @@ export class MomoPaymentService {
   }
 
   async verifyCollection(reference: string) {
-    const payment = await momoService.verifyPayment(reference);
+    const pending = await getPendingPayment(reference);
+    const momoReferenceId = pending?.momoReferenceId ?? reference;
+    const payment = await momoService.verifyPayment(momoReferenceId, reference);
     return {
       provider: "momo" as const,
       reference: payment.reference,

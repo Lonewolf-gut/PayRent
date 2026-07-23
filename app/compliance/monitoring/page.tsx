@@ -56,6 +56,7 @@ export default function ComplianceMonitoringPage() {
         <h1 className="text-2xl font-bold">Suspicious activity</h1>
         <p className="text-sm text-muted-foreground">
           Repeated failed payments, unusual lender activity, fraudulent listings, and login anomalies.
+          {!isLoading ? ` ${flags?.length ?? 0} flag${flags?.length === 1 ? "" : "s"} on file.` : ""}
         </p>
       </div>
 

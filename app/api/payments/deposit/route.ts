@@ -35,15 +35,14 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
   });
 
   if (payment.status === "FAILED") {
-    return apiResponse({ payment, message: payment.message }, 400);
+    return apiResponse({ payment }, 400, payment.message ?? "Deposit failed");
   }
 
   return apiResponse(
-    {
-      payment,
-      message: payment.message,
-    },
-    "checkoutUrl" in payment && payment.checkoutUrl ? 200 : 202
+    { payment },
+    202,
+    payment.message ??
+      "MoMo payment initiated — approve the prompt on your phone. You will receive a notification when the deposit completes."
   );
 });
 
