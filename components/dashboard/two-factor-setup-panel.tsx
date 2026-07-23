@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, ShieldCheck, Smartphone } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,24 +8,22 @@ import { Label } from "@/components/ui/label";
 type TwoFactorSetupPanelProps = {
   enabled: boolean;
   pending: boolean;
-  otpauthUrl: string | null;
   token: string;
   loading: boolean;
   onTokenChange: (value: string) => void;
   onEnable: () => void;
-  onVerify: () => void;
+  onContinueSetup: () => void;
   onDisable: () => void;
 };
 
 export function TwoFactorSetupPanel({
   enabled,
   pending,
-  otpauthUrl,
   token,
   loading,
   onTokenChange,
   onEnable,
-  onVerify,
+  onContinueSetup,
   onDisable,
 }: TwoFactorSetupPanelProps) {
   if (enabled) {
@@ -71,50 +69,20 @@ export function TwoFactorSetupPanel({
 
   if (pending) {
     return (
-      <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+      <div className="space-y-3 rounded-xl border border-border bg-card p-4">
         <div>
-          <p className="text-sm font-medium text-foreground">Check your authenticator app</p>
+          <p className="text-sm font-medium text-foreground">2FA setup in progress</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            PayForMe should now appear in your authenticator app. Enter the 6-digit code it
-            shows below to finish setup.
+            Scan the QR code in your authenticator app, then confirm with the 6-digit code.
           </p>
         </div>
-
-        {otpauthUrl ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            asChild
-          >
-            <a href={otpauthUrl}>
-              <Smartphone className="size-4" />
-              Open authenticator app again
-              <ExternalLink className="size-4 opacity-80" />
-            </a>
-          </Button>
-        ) : null}
-
-        <div className="grid max-w-xs gap-2">
-          <Label className="text-foreground">Verification code</Label>
-          <Input
-            value={token}
-            onChange={(e) => onTokenChange(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            placeholder="6-digit code"
-            maxLength={6}
-            inputMode="numeric"
-            autoFocus
-          />
-        </div>
-
         <Button
           type="button"
           className="bg-emerald-600 hover:bg-emerald-700"
-          disabled={loading || token.length !== 6}
-          onClick={onVerify}
+          disabled={loading}
+          onClick={onContinueSetup}
         >
-          {loading ? "Confirming…" : "Confirm 2FA setup"}
+          {loading ? "Loading…" : "Continue 2FA setup"}
         </Button>
       </div>
     );
@@ -127,7 +95,7 @@ export function TwoFactorSetupPanel({
       disabled={loading}
       onClick={onEnable}
     >
-      {loading ? "Opening authenticator…" : "Enable 2FA"}
+      {loading ? "Preparing setup…" : "Enable 2FA"}
     </Button>
   );
 }

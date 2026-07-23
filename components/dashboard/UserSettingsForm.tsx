@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/accordion";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { AccountNameConfirmation } from "@/components/dashboard/account-name-confirmation";
+import { TwoFactorSetupDialog } from "@/components/dashboard/two-factor-setup-dialog";
 import { TwoFactorSetupPanel } from "@/components/dashboard/two-factor-setup-panel";
 import { getApiErrorMessage, readApiJson } from "@/lib/utils/api-message";
 import { toast } from "sonner";
@@ -84,6 +85,8 @@ export default function UserSettingsForm({
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [twoFaPending, setTwoFaPending] = useState(false);
   const [twoFaOtpauthUrl, setTwoFaOtpauthUrl] = useState<string | null>(null);
+  const [twoFaSecret, setTwoFaSecret] = useState<string | null>(null);
+  const [twoFaDialogOpen, setTwoFaDialogOpen] = useState(false);
   const [twoFaToken, setTwoFaToken] = useState("");
   const [twoFaLoading, setTwoFaLoading] = useState(false);
 
@@ -104,7 +107,21 @@ export default function UserSettingsForm({
         toast.error(error instanceof Error ? error.message : String(error));
       }
     }
+
+    async function loadTwoFactorStatus() {
+      try {
+        const res = await fetch("/api/auth/2fa");
+        const json = await res.json();
+        if (!res.ok || !json.success) return;
+        setTwoFactorEnabled(Boolean(json.data?.enabled));
+        setTwoFaPending(Boolean(json.data?.pendingSetup));
+      } catch {
+        // Non-blocking; settings payload may still include enabled flag.
+      }
+    }
+
     loadSettings();
+    loadTwoFactorStatus();
   }, [settingsApi]);
 
   useEffect(() => {
@@ -402,7 +419,7 @@ export default function UserSettingsForm({
     }
   }
 
-  async function handleEnable2Fa() {
+  async function startTwoFactorSetup() {
     setTwoFaLoading(true);
     try {
       const res = await fetch("/api/auth/2fa", {
@@ -413,17 +430,25 @@ export default function UserSettingsForm({
       const json = await res.json();
       if (!json.success) throw new Error(getApiErrorMessage(json));
       const otpauthUrl = json.data.otpauthUrl as string | undefined;
+      const secret = json.data.secret as string | undefined;
       setTwoFaOtpauthUrl(otpauthUrl ?? null);
+      setTwoFaSecret(secret ?? null);
       setTwoFaPending(true);
-      if (otpauthUrl) {
-        window.location.href = otpauthUrl;
-      }
-      toast.success("Check your authenticator app and enter the 6-digit code below.");
+      setTwoFaToken("");
+      setTwoFaDialogOpen(true);
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
       setTwoFaLoading(false);
     }
+  }
+
+  async function handleEnable2Fa() {
+    await startTwoFactorSetup();
+  }
+
+  async function handleContinue2FaSetup() {
+    await startTwoFactorSetup();
   }
 
   async function handleVerify2Fa() {
@@ -443,6 +468,8 @@ export default function UserSettingsForm({
       setTwoFactorEnabled(true);
       setTwoFaPending(false);
       setTwoFaOtpauthUrl(null);
+      setTwoFaSecret(null);
+      setTwoFaDialogOpen(false);
       setTwoFaToken("");
       await updateSession();
       toast.success("Two-factor authentication enabled.");
@@ -649,13 +676,23 @@ export default function UserSettingsForm({
             <TwoFactorSetupPanel
               enabled={twoFactorEnabled}
               pending={twoFaPending}
-              otpauthUrl={twoFaOtpauthUrl}
               token={twoFaToken}
               loading={twoFaLoading}
               onTokenChange={setTwoFaToken}
               onEnable={handleEnable2Fa}
-              onVerify={handleVerify2Fa}
+              onContinueSetup={handleContinue2FaSetup}
               onDisable={handleDisable2Fa}
+            />
+
+            <TwoFactorSetupDialog
+              open={twoFaDialogOpen}
+              onOpenChange={setTwoFaDialogOpen}
+              otpauthUrl={twoFaOtpauthUrl}
+              secret={twoFaSecret}
+              token={twoFaToken}
+              loading={twoFaLoading}
+              onTokenChange={setTwoFaToken}
+              onVerify={handleVerify2Fa}
             />
           </AccordionContent>
         </AccordionItem>
