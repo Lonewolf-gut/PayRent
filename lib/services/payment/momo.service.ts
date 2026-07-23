@@ -25,14 +25,14 @@ export interface MomoPaymentResult {
  * - MOMO_API_KEY: API key for authorization
  * - MOMO_SUBSCRIPTION_KEY: Subscription key for Collections product
  * - MOMO_API_USER: API user for authentication
- * - MOMO_API_URL: Base URL (https://sandbox.momoapi.mtn.com or production)
+ * - MOMO_API_URL: Base URL (https://sandbox.momodeveloper.mtn.com or production)
  * - MOMO_CALLBACK_URL: Webhook callback URL for payment confirmations
  */
 export class MomoService {
   private apiKey = process.env.MOMO_API_KEY || "";
   private subscriptionKey = process.env.MOMO_SUBSCRIPTION_KEY || "";
   private apiUser = process.env.MOMO_API_USER || "";
-  private apiUrl = process.env.MOMO_API_URL || "https://sandbox.momoapi.mtn.com";
+  private apiUrl = process.env.MOMO_API_URL || "https://sandbox.momodeveloper.mtn.com";
   private callbackUrl = process.env.MOMO_CALLBACK_URL || "";
 
   /**
