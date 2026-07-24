@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FINANCING_DOC_LABELS } from "@/lib/constants/financing-docs";
 import type { TenantFinancingDocType } from "@prisma/client";
-import { toast } from "sonner";
+import { SecureFileLink } from "@/components/shared/secure-file-link";
 
 type FinancingDocRow = {
   id: string;
@@ -83,9 +83,9 @@ export default function AdminFinancingDocumentsPage() {
               <CardContent className="flex flex-wrap items-center gap-3">
                 <p className="text-sm">{doc.fileName}</p>
                 <Button variant="outline" size="sm" asChild>
-                  <a href={doc.fileUrl} target="_blank" rel="noreferrer">
+                  <SecureFileLink request={{ scope: "financing", documentId: doc.id }}>
                     View file
-                  </a>
+                  </SecureFileLink>
                 </Button>
                 <Button
                   size="sm"

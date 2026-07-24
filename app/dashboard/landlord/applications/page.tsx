@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { APPLICATION_STATUS_LABELS } from "@/constants/platform";
-import { toast } from "sonner";
+import { SecureFileLink } from "@/components/shared/secure-file-link";
 
 export default function LandlordApplicationsPage() {
   const queryClient = useQueryClient();
@@ -76,14 +76,12 @@ export default function LandlordApplicationsPage() {
                   <ul className="space-y-1">
                     {app.documents.map((doc) => (
                       <li key={doc.id}>
-                        <a
-                          href={doc.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <SecureFileLink
+                          request={{ scope: "application", documentId: doc.id }}
                           className="text-sm text-emerald-700 hover:underline"
                         >
                           {doc.fileName}
-                        </a>
+                        </SecureFileLink>
                       </li>
                     ))}
                   </ul>

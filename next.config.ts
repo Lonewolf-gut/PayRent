@@ -10,7 +10,12 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com" }],
+    remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com" },
+      ...(process.env.S3_PUBLIC_URL
+        ? [{ protocol: "https" as const, hostname: new URL(process.env.S3_PUBLIC_URL).hostname }]
+        : []),
+    ],
   },
   experimental: {
     serverActions: {

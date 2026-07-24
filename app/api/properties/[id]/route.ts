@@ -1,6 +1,4 @@
-import fs from "fs/promises";
-import path from "path";
-import { randomUUID } from "crypto";
+import { savePropertyImageUpload } from "@/lib/integrations/documents";
 import type { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { propertyRepository } from "@/lib/repositories/property.repository";
@@ -9,18 +7,6 @@ import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/db/prisma";
 import { propertySchema, normalizePropertyPayload, parseOptionalFormNumber } from "@/lib/validations/property";
 import { firstZodIssueMessage } from "@/lib/validations/auth";
-
-const saveUploadedFile = async (file: File, folder: string) => {
-  const mimeMatch = file.type.match(/\/([a-z0-9]+)(?:;|$)/i);
-  const extension = mimeMatch ? `.${mimeMatch[1]}` : path.extname(file.name) || "";
-  const fileName = `${Date.now()}-${randomUUID()}${extension}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "properties", folder);
-  await fs.mkdir(uploadDir, { recursive: true });
-  const filePath = path.join(uploadDir, fileName);
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(filePath, buffer);
-  return `/uploads/properties/${folder}/${fileName}`;
-};
 
 export const GET = withPublicHandler(async (_req, context) => {
   const { id } = await context.params;
@@ -105,7 +91,7 @@ export const PATCH = withAuth(
       updateData.images = {
         create: await Promise.all(
           images.slice(0, 10).map(async (file, index) => ({
-            url: await saveUploadedFile(file, "images"),
+            url: await savePropertyImageUpload(file, session.user.id),
             alt: `Property photo ${index + 1}`,
             order: index,
           }))

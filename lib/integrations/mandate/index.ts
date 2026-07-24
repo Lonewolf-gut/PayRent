@@ -94,15 +94,8 @@ const bankMandateProvider: MandateProvider = {
   },
 };
 
-export async function saveMandateDocument(file: File): Promise<string> {
-  const fs = await import("fs/promises");
-  const path = await import("path");
-  const { randomUUID } = await import("crypto");
-  const extension = path.extname(file.name) || ".pdf";
-  const fileName = `${Date.now()}-${randomUUID()}${extension}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "mandates");
-  await fs.mkdir(uploadDir, { recursive: true });
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(path.join(uploadDir, fileName), buffer);
-  return `/uploads/mandates/${fileName}`;
+import { saveMandateUpload } from "@/lib/integrations/documents";
+
+export async function saveMandateDocument(file: File, ownerId: string): Promise<string> {
+  return saveMandateUpload(file, ownerId);
 }

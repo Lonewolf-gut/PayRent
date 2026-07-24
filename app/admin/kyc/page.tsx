@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { KYC_DOCUMENT_LABELS, UTILITY_BILL_LABELS } from "@/lib/constants/financing-docs";
 import { getEmploymentStatusLabel } from "@/lib/constants/employment-status";
-import { toast } from "sonner";
+import { SecureDocumentPreview } from "@/components/shared/secure-document-preview";
 
 type KycDocument = {
   id: string;
@@ -107,44 +107,13 @@ function reviewTypeLabel(type: string) {
 
 function DocumentPreview({ doc }: { doc: KycDocument }) {
   const label = KYC_DOCUMENT_LABELS[doc.documentType] ?? doc.documentType;
-  const isImage = /\.(jpe?g|png|webp|gif)$/i.test(doc.fileName);
-  const isPdf = /\.pdf$/i.test(doc.fileName);
-
   return (
-    <div className="space-y-2 rounded-lg border p-3">
-      <p className="text-sm font-medium">{label}</p>
-      {isImage ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={doc.fileUrl}
-          alt={label}
-          className="max-h-48 rounded-md border object-contain"
-        />
-      ) : isPdf ? (
-        <iframe
-          src={doc.fileUrl}
-          title={label}
-          className="h-48 w-full rounded-md border bg-muted/20"
-        />
-      ) : null}
-      <div className="flex flex-wrap gap-3">
-        <a
-          href={doc.fileUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="text-sm text-emerald-600 hover:underline"
-        >
-          Preview {doc.fileName}
-        </a>
-        <a
-          href={doc.fileUrl}
-          download={doc.fileName}
-          className="text-sm text-emerald-600 hover:underline"
-        >
-          Download
-        </a>
-      </div>
-    </div>
+    <SecureDocumentPreview
+      documentId={doc.id}
+      fileName={doc.fileName}
+      label={label}
+      scope="kyc"
+    />
   );
 }
 

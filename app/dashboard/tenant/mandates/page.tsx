@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { MANDATE_STATUS_LABELS } from "@/constants/platform";
-import { toast } from "sonner";
+import { SecureFileLink } from "@/components/shared/secure-file-link";
 import { ExternalLink, RefreshCw } from "lucide-react";
 
 type Mandate = {
@@ -125,10 +125,10 @@ export default function TenantMandatesPage() {
 
               {mandate.documentUrl && (
                 <Button asChild size="sm" variant="outline">
-                  <a href={mandate.documentUrl} target="_blank" rel="noopener noreferrer">
+                  <SecureFileLink request={{ scope: "mandate", mandateId: mandate.id }}>
                     <ExternalLink className="mr-2 h-4 w-4" />
                     View mandate document
-                  </a>
+                  </SecureFileLink>
                 </Button>
               )}
 

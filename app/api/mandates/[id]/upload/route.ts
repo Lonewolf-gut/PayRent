@@ -21,7 +21,7 @@ export const POST = withAuth(
       return apiResponse(null, 400, "Document file is required.");
     }
 
-    const documentUrl = await saveMandateDocument(file);
+    const documentUrl = await saveMandateDocument(file, session.user.id);
     const updated = await prisma.mandate.update({
       where: { id },
       data: { documentUrl },
