@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { KYC_DOCUMENT_LABELS, UTILITY_BILL_LABELS } from "@/lib/constants/financing-docs";
 import { getEmploymentStatusLabel } from "@/lib/constants/employment-status";
+import { SecureDocumentPreview } from "@/components/shared/secure-document-preview";
 import { getProfileDisplayName } from "@/lib/utils/display-name";
 import { toast } from "sonner";
 
@@ -178,44 +179,13 @@ function groupReviewsByUser(reviews: ReviewItem[]): UserReviewGroup[] {
 
 function DocumentPreview({ doc }: { doc: KycDocument }) {
   const label = KYC_DOCUMENT_LABELS[doc.documentType] ?? doc.documentType;
-  const isImage = /\.(jpe?g|png|webp|gif)$/i.test(doc.fileName);
-  const isPdf = /\.pdf$/i.test(doc.fileName);
-
   return (
-    <div className="space-y-2 rounded-none border border-border bg-card p-3 text-card-foreground">
-      <p className="text-sm font-medium">{label}</p>
-      {isImage ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={doc.fileUrl}
-          alt={label}
-          className="max-h-40 rounded-none border border-border bg-muted/30 object-contain"
-        />
-      ) : isPdf ? (
-        <iframe
-          src={doc.fileUrl}
-          title={label}
-          className="h-40 w-full rounded-none border border-border bg-muted/30"
-        />
-      ) : null}
-      <div className="flex flex-wrap gap-3">
-        <a
-          href={doc.fileUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="text-sm text-emerald-600 hover:underline dark:text-emerald-400"
-        >
-          Preview {doc.fileName}
-        </a>
-        <a
-          href={doc.fileUrl}
-          download={doc.fileName}
-          className="text-sm text-emerald-600 hover:underline dark:text-emerald-400"
-        >
-          Download
-        </a>
-      </div>
-    </div>
+    <SecureDocumentPreview
+      documentId={doc.id}
+      fileName={doc.fileName}
+      label={label}
+      scope="kyc"
+    />
   );
 }
 

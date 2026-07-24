@@ -1,6 +1,7 @@
-import fs from "fs/promises";
-import path from "path";
-import { randomUUID } from "crypto";
+import {
+  savePropertyDocumentUpload,
+  savePropertyImageUpload,
+} from "@/lib/integrations/documents";
 import type { Prisma, PropertyType } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { propertyFilterSchema, propertySchema, normalizePropertyPayload, parseOptionalFormNumber } from "@/lib/validations/property";
@@ -26,18 +27,6 @@ import { roleHasUnlimitedBrowse } from "@/lib/subscription/roles";
 import { assignAgentToProperty } from "@/lib/services/agent-assignment.service";
 import { firstZodIssueMessage } from "@/lib/validations/auth";
 import type { PropertyAttributes } from "@/lib/constants/property-listing";
-
-const saveUploadedFile = async (file: File, folder: string) => {
-  const mimeMatch = file.type.match(/\/([a-z0-9]+)(?:;|$)/i);
-  const extension = mimeMatch ? `.${mimeMatch[1]}` : path.extname(file.name) || "";
-  const fileName = `${Date.now()}-${randomUUID()}${extension}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "properties", folder);
-  await fs.mkdir(uploadDir, { recursive: true });
-  const filePath = path.join(uploadDir, fileName);
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(filePath, buffer);
-  return `/uploads/properties/${folder}/${fileName}`;
-};
 
 async function getBrowsePlan(userId?: string | null, role?: string | null) {
   if (!userId) return "FREE" as const;
@@ -207,7 +196,10 @@ export const POST = withAuth(
     );
 
     if (surveyPlanFile) {
-      const surveyPlanUrl = await saveUploadedFile(surveyPlanFile, "documents");
+      const surveyPlanUrl = await savePropertyDocumentUpload(
+        surveyPlanFile,
+        session.user.id
+      );
       attributes = {
         ...(typeof attributes === "object" && attributes ? attributes : {}),
         surveyPlanUrl,
@@ -247,7 +239,7 @@ export const POST = withAuth(
       propertyData.images = {
         create: await Promise.all(
           images.slice(0, 10).map(async (file, index) => ({
-            url: await saveUploadedFile(file, "images"),
+            url: await savePropertyImageUpload(file, session.user.id),
             alt: `Property photo ${index + 1}`,
             order: index,
           }))

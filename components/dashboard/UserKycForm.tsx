@@ -27,6 +27,7 @@ import {
   isEmploymentRecorded,
   requiresEmploymentDocuments,
 } from "@/lib/constants/employment-status";
+import { SecureFileLink } from "@/components/shared/secure-file-link";
 import { toast } from "sonner";
 
 const PROFILE_COMPLETE_STATUSES = new Set([
@@ -1031,15 +1032,13 @@ export function UserKycForm({
               <div className="mt-4 space-y-2 rounded-lg border p-3">
                 <p className="text-sm font-medium">Submitted documents</p>
                 {submittedDocuments.map((doc) => (
-                  <a
+                  <SecureFileLink
                     key={doc.id}
-                    href={doc.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
+                    request={{ scope: "kyc", documentId: doc.id }}
                     className="block text-sm text-emerald-600 hover:underline"
                   >
                     {KYC_DOCUMENT_LABELS[doc.documentType] ?? doc.documentType}: {doc.fileName}
-                  </a>
+                  </SecureFileLink>
                 ))}
               </div>
             ) : null}

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { FINANCING_DOC_LABELS, KYC_DOCUMENT_LABELS } from "@/lib/constants/financing-docs";
 import type { TenantFinancingDocType } from "@prisma/client";
+import { SecureFileLink } from "@/components/shared/secure-file-link";
 import { toast } from "sonner";
 
 type FinancingDocRow = {
@@ -215,16 +216,14 @@ export default function AdminFinancingDocumentsPage() {
                     <p className="font-medium">Previous KYC documents</p>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {selectedGroup.summary.kycDocuments.map((doc) => (
-                        <a
+                        <SecureFileLink
                           key={doc.id}
-                          href={doc.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
+                          request={{ scope: "kyc", documentId: doc.id }}
                           className="rounded-none border border-border bg-card p-3 text-sm text-emerald-600 hover:underline dark:text-emerald-400"
                         >
                           {KYC_DOCUMENT_LABELS[doc.documentType] ?? doc.documentType} ·{" "}
                           {doc.fileName}
-                        </a>
+                        </SecureFileLink>
                       ))}
                     </div>
                   </div>
@@ -243,9 +242,9 @@ export default function AdminFinancingDocumentsPage() {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button variant="outline" size="sm" className="rounded-none" asChild>
-                          <a href={doc.fileUrl} target="_blank" rel="noreferrer">
+                          <SecureFileLink request={{ scope: "financing", documentId: doc.id }}>
                             View file
-                          </a>
+                          </SecureFileLink>
                         </Button>
                         {doc.status === "PENDING" ? (
                           <>
