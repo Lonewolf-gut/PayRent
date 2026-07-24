@@ -27,6 +27,7 @@ import {
   requiresEmploymentDocuments,
 } from "@/lib/constants/employment-status";
 import { SecureFileLink } from "@/components/shared/secure-file-link";
+import { toast } from "sonner";
 
 const PROFILE_COMPLETE_STATUSES = new Set([
   "PROFILE_COMPLETED",
