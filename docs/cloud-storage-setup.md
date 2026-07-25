@@ -1,5 +1,7 @@
 # Cloud document storage setup
 
+**Prerequisite:** Complete [Company onboarding requirements](./company-onboarding-requirements.md) before storing production KYC and compliance documents.
+
 PayForMe stores **sensitive documents privately** (KYC, financing, applications, mandates) and **public assets** (property photos, profile images) through a unified storage layer.
 
 ## How it works
@@ -120,3 +122,11 @@ Old paths like `/uploads/kyc/...` are mapped automatically when requesting acces
 - [ ] `NEXT_PUBLIC_APP_URL` matches your live domain
 - [ ] Compliance team uses admin UI (signed URLs, audit logged)
 - [ ] Enable bucket versioning + lifecycle rules for retention
+
+## Related documentation
+
+- [Company onboarding & KYB documents](./company-onboarding-requirements.md)
+- [SMS integration](./sms-integration.md)
+- [MoMo integration](./momo-integration.md)
+- [Platform integrations guide](./platform-integrations-guide.md)
+- Env template: [storage-env.example.txt](./storage-env.example.txt)

@@ -142,6 +142,19 @@ Authenticated browser requests use **session cookies**. API/mobile clients may s
 - **Redis:** Upstash or Railway Redis
 - **Full stack:** `docker compose up` for local/staging
 
+## Documentation
+
+| Topic | Markdown | PDF |
+|-------|----------|-----|
+| Company KYB & onboarding | [company-onboarding-requirements.md](./docs/company-onboarding-requirements.md) | `docs/company-onboarding-requirements.pdf` |
+| SMS (Arkesel) | [sms-integration.md](./docs/sms-integration.md) | `docs/sms-integration.pdf` |
+| MoMo payments | [momo-integration.md](./docs/momo-integration.md) | `docs/momo-integration.pdf` |
+| Cloud storage | [cloud-storage-setup.md](./docs/cloud-storage-setup.md) | `docs/cloud-storage-setup.pdf` |
+| All integrations (combined) | [platform-integrations-guide.md](./docs/platform-integrations-guide.md) | `docs/platform-integrations-guide.pdf` |
+| Partner Bank API | [bank-partner-api.md](./docs/bank-partner-api.md) | [bank-partner-api.pdf](./docs/bank-partner-api.pdf) |
+
+Regenerate PDFs: `npm run docs:integrations-pdf` · `npm run docs:bank-partner-pdf`
+
 ## Integration notes (configure separately)
 
 These require external credentials and are not fully live without them:
