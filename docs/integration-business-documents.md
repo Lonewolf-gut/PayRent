@@ -1,6 +1,6 @@
 # PayForMe — Business Documents by Integration
 
-**Version:** 1.1  
+**Version:** 1.2  
 **Purpose:** One checklist of company documents and which integration each is required for  
 **Use this when:** Applying to Arkesel, Hubtel SMS, MTN MoMo, Cloudflare R2, or partner banks
 
@@ -32,9 +32,9 @@ Fill these in once and reuse across all applications.
 
 ---
 
-## 2. Eight core documents (all integrations)
+## 2. Four core documents (all integrations)
 
-Prepare **these eight once**. Every provider below (SMS, MoMo, R2) will ask for them — submit the same copies each time.
+Prepare **these four once**. Every provider below (SMS, MoMo, R2) will ask for them — submit the same copies each time.
 
 | # | Document | What it proves |
 |---|----------|----------------|
@@ -42,18 +42,14 @@ Prepare **these eight once**. Every provider below (SMS, MoMo, R2) will ask for 
 | **2** | **Business Registration certificate / extract** | Current registration with RGD |
 | **3** | **TIN certificate** | Tax identity (GRA) |
 | **4** | **Proof of business address** | Utility bill, lease, or bank statement (≤ 3 months) |
-| **5** | **Director / authorized signatory ID** | Ghana Card or passport of person signing applications |
-| **6** | **Corporate bank account confirmation letter** | Settlement, billing, or MoMo payouts |
-| **7** | **Privacy policy (published)** | Live URL — how you handle user data |
-| **8** | **Live website / app URL** | Production domain (HTTPS) proving the business is operational |
 
-**Tip:** Scan all eight to PDF, name them clearly (e.g. `01-incorporation.pdf`), and store in R2 at `private/compliance/kyb/` (see Section 7).
+**Tip:** Scan all four to PDF, name them clearly (e.g. `01-incorporation.pdf`), and store in R2 at `private/compliance/kyb/` (see Section 7).
 
 ---
 
 ## 3. Extra documents by integration only
 
-After the **eight core documents**, each integration may ask for **additional** items. You do **not** need to re-list the core eight in each table below.
+After the **four core documents**, each integration may ask for **additional** items.
 
 ### Legend
 
@@ -67,7 +63,7 @@ After the **eight core documents**, each integration may ask for **additional** 
 
 ### SMS — Arkesel
 
-**Core 8:** ✓ all required
+**Core 4:** ✓ all required
 
 | Extra document | Required |
 |----------------|----------|
@@ -83,7 +79,7 @@ After the **eight core documents**, each integration may ask for **additional** 
 
 ### SMS — Hubtel
 
-**Core 8:** ✓ all required
+**Core 4:** ✓ all required
 
 | Extra document | Required |
 |----------------|----------|
@@ -99,7 +95,7 @@ After the **eight core documents**, each integration may ask for **additional** 
 
 ### MTN MoMo (Collections)
 
-**Core 8:** ✓ all required — MoMo also needs the **heaviest extra pack**
+**Core 4:** ✓ all required — MoMo also needs the **heaviest extra pack**
 
 | Extra document | Required |
 |----------------|----------|
@@ -127,11 +123,12 @@ After the **eight core documents**, each integration may ask for **additional** 
 
 ### Cloud storage — Cloudflare R2 *(PayForMe default)*
 
-**Core 8:** ✓ all required (use bank letter or corporate card for R2 billing)
+**Core 4:** ✓ all required
 
 | Extra document | Required |
 |----------------|----------|
 | Cloudflare account verification | **Required** |
+| Corporate bank / card for R2 billing | **Required** |
 | Information security policy | Often |
 | Data Protection Commission registration (Ghana) | Often (storing KYC / personal data) |
 
@@ -154,16 +151,12 @@ Setup guide: [cloud-storage-setup.md](./cloud-storage-setup.md)
 
 ## 4. Quick comparison matrix
 
-| | Core 8 (all) | Arkesel SMS | Hubtel SMS | MTN MoMo | Cloudflare R2 |
+| | Core 4 (all) | Arkesel SMS | Hubtel SMS | MTN MoMo | Cloudflare R2 |
 |---|:---:|:---:|:---:|:---:|:---:|
 | Certificate of Incorporation | ✓ | — | — | — | — |
 | Business Registration | ✓ | — | — | — | — |
 | TIN certificate | ✓ | — | — | — | — |
 | Proof of address | ✓ | — | — | — | — |
-| Signatory ID | ✓ | — | — | — | — |
-| Bank account letter | ✓ | — | — | — | — |
-| Privacy policy | ✓ | — | — | — | — |
-| Live website / domain | ✓ | — | — | — | — |
 | Sample SMS templates | — | ✓ | ✓ | — | — |
 | Sender ID (Arkesel) | — | ✓ | — | — | — |
 | Hubtel onboarding form | — | — | ✓ | — | — |
@@ -171,8 +164,9 @@ Setup guide: [cloud-storage-setup.md](./cloud-storage-setup.md)
 | AML / KYC / ToS policies | — | — | — | ✓ | — |
 | MoMo callback URL + tech contact | — | — | — | ✓ | — |
 | Cloudflare account verification | — | — | — | — | ✓ |
+| Corporate bank / card (R2 billing) | — | — | — | — | ✓ |
 
-**✓** in “Core 8” = prepare once for every integration. **—** in provider columns = covered by core 8; no duplicate submission list needed.
+**✓** in “Core 4” = prepare once for every integration. **—** in provider columns = covered by core 4.
 
 ---
 
@@ -185,26 +179,29 @@ Setup guide: [cloud-storage-setup.md](./cloud-storage-setup.md)
 | D6 | Business operating license | SMS, MoMo |
 | D8 | Register of directors | SMS, MoMo |
 | D9 | UBO declaration | MoMo |
+| D10 | Director / signatory ID | SMS, MoMo (when requested) |
 | D11 | Board resolution | SMS (often), MoMo (required) |
+| D12 | Corporate bank account letter | MoMo, R2 billing |
 | D13 | Audited financials | MoMo (often) |
 | D14 | AML / CFT policy | MoMo |
 | D15 | KYC policy | MoMo |
+| D16 | Privacy policy (published) | SMS, MoMo, R2 (when requested) |
 | D17 | Terms of service | MoMo |
 | D18 | Information security policy | MoMo, R2 |
 | D19 | Complaints procedure | Banks, some payment partners |
 | D20 | DPA registration (Ghana) | R2 when storing personal/KYC data |
 | D21 | Sample SMS templates | Arkesel, Hubtel |
-| D22 | HTTPS callback URLs | MoMo |
+| D22 | Live website / HTTPS URLs | SMS, MoMo callbacks (when requested) |
 | D23 | Technical contact | MoMo, bank API |
 
 ---
 
 ## 6. Recommended submission order
 
-1. **Prepare the core 8** — scan once, reuse everywhere  
+1. **Prepare the core 4** — scan once, reuse everywhere  
 2. **Cloudflare R2** — enable secure KYC storage in production (`payforme` bucket)  
 3. **SMS** (Arkesel or Hubtel) — add SMS templates + Sender ID or Hubtel form  
-4. **MTN MoMo** — submit when AML/KYC policies and live site are ready  
+4. **MTN MoMo** — submit when AML/KYC policies are ready  
 5. **Partner Bank API** — see [bank-partner-api.md](./bank-partner-api.md)
 
 ---
