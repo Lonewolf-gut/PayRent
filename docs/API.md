@@ -284,11 +284,26 @@ Default: 100 requests per minute per IP (Redis or in-memory).
 }
 ```
 
+## Partner Bank API
+
+Banks integrating with PayForMe (wallet deposits, withdrawals, mandate debits, collection account) should use the dedicated partner specification:
+
+**[Bank Partner API documentation](./bank-partner-api.md)**
+
+**Live today**
+
+| Method | Path | Auth |
+|--------|------|------|
+| `POST` | `/api/bank/v1/deposits` | `x-bank-api-key` |
+| `POST` | `/api/bank/v1/withdrawals` | `x-bank-api-key` |
+
+Configure `BANK_API_KEY` in `.env`. See the partner doc for request/response shapes, status lifecycle, planned webhooks, and repayment charging.
+
 ## Integration gaps (external setup required)
 
 | Feature | Status |
 |---------|--------|
 | Hubtel live payments | Configure `HUBTEL_*` env vars + public webhook |
 | Dojah automated KYC | Configure `KYC_PROVIDER=dojah` + Dojah keys |
-| Bank mandate / direct debit | Configure `BANK_API_KEY` + `BANK_API_URL` |
+| Bank mandate / direct debit | Configure `BANK_API_KEY` + `BANK_API_URL`; see [bank-partner-api.md](./bank-partner-api.md) |
 | Subscription payment collection | Not implemented — plan changes are in-app only |
