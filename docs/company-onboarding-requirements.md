@@ -133,9 +133,10 @@ Never commit certificates, TIN scans, or API secrets to the repository.
 
 | Integration | Documentation |
 |-------------|----------------|
-| SMS (Arkesel) | [sms-integration.md](./sms-integration.md) |
+| **Documents per integration (matrix)** | [integration-business-documents.md](./integration-business-documents.md) |
+| SMS (Arkesel / Hubtel) | [sms-integration.md](./sms-integration.md) |
 | MoMo payments | [momo-integration.md](./momo-integration.md) |
-| Document storage | [cloud-storage-setup.md](./cloud-storage-setup.md) |
+| Document storage (R2 / S3) | [cloud-storage-setup.md](./cloud-storage-setup.md) |
 | Partner Bank API | [bank-partner-api.md](./bank-partner-api.md) |
 | Full platform pack | [platform-integrations-guide.md](./platform-integrations-guide.md) |
 

@@ -146,6 +146,7 @@ Authenticated browser requests use **session cookies**. API/mobile clients may s
 
 | Topic | Markdown | PDF |
 |-------|----------|-----|
+| **Business documents by integration** (start here) | [integration-business-documents.md](./docs/integration-business-documents.md) | [integration-business-documents.pdf](./docs/integration-business-documents.pdf) |
 | Company KYB & onboarding | [company-onboarding-requirements.md](./docs/company-onboarding-requirements.md) | `docs/company-onboarding-requirements.pdf` |
 | SMS (Arkesel) | [sms-integration.md](./docs/sms-integration.md) | `docs/sms-integration.pdf` |
 | MoMo payments | [momo-integration.md](./docs/momo-integration.md) | `docs/momo-integration.pdf` |

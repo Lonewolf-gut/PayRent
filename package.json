@@ -28,6 +28,7 @@
     "db:bank-partner": "node scripts/db-bank-partner.js",
     "docs:bank-partner-pdf": "node scripts/generate-bank-partner-api-pdf.js",
     "docs:integrations-pdf": "node scripts/generate-integration-docs-pdf.js",
+    "docs:kyb-matrix-pdf": "node scripts/generate-kyb-matrix-pdf.js",
     "db:financing-workflow": "node scripts/db-financing-workflow.js",
     "db:user-last-login": "node scripts/db-user-last-login.js",
     "db:ssnit-theme": "node scripts/db-ssnit-theme.js",

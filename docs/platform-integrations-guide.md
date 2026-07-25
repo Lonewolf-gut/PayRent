@@ -6,13 +6,14 @@
 
 ---
 
-> This guide combines the integration documents in `/docs`. For the latest detail, prefer the individual markdown files linked in each section.
+> **Start here for KYB:** [integration-business-documents.md](./integration-business-documents.md) — one list of business documents mapped to Arkesel, Hubtel SMS, MoMo, R2, and S3.
 
 ---
 
 # Part A — Company & business verification
 
-*Full document: [company-onboarding-requirements.md](./company-onboarding-requirements.md)*
+*KYB matrix: [integration-business-documents.md](./integration-business-documents.md)*  
+*Full detail: [company-onboarding-requirements.md](./company-onboarding-requirements.md)*
 
 ## Required company details
 
