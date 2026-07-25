@@ -6,7 +6,7 @@
 
 ---
 
-> **Start here for KYB:** [integration-business-documents.md](./integration-business-documents.md) — **4 core documents for all integrations**, plus extras per provider (Arkesel, Hubtel SMS, MoMo, Cloudflare R2).
+> **Start here for KYB:** [integration-business-documents.md](./integration-business-documents.md) — **4 core documents** and which integrations they apply to (Arkesel, Hubtel SMS, MoMo, Cloudflare R2).
 
 ---
 
