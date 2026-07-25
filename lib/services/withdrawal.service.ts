@@ -9,6 +9,8 @@ import {
   disburseToMobileMoney,
   isPayoutConfigured,
 } from "@/lib/services/payment/payout.service";
+import { isBankPartnerApiConfigured } from "@/lib/services/payment/bank-partner-auth";
+import { bankPartnerService } from "@/lib/services/payment/bank-partner.service";
 import { logger } from "@/lib/logger";
 import { AppError } from "@/lib/errors";
 import type { UserRole } from "@prisma/client";
@@ -115,6 +117,30 @@ export class WithdrawalService {
       withdrawal.bankAccount.accountType === "MOMO"
         ? "MoMo withdrawal"
         : "Bank withdrawal";
+
+    const useBankPartner =
+      isBankPartnerApiConfigured() && withdrawal.bankAccount.accountType === "BANK";
+
+    if (useBankPartner) {
+      const instruction = await bankPartnerService.getWithdrawalInstruction(withdrawalId);
+
+      const updated = await prisma.withdrawalRequest.update({
+        where: { id: withdrawalId },
+        data: {
+          twoFaVerified: true,
+          status: "PROCESSING",
+          partnerReference: instruction.reference,
+        },
+      });
+
+      await notificationService.create({
+        userId,
+        title: "Withdrawal submitted",
+        body: `Your withdrawal of GHS ${amount.toLocaleString()} has been sent to the partner bank for processing.`,
+      });
+
+      return { ...updated, bankPartnerInstruction: instruction };
+    }
 
     if (usesPlatformWallet(role)) {
       await walletService.withdrawFromPlatform(amount, payoutLabel);

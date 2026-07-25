@@ -62,6 +62,18 @@ export function WalletPanel({
 
   const [depositAmount, setDepositAmount] = useState("");
   const [depositAccountId, setDepositAccountId] = useState("");
+  const [bankDepositInstructions, setBankDepositInstructions] = useState<{
+    reference: string;
+    amount: number;
+    status: string;
+    collectionAccount: {
+      bankName: string;
+      bankCode: string;
+      accountNumber: string;
+      accountName: string;
+    };
+    instructions: string;
+  } | null>(null);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [bankAccountId, setBankAccountId] = useState("");
   const [withdrawalId, setWithdrawalId] = useState<string | null>(null);
@@ -88,10 +100,42 @@ export function WalletPanel({
   });
 
   const verifiedAccounts = bankAccounts.filter((a) => a.isVerified);
+  const selectedDepositAccount = verifiedAccounts.find((a) => a.id === depositAccountId);
+  const isBankDeposit = selectedDepositAccount?.accountType === "BANK";
   const transactionCount = data?.transactions?.length ?? 0;
+
+  const { data: pendingBankTransactions = [] } = useQuery({
+    queryKey: ["bank-deposit-pending"],
+    queryFn: async () => {
+      const res = await fetch("/api/payments/bank-deposit-instructions");
+      const json = await res.json();
+      return (json.data?.pending ?? []) as Array<{
+        id: string;
+        platformReference: string;
+        amount: string;
+        status: string;
+        type: string;
+      }>;
+    },
+    enabled: showDeposit,
+  });
+
 
   const depositMutation = useMutation({
     mutationFn: async () => {
+      if (isBankDeposit) {
+        const res = await fetch("/api/payments/bank-deposit-instructions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: parseFloat(depositAmount) }),
+        });
+        const json = await res.json();
+        if (!json.success) {
+          throw new Error(json.message ?? "Could not create bank deposit instructions");
+        }
+        return { bankInstructions: json.data, payment: undefined, message: json.message as string | undefined };
+      }
+
       const res = await fetch("/api/payments/deposit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,10 +151,17 @@ export function WalletPanel({
           | { checkoutUrl?: string; method?: string; reference?: string }
           | undefined,
         message: json.message as string | undefined,
+        bankInstructions: undefined as undefined,
       };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["wallet", walletApiPath] });
+      queryClient.invalidateQueries({ queryKey: ["bank-deposit-pending"] });
+      if (data.bankInstructions) {
+        setBankDepositInstructions(data.bankInstructions);
+        toast.success("Transfer the exact amount using the reference below.");
+        return;
+      }
       if (data.payment?.checkoutUrl) {
         window.location.href = data.payment.checkoutUrl;
         toast.success("Redirecting to checkout…");
@@ -169,10 +220,16 @@ export function WalletPanel({
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? "Withdrawal confirmation failed");
+      return json.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["wallet", walletApiPath] });
-      toast.success("Withdrawal completed");
+      queryClient.invalidateQueries({ queryKey: ["bank-deposit-pending"] });
+      if (data?.status === "PROCESSING") {
+        toast.success("Withdrawal submitted to partner bank for processing.");
+      } else {
+        toast.success("Withdrawal completed");
+      }
       setWithdrawAmount("");
       setWithdrawalId(null);
       setOtpCode("");
@@ -245,9 +302,37 @@ export function WalletPanel({
 
             {verifiedAccounts.length ? (
               <p className="text-sm text-muted-foreground">
-                Deposits are collected through MoMo. Approve the prompt on your phone and you will
-                receive an in-app and email receipt when funds arrive.
+                MoMo deposits use a phone prompt. Bank deposits use the platform collection account
+                and a unique reference. You will be notified when the transfer is confirmed.
               </p>
+            ) : null}
+
+            {bankDepositInstructions ? (
+              <div className="space-y-2 rounded-none border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-50">
+                <p className="font-medium">Bank deposit instructions</p>
+                <p>Reference: <span className="font-mono">{bankDepositInstructions.reference}</span></p>
+                <p>Amount: GHS {Number(bankDepositInstructions.amount).toLocaleString()}</p>
+                <p>{bankDepositInstructions.collectionAccount.accountName}</p>
+                <p>{bankDepositInstructions.collectionAccount.bankName}</p>
+                <p>Account: {bankDepositInstructions.collectionAccount.accountNumber}</p>
+                <p className="text-muted-foreground">{bankDepositInstructions.instructions}</p>
+              </div>
+            ) : null}
+
+            {pendingBankTransactions.length ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Pending bank transfers</p>
+                <ul className="divide-y rounded-none border border-border text-sm">
+                  {pendingBankTransactions.map((item) => (
+                    <li key={item.id} className="flex justify-between gap-3 px-3 py-2">
+                      <span className="text-muted-foreground">{item.platformReference}</span>
+                      <span>
+                        GHS {Number(item.amount).toLocaleString()} · {item.status}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -294,7 +379,7 @@ export function WalletPanel({
               }
               onClick={() => depositMutation.mutate()}
             >
-              Deposit funds
+              {isBankDeposit ? "Generate bank deposit instructions" : "Deposit funds"}
             </Button>
           </AccordionContent>
         </AccordionItem>

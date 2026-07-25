@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import AdminSettingsForm from "@/components/admin/AdminSettingsForm";
 import { BusinessRulesPanel } from "@/components/admin/business-rules-panel";
 import { PayoutBanksPanel } from "@/components/admin/payout-banks-panel";
+import { SettlementAccountPanel } from "@/components/admin/settlement-account-panel";
 import { PlatformConfigPanel } from "@/components/admin/platform-config-panel";
 import {
   Accordion,
@@ -31,6 +32,22 @@ export default function AdminSettingsPage() {
       </div>
 
       <PlatformConfigPanel platform={platform} />
+
+      <Accordion type="single" collapsible className="rounded-none border border-border">
+        <AccordionItem value="settlement-account" className="border-0">
+          <AccordionTrigger className="rounded-none px-4 py-3 hover:no-underline">
+            <div className="text-left">
+              <p className="font-medium">Bank collection account</p>
+              <p className="text-sm font-normal text-muted-foreground">
+                Platform account where customer bank deposits are received
+              </p>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="border-t border-border px-4 pb-4 pt-3">
+            <SettlementAccountPanel />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       <Accordion type="single" collapsible className="rounded-none border border-border">
         <AccordionItem value="payout-banks" className="border-0">

@@ -341,6 +341,7 @@ model User {
   kycDocuments      KycDocument[]
   bankAccounts      BankAccount[]
   withdrawalRequests WithdrawalRequest[]
+  bankPartnerTransactions BankPartnerTransaction[]
   savedProperties   SavedProperty[]
   propertyViews     PropertyView[]
   sessions          Session[]
@@ -869,15 +870,20 @@ model WithdrawalRequest {
   status        WithdrawalStatus @default(PENDING)
   otpVerified   Boolean          @default(false)
   twoFaVerified Boolean          @default(false)
+  partnerReference String?       @unique
+  walletTransactionId String?
+  failureReason String?
   processedAt   DateTime?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   bankAccount BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  bankPartnerTransactions BankPartnerTransaction[]
 
   @@index([userId])
   @@index([status])
+  @@index([partnerReference])
 }
 
 model BankAccount {
@@ -1237,4 +1243,63 @@ model PayoutBankConfig {
 
   @@unique([paystackCode])
   @@index([isActive, sortOrder])
+}
+
+enum BankPartnerTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  CHARGE
+  MANDATE
+}
+
+enum BankPartnerDirection {
+  INBOUND
+  OUTBOUND
+}
+
+model PlatformSettlementAccount {
+  id            String   @id @default(cuid())
+  bankName      String
+  bankCode      String
+  accountNumber String
+  accountName   String
+  isDefault     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  partnerBankId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([isDefault, isActive])
+}
+
+model BankPartnerTransaction {
+  id                  String                     @id @default(cuid())
+  direction           BankPartnerDirection       @default(INBOUND)
+  type                BankPartnerTransactionType
+  platformReference   String                     @unique
+  partnerReference    String?                    @unique
+  status              TransactionStatus          @default(PENDING)
+  amount              Decimal                    @db.Decimal(14, 2)
+  currency            String                     @default("GHS")
+  userId              String?
+  bankAccountId       String?
+  withdrawalRequestId String?
+  installmentId       String?
+  mandateId           String?
+  walletTransactionId String?
+  failureCode         String?
+  failureMessage      String?
+  metadata            Json?
+  completedAt         DateTime?
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+
+  user              User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  withdrawalRequest WithdrawalRequest? @relation(fields: [withdrawalRequestId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([type, status])
+  @@index([withdrawalRequestId])
+  @@index([installmentId])
 }

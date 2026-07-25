@@ -294,10 +294,20 @@ Banks integrating with PayForMe (wallet deposits, withdrawals, mandate debits, c
 
 | Method | Path | Auth |
 |--------|------|------|
+| `GET` | `/api/bank/v1/health` | `x-bank-api-key` |
 | `POST` | `/api/bank/v1/deposits` | `x-bank-api-key` |
 | `POST` | `/api/bank/v1/withdrawals` | `x-bank-api-key` |
+| `POST` | `/api/bank/v1/withdrawals/initiate` | `x-bank-api-key` |
+| `PATCH` | `/api/bank/v1/withdrawals/{id}` | `x-bank-api-key` |
+| `POST` | `/api/bank/v1/charges` | `x-bank-api-key` |
+| `GET` | `/api/bank/v1/transactions/{reference}` | `x-bank-api-key` |
+| `GET` | `/api/bank/v1/users/lookup` | `x-bank-api-key` |
+| `POST` | `/api/bank/v1/mandates/callback` | `x-bank-api-key` |
+| `POST` | `/api/webhooks/bank` | `x-bank-api-key` + optional HMAC |
+| `POST` | `/api/payments/bank-deposit-instructions` | Session (user) |
+| `GET/POST` | `/api/admin/settlement-account` | Admin session |
 
-Configure `BANK_API_KEY` in `.env`. See the partner doc for request/response shapes, status lifecycle, planned webhooks, and repayment charging.
+Configure `BANK_API_KEY` in `.env`. Run `npm run db:bank-partner` after pulling. See the partner doc for request/response shapes, status lifecycle, and repayment charging.
 
 ## Integration gaps (external setup required)
 

@@ -6,12 +6,14 @@ import {
   bankPartnerService,
 } from "@/lib/services/payment/bank-api.service";
 
-const depositSchema = z.object({
-  userId: z.string().cuid(),
-  amount: z.number().positive(),
+const chargeSchema = z.object({
   reference: z.string().min(6),
-  partnerReference: z.string().min(6).optional(),
-  bankCode: z.string().optional(),
+  userId: z.string().cuid(),
+  bankAccountId: z.string().cuid(),
+  amount: z.number().positive(),
+  chargeType: z.enum(["INSTALLMENT", "INVOICE", "MANDATE"]),
+  installmentId: z.string().cuid().optional(),
+  mandateId: z.string().cuid().optional(),
   description: z.string().optional(),
   status: z.enum(["PENDING", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED"]).optional(),
 });
@@ -19,19 +21,13 @@ const depositSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     assertBankPartnerAuth(req);
-    const parsed = depositSchema.safeParse(await req.json());
+    const parsed = chargeSchema.safeParse(await req.json());
     if (!parsed.success) {
-      return apiResponse({ error: "Invalid deposit payload" }, 400);
+      return apiResponse({ error: "Invalid charge payload" }, 400);
     }
 
-    const result = await bankPartnerService.processDeposit(parsed.data);
-    const statusCode =
-      "transaction" in result && result.transaction
-        ? result.alreadyProcessed
-          ? 200
-          : 201
-        : 202;
-    return apiResponse(result, statusCode);
+    const result = await bankPartnerService.createCharge(parsed.data);
+    return apiResponse(result, result.alreadyProcessed ? 200 : 202);
   } catch (error) {
     return apiError(error);
   }

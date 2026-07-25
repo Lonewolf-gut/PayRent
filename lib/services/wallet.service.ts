@@ -186,7 +186,8 @@ export class WalletService {
     userId: string,
     type: WalletType,
     amount: number,
-    description?: string
+    description?: string,
+    reference?: string
   ) {
     if (amount <= 0) throw new AppError("Amount must be positive");
 
@@ -197,7 +198,15 @@ export class WalletService {
 
     const fees = commissionService.calculateFees(amount);
     const netAmount = amount;
-    const reference = `WDR-${uuidv4().slice(0, 8).toUpperCase()}`;
+    const txnReference =
+      reference ?? `WDR-${uuidv4().slice(0, 8).toUpperCase()}`;
+
+    const existing = await prisma.walletTransaction.findUnique({
+      where: { reference: txnReference },
+    });
+    if (existing?.status === "COMPLETED") {
+      return { wallet, transaction: existing };
+    }
 
     return runTransaction(async (db) => {
       const updated = await db.wallet.update({
@@ -214,7 +223,7 @@ export class WalletService {
           fee: new Prisma.Decimal(fees.totalFee),
           commission: new Prisma.Decimal(fees.commissionFee),
           netAmount: new Prisma.Decimal(netAmount - fees.totalFee),
-          reference,
+          reference: txnReference,
           description: description ?? "Bank withdrawal",
         },
       });

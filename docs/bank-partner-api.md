@@ -171,7 +171,7 @@ All customer **bank deposits** must settle into **one designated PayForMe collec
 
 ---
 
-### 7.1 Health check — **Planned**
+### 7.1 Health check — **Live**
 
 `GET /health`
 
@@ -327,7 +327,7 @@ Call after the bank has **successfully paid** the customer to their saved PayFor
 
 ---
 
-### 7.4 Initiate withdrawal (bank executes payout) — **Planned**
+### 7.4 Initiate withdrawal (bank executes payout) — **Live**
 
 `POST /withdrawals/initiate`
 
@@ -362,7 +362,7 @@ Bank later calls `PATCH /withdrawals/{withdrawalRequestId}` or webhook (§9) wit
 
 ---
 
-### 7.5 Update withdrawal status — **Planned**
+### 7.5 Update withdrawal status — **Live**
 
 `PATCH /withdrawals/{withdrawalRequestId}`
 
@@ -388,7 +388,7 @@ PayForMe will reverse wallet debit on `FAILED` if funds were reserved.
 
 ---
 
-### 7.6 Charge bank account (repayment / invoice) — **Planned**
+### 7.6 Charge bank account (repayment / invoice) — **Live**
 
 `POST /charges`
 
@@ -440,7 +440,7 @@ Debit a customer’s **linked bank account** for a scheduled repayment or invoic
 
 ---
 
-### 7.7 Get transaction status — **Planned**
+### 7.7 Get transaction status — **Live**
 
 `GET /transactions/{reference}`
 
@@ -462,7 +462,7 @@ Reconciliation and support lookup.
 
 ---
 
-### 7.8 User lookup by account — **Planned**
+### 7.8 User lookup by account — **Live**
 
 `GET /users/lookup?accountNumber=1234567890&bankCode=040`
 
@@ -481,7 +481,7 @@ Map an incoming transfer to `userId` when the deposit reference is missing or ma
 
 ---
 
-### 7.9 Mandate status callback — **Planned**
+### 7.9 Mandate status callback — **Live**
 
 `POST /mandates/callback`
 
@@ -561,16 +561,13 @@ Configure `BANK_API_URL` and use the same `BANK_API_KEY` as Bearer token for out
 
 ---
 
-## 9. Webhooks (bank → PayForMe) — **Planned**
+## 9. Webhooks (bank → PayForMe) — **Live**
 
 For async GhIPSS settlement, banks should POST events to:
 
 | URL | Event |
 |-----|-------|
-| `POST /api/webhooks/bank/deposits` | Deposit settled / failed |
-| `POST /api/webhooks/bank/withdrawals` | Payout completed / failed |
-| `POST /api/webhooks/bank/charges` | Direct debit completed / failed |
-| `POST /api/webhooks/bank/mandates` | Mandate lifecycle change |
+| `POST /api/webhooks/bank` | Unified webhook (`event` field in body) |
 
 **Headers**
 
@@ -671,17 +668,17 @@ Withdrawals and mandate debits: fees per business rules / financing agreement.
 - [ ] Sign webhook HMAC verification
 - [ ] Load-test idempotent retries
 
-### PayForMe platform (roadmap)
+### PayForMe platform
 
-- [x] `POST /deposits` — credit wallet
+- [x] `POST /deposits` — credit wallet (sync + async status)
 - [x] `POST /withdrawals` — debit wallet after payout
-- [ ] `GET /deposit-instructions` — collection account UI
-- [ ] `POST /withdrawals/initiate` + async status
-- [ ] `POST /charges` — installment / invoice debits
-- [ ] Webhook routes under `/api/webhooks/bank/*`
-- [ ] `PlatformSettlementAccount` admin config
-- [ ] Propagate bank `reference` to `WalletTransaction.reference` on withdrawals
-- [ ] Link `WithdrawalRequest` ↔ partner `reference`
+- [x] `GET /deposit-instructions` — user wallet UI (`POST /api/payments/bank-deposit-instructions`)
+- [x] `POST /withdrawals/initiate` + `PATCH /withdrawals/{id}` async status
+- [x] `POST /charges` — installment / mandate debits
+- [x] `POST /api/webhooks/bank` unified webhook handler
+- [x] `PlatformSettlementAccount` admin config (`/admin/settings`)
+- [x] Partner `reference` stored on `BankPartnerTransaction` and withdrawals
+- [x] Link `WithdrawalRequest` ↔ partner flow for bank payouts
 
 ### Compliance
 
