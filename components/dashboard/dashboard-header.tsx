@@ -34,6 +34,8 @@ import {
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { getRoleSignOutPath, getStaffPortalHomePath } from "@/lib/auth/route-guards";
 import { useSettingsProfile } from "@/hooks/use-settings-profile";
+import { useDashboardTheme } from "@/components/dashboard/dashboard-theme-provider";
+import { cn } from "@/lib/utils";
 
 function getInitials(name?: string | null, email?: string | null) {
   if (name) {
@@ -58,6 +60,8 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const { data: session } = useSession();
   const { openUpgrade } = useSubscriptionUpgrade();
+  const dashboardTheme = useDashboardTheme();
+  const isDark = dashboardTheme?.theme === "dark";
   const greeting = getTimeGreeting();
   const [menuOpen, setMenuOpen] = useState(false);
   const role = session?.user?.role;
@@ -157,20 +161,29 @@ export function DashboardHeader({
                   <AccountVerificationBadge />
                 </span>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent
+              align="end"
+              className={cn(
+                "w-56 rounded-none border border-border bg-card text-card-foreground",
+                isDark && "dark"
+              )}
+            >
               <DropdownMenuLabel className="font-normal">
-                <p className="truncate text-sm font-medium">{displayName}</p>
+                <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
                 <p className="truncate text-xs text-muted-foreground">{email}</p>
               </DropdownMenuLabel>
               {showUpgradeInMenu ? (
-                <DropdownMenuItem className="cursor-pointer" onClick={() => openUpgrade()}>
+                <DropdownMenuItem
+                  className="cursor-pointer rounded-none"
+                  onClick={() => openUpgrade()}
+                >
                   <Sparkles className="size-4" />
                   Upgrade
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                className="cursor-pointer"
+                className="cursor-pointer rounded-none"
                 onClick={() => signOut({ callbackUrl: "/" })}
               >
                 <LogOut className="size-4" />
