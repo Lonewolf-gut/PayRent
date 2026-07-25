@@ -150,7 +150,7 @@ These require external credentials and are not fully live without them:
 - **Arkesel SMS** — `SMS_PROVIDER=arkesel` + `SMS_API_KEY` + `ARKESEL_SMS_SENDER_ID`
 - **Hubtel SMS** — `SMS_PROVIDER=hubtel`
 - **Dojah KYC** — `KYC_PROVIDER=dojah` + Dojah keys (default is manual admin review)
-- **Bank mandates / direct debit** — `BANK_API_KEY` + `BANK_API_URL` for GhIPSS or sponsor bank. Partner integration spec: [docs/bank-partner-api.md](./docs/bank-partner-api.md)
+- **Bank mandates / direct debit** — `BANK_API_KEY` + `BANK_API_URL` for GhIPSS or sponsor bank. Partner integration spec: [docs/bank-partner-api.md](./docs/bank-partner-api.md) · [PDF](./docs/bank-partner-api.pdf)
 - **Subscription billing** — Premium upgrades are recorded in-app; payment collection for renewals is not yet integrated
 
 ## Scripts

@@ -288,7 +288,8 @@ Default: 100 requests per minute per IP (Redis or in-memory).
 
 Banks integrating with PayForMe (wallet deposits, withdrawals, mandate debits, collection account) should use the dedicated partner specification:
 
-**[Bank Partner API documentation](./bank-partner-api.md)**
+- **Markdown:** [docs/bank-partner-api.md](./bank-partner-api.md)
+- **PDF:** [docs/bank-partner-api.pdf](./bank-partner-api.pdf) (regenerate with `npm run docs:bank-partner-pdf`)
 
 **Live today**
 

@@ -709,5 +709,6 @@ Withdrawals and mandate debits: fees per business rules / financing agreement.
 ## Related documentation
 
 - [RentVest API (app & admin)](./API.md)
+- [PDF export](./bank-partner-api.pdf) — share with partner banks (`npm run docs:bank-partner-pdf` to regenerate)
 - Environment variables: `.env.example` (`BANK_API_KEY`, `BANK_API_URL`)
 - MoMo collections: separate integration (not covered here)
