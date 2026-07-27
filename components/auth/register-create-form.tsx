@@ -123,7 +123,15 @@ export function RegisterCreateForm() {
       sessionStorage.setItem("fresh-dashboard-login", "1");
       router.push("/verify-email");
       router.refresh();
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/JSON\.parse|unexpected character|AuthError/i.test(message)) {
+        toast.error(
+          "Sign-in failed because the server could not be reached. Start Docker (postgres + redis), then restart npm run dev.",
+          { id: toastId }
+        );
+        return;
+      }
       toast.error("Something went wrong while creating your account. Please try again.", {
         id: toastId,
       });

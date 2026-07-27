@@ -40,6 +40,14 @@ export function getSignInErrorMessage(
 
   const normalized = (error ?? "").toLowerCase();
 
+  if (
+    normalized.includes("json.parse") ||
+    normalized.includes("unexpected character") ||
+    normalized.includes("autherror")
+  ) {
+    return SIGN_IN_MESSAGES.database_unavailable;
+  }
+
   if (normalized.includes("locked")) {
     return SIGN_IN_MESSAGES.account_locked;
   }
