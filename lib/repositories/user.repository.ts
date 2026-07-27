@@ -9,6 +9,13 @@ export class UserRepository {
     });
   }
 
+  async findByPhone(phone: string) {
+    return prisma.user.findUnique({
+      where: { phone },
+      select: { id: true },
+    });
+  }
+
   async findById(id: string) {
     return prisma.user.findUnique({
       where: { id },

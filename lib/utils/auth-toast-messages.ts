@@ -23,6 +23,8 @@ const SIGN_IN_MESSAGES: Record<string, string> = {
 const REGISTER_MESSAGES: Record<string, string> = {
   EMAIL_ALREADY_REGISTERED:
     "This email is already registered. Sign in instead or use a different email address.",
+  PHONE_ALREADY_REGISTERED:
+    "This phone number is already registered. Sign in or use a different number.",
   RATE_LIMIT: "Too many attempts. Please wait a moment and try again.",
   DATABASE_UNAVAILABLE:
     "We can't reach the database. Start Docker Desktop, then run: docker compose up -d postgres redis",
@@ -37,6 +39,14 @@ export function getSignInErrorMessage(
   }
 
   const normalized = (error ?? "").toLowerCase();
+
+  if (
+    normalized.includes("json.parse") ||
+    normalized.includes("unexpected character") ||
+    normalized.includes("autherror")
+  ) {
+    return SIGN_IN_MESSAGES.database_unavailable;
+  }
 
   if (normalized.includes("locked")) {
     return SIGN_IN_MESSAGES.account_locked;
@@ -66,6 +76,9 @@ export function getRegisterErrorMessage(
   const apiMessage = getApiErrorMessage(json, "");
 
   if (status === 409) {
+    if (errorCode === "PHONE_ALREADY_REGISTERED") {
+      return REGISTER_MESSAGES.PHONE_ALREADY_REGISTERED;
+    }
     return REGISTER_MESSAGES.EMAIL_ALREADY_REGISTERED;
   }
 
