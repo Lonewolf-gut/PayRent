@@ -182,14 +182,18 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
       window.location.assign(destination);
       return;
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       const isNetworkError =
         error instanceof TypeError ||
-        (error instanceof Error &&
-          /failed to fetch|network|fetch/i.test(error.message));
+        /failed to fetch|network|fetch/i.test(message);
+      const isAuthParseError = /JSON\.parse|unexpected character|AuthError/i.test(message);
+
       toast.error(
-        isNetworkError
-          ? "Cannot reach the server. Confirm `npm run dev:webpack` is running and Docker (Postgres) is started, then try again."
-          : "Something went wrong while signing in. Please try again.",
+        isAuthParseError
+          ? getSignInErrorMessage("AuthError", "database_unavailable")
+          : isNetworkError
+            ? "Cannot reach the server. Confirm `npm run dev:webpack` is running and Docker (Postgres) is started, then try again."
+            : "Something went wrong while signing in. Please try again.",
         { id: toastId }
       );
     } finally {
