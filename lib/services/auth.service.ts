@@ -15,7 +15,7 @@ import { AppError } from "@/lib/errors";
 import { getTrialEndDate } from "@/lib/subscription/access";
 import { roleRequiresSubscription } from "@/lib/subscription/roles";
 import type { RegisterInput } from "@/lib/validations/auth";
-import type { UserRole } from "@prisma/client";
+import type { UserRole, Prisma } from "@prisma/client";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 import { getProfileDisplayName } from "@/lib/utils/display-name";
 import { SUPPORT_EMAIL, PLATFORM_NAME } from "@/constants/platform";
@@ -35,6 +35,12 @@ const SUBSCRIPTION_LIMITS = {
   PREMIUM: { propertyViews: Infinity, financingRequests: Infinity },
 };
 
+function resolveRegisterPhone(phone?: string) {
+  const trimmed = phone?.trim();
+  if (!trimmed) return null;
+  return normalizeGhanaPhoneNumber(trimmed);
+}
+
 export class AuthService {
   async register(input: RegisterInput, context?: RegisterContext) {
     const existing = await userRepository.findByEmail(input.email);
@@ -46,6 +52,18 @@ export class AuthService {
       );
     }
 
+    const phone = resolveRegisterPhone(input.phone);
+    if (phone) {
+      const phoneTaken = await userRepository.findByPhone(phone);
+      if (phoneTaken) {
+        throw new AppError(
+          "This phone number is already registered. Sign in or use a different number.",
+          409,
+          "PHONE_ALREADY_REGISTERED"
+        );
+      }
+    }
+
     const passwordHash = await bcrypt.hash(input.password, 12);
 
     const dateOfBirth =
@@ -53,18 +71,20 @@ export class AuthService {
         ? new Date(input.dateOfBirth)
         : undefined;
 
-    const user = await runTransaction(async (db) => {
-      const created = await db.user.create({
-        data: {
-          email: input.email,
-          phone: input.phone,
-          passwordHash,
-          role: input.role as UserRole,
-          ...(roleRequiresSubscription(input.role as UserRole)
-            ? { trialEndsAt: getTrialEndDate() }
-            : {}),
-        },
-      });
+    let user;
+    try {
+      user = await runTransaction(async (db) => {
+        const created = await db.user.create({
+          data: {
+            email: input.email,
+            phone,
+            passwordHash,
+            role: input.role as UserRole,
+            ...(roleRequiresSubscription(input.role as UserRole)
+              ? { trialEndsAt: getTrialEndDate() }
+              : {}),
+          },
+        });
 
       if (input.role === "BUYER") {
         await db.tenant.create({
@@ -110,6 +130,23 @@ export class AuthService {
 
       return created;
     });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const target = error.meta?.target;
+        const fields = Array.isArray(target) ? target : [];
+        if (fields.includes("phone")) {
+          throw new AppError(
+            "This phone number is already registered. Sign in or use a different number.",
+            409,
+            "PHONE_ALREADY_REGISTERED"
+          );
+        }
+      }
+      throw error;
+    }
 
     const walletType =
       input.role === "BUYER"
