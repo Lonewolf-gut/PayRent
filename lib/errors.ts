@@ -1,3 +1,5 @@
+import { isDbConnectivityError } from "@/lib/db/prisma";
+
 export class AppError extends Error {
   constructor(
     message: string,
@@ -55,8 +57,10 @@ export function handleApiError(error: unknown): {
 
   if (
     errorName === "PrismaClientInitializationError" ||
+    errorName === "PrismaClientUnknownRequestError" ||
     prismaCode === "P1001" ||
-    prismaCode === "P1017"
+    prismaCode === "P1017" ||
+    isDbConnectivityError(error)
   ) {
     return {
       message:
