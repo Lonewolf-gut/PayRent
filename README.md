@@ -1,83 +1,56 @@
-# PayRent Monorepo
+# PayRent
 
-Ghana's rental finance and property collaboration platform — split into separate **frontend** and **backend** applications.
+This repository contains the **split source code** for PayRent during migration.
 
-## Structure
+## Separate repositories (recommended)
 
-```
-payrent/
-├── payrent-backend/     # API, database, business logic, partner integrations
-├── payrent-frontend/    # Next.js web UI
-├── docs/                # API and integration documentation
-└── docker-compose.yml   # Postgres, Redis, backend, frontend
-```
+The platform is intended to live in **two independent GitHub repos**:
 
-| App | Port (dev) | Description |
-|-----|------------|-------------|
-| **payrent-frontend** | 3000 | Web dashboards, marketing pages, admin UI |
-| **payrent-backend** | 3001 | REST API, webhooks, cron jobs, partner bank API |
+| Repo | Purpose |
+|------|---------|
+| [PayRent-Backend](https://github.com/Lonewolf-gut/PayRent-Backend) | API, database, business logic, partner integrations |
+| [PayRent-Frontend](https://github.com/Lonewolf-gut/PayRent-Frontend) | Web UI, dashboards, admin panel |
 
-The frontend proxies `/api/*` requests to the backend (except NextAuth session routes). Mobile apps and partners should call the backend URL directly.
+### Clone and run separately
 
-## Quick Start
-
-### 1. Environment
+**Backend:**
 
 ```bash
-cp payrent-backend/.env.example payrent-backend/.env
-cp payrent-frontend/.env.example payrent-frontend/.env
-```
-
-Use the **same** `AUTH_SECRET` in both files. Update database credentials and integration keys in `payrent-backend/.env`.
-
-### 2. Database
-
-```bash
-npm run docker:up
-```
-
-### 3. Install & migrate
-
-```bash
+git clone https://github.com/Lonewolf-gut/PayRent-Backend.git
+cd PayRent-Backend
+cp .env.example .env
+docker compose up -d postgres redis
 npm install
-npm run db:generate
-npm run db:push
-npm run db:seed
+npm run db:push && npm run db:seed
+npm run dev   # http://localhost:3001
 ```
 
-### 4. Run both apps
+**Frontend:**
 
 ```bash
-npm run dev
+git clone https://github.com/Lonewolf-gut/PayRent-Frontend.git
+cd PayRent-Frontend
+cp .env.example .env
+npm install
+npm run dev   # http://localhost:3000
 ```
 
-- Web UI: http://localhost:3000
-- API: http://localhost:3001/api/health
+Use the **same `AUTH_SECRET`** in both `.env` files.
 
-## Scripts
+## Publish to separate repos
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start backend + frontend together |
-| `npm run dev:backend` | Backend only (port 3001) |
-| `npm run dev:frontend` | Frontend only (port 3000) |
-| `npm run build` | Build both apps |
-| `npm run test` | Run backend tests |
-| `npm run db:studio` | Open Prisma Studio |
+From this branch, run:
 
-## Deployment
+```bash
+chmod +x scripts/publish-separate-repos.sh
+./scripts/publish-separate-repos.sh
+```
 
-- **Frontend** → Vercel (`payrent-frontend/`), set `API_URL` to your backend URL
-- **Backend** → Railway, Render, or AWS (`payrent-backend/`), set `FRONTEND_URL` for CORS
-- **Database** → PostgreSQL (Railway, Supabase, RDS)
-- **Redis** → Upstash or Railway
-- **Cron jobs** → Configured in `payrent-backend/vercel.json`
+This creates/updates `PayRent-Backend` and `PayRent-Frontend` on GitHub.
 
-## API Documentation
+## Folders in this repo
 
-See [docs/API.md](./docs/API.md) and [docs/bank-partner-api.md](./docs/bank-partner-api.md).
+- `payrent-backend/` — backend source (mirrors PayRent-Backend repo)
+- `payrent-frontend/` — frontend source (mirrors PayRent-Frontend repo)
 
-## Mobile & Partners
-
-- **Mobile apps** (future): call `https://api.yourdomain.com` with JWT (`/api/auth/refresh`)
-- **Partner banks**: `/api/bank/v1` with `x-bank-api-key` header
+You can develop here during migration, but for production use the separate repos above.
