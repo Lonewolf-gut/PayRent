@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
+    "setup:env": "node -e \"const fs=require('fs'); if(fs.existsSync('.env')){console.log('.env already exists — skipped');}else{fs.copyFileSync('.env.example','.env'); console.log('Created .env from .env.example');}\"",
     "dev:webpack": "next dev --port 3000 --webpack",
     "build": "npm run db:generate && next build --webpack",
     "postinstall": "npm run db:generate",

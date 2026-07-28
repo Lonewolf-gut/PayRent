@@ -12,7 +12,7 @@ REST API, database, business logic, webhooks, cron jobs, and partner integration
 ## Quick start
 
 ```bash
-cp .env.example .env
+npm run setup:env
 docker compose up -d postgres redis
 npm install
 npm run db:push

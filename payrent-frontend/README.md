@@ -14,7 +14,7 @@ Next.js web application for PayRent — dashboards, admin panel, marketing pages
 **Requires the backend API running** (default: http://localhost:3001).
 
 ```bash
-cp .env.example .env
+npm run setup:env
 npm install
 npm run dev
 ```
