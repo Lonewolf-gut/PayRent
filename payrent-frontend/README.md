@@ -43,7 +43,8 @@ Web UI runs at **http://localhost:3000**
 ## Scripts
 
 ```bash
-npm run dev          # Dev server on port 3000
+npm run dev          # Dev server on port 3000 (webpack — use this on Windows)
+npm run dev:turbo    # Turbopack (Linux/Mac only, faster when native SWC works)
 npm run build        # Production build
 npm run start        # Start production server
 ```

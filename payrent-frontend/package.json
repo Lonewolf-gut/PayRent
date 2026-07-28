@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
+    "dev": "next dev --port 3000 --webpack",
     "setup:env": "node -e \"const fs=require('fs'); if(fs.existsSync('.env')){console.log('.env already exists — skipped');}else{fs.copyFileSync('.env.example','.env'); console.log('Created .env from .env.example');}\"",
-    "dev:webpack": "next dev --port 3000 --webpack",
+    "dev:turbo": "next dev --port 3000",
     "build": "npm run db:generate && next build --webpack",
     "postinstall": "npm run db:generate || echo Prisma generate skipped - run npm run db:generate manually",
     "start": "next start --port 3000",

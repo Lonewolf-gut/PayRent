@@ -48,7 +48,8 @@ See [docs/API.md](./docs/API.md) and [docs/bank-partner-api.md](./docs/bank-part
 ## Scripts
 
 ```bash
-npm run dev          # Dev server on port 3001
+npm run dev          # Dev server on port 3001 (webpack — use this on Windows)
+npm run dev:turbo    # Turbopack (Linux/Mac only, faster when native SWC works)
 npm run build        # Production build
 npm run test         # Run tests
 npm run db:studio    # Prisma Studio
