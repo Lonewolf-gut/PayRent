@@ -5,7 +5,7 @@
   "scripts": {
     "copy-prisma-client": "node scripts/copy-prisma-client.js",
     "dev": "next dev --port 3001 --webpack",
-    "setup:env": "node -e \"const fs=require('fs'); if(fs.existsSync('.env')){console.log('.env already exists — skipped');}else{fs.copyFileSync('.env.example','.env'); console.log('Created .env from .env.example');}\"",
+    "setup:env": "node scripts/setup-env.js",
     "dev:turbo": "next dev --port 3001",
     "build": "npm run db:generate && npm run copy-prisma-client && next build --webpack",
     "postinstall": "npm run db:generate && npm run copy-prisma-client",
