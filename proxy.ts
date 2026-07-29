@@ -39,6 +39,19 @@ function hasAuthCookie(req: NextRequest) {
 }
 
 export async function proxy(req: NextRequest) {
+  const authSecret = process.env.AUTH_SECRET?.trim();
+  if (!authSecret) {
+    console.error(
+      "[auth] AUTH_SECRET is missing. Run: npm run setup:env — then use the same secret in PayRent-Backend/.env"
+    );
+    return NextResponse.json(
+      {
+        error: "Server misconfigured: AUTH_SECRET is not set. Run npm run setup:env in PayRent-Frontend.",
+      },
+      { status: 500 }
+    );
+  }
+
   const { nextUrl } = req;
   const isLoggedIn = hasAuthCookie(req);
   const pathname = nextUrl.pathname;
@@ -46,7 +59,7 @@ export async function proxy(req: NextRequest) {
   const token = isLoggedIn
     ? await getToken({
         req,
-        secret: process.env.AUTH_SECRET,
+        secret: authSecret,
         cookieName:
           process.env.NODE_ENV === "production"
             ? "__Secure-authjs.session-token"
