@@ -38,6 +38,13 @@ function hasAuthCookie(req: NextRequest) {
   return authCookieNames.some((name) => !!req.cookies.get(name)?.value);
 }
 
+function clearAuthCookies(response: NextResponse) {
+  for (const name of authCookieNames) {
+    response.cookies.delete(name);
+  }
+  return response;
+}
+
 export async function proxy(req: NextRequest) {
   const authSecret = process.env.AUTH_SECRET?.trim();
   if (!authSecret) {
@@ -53,19 +60,45 @@ export async function proxy(req: NextRequest) {
   }
 
   const { nextUrl } = req;
-  const isLoggedIn = hasAuthCookie(req);
   const pathname = nextUrl.pathname;
+  const hasCookie = hasAuthCookie(req);
 
-  const token = isLoggedIn
-    ? await getToken({
+  let token = null;
+  if (hasCookie) {
+    try {
+      token = await getToken({
         req,
         secret: authSecret,
         cookieName:
           process.env.NODE_ENV === "production"
             ? "__Secure-authjs.session-token"
             : "authjs.session-token",
-      })
-    : null;
+      });
+    } catch {
+      token = null;
+    }
+  }
+
+  const isLoggedIn = Boolean(token);
+  const staleCookie = hasCookie && !token;
+
+  if (staleCookie && pathname.startsWith("/login")) {
+    const response = NextResponse.next();
+    clearAuthCookies(response);
+    return response;
+  }
+
+  if (staleCookie && !pathname.startsWith("/api")) {
+    const loginPath = pathname.startsWith("/admin")
+      ? "/admin/login"
+      : pathname.startsWith("/compliance")
+        ? "/compliance/login"
+        : "/login";
+    const response = NextResponse.redirect(new URL(loginPath, nextUrl));
+    clearAuthCookies(response);
+    return response;
+  }
+
   const role = token?.role as string | undefined;
   const isAdmin = role === "ADMIN";
   const isComplianceOfficer = role === "COMPLIANCE_OFFICER";
