@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import { otpService } from "@/lib/services/otp.service";
 import { notificationService } from "@/lib/services/notification.service";
 import {
+  isEmailDeliveryConfigured,
   isMailtrapSandbox,
   isSmtpConfigured,
 } from "@/lib/services/email.service";
@@ -21,6 +22,7 @@ function buildDeliveryPayload(
   emailResult: Awaited<ReturnType<typeof notificationService.deliverEmail>>
 ): VerificationDelivery {
   const deliveryMode = emailResult?.mode ?? "log";
+  const emailConfigured = isEmailDeliveryConfigured();
   const smtpOk = deliveryMode === "smtp" && isSmtpConfigured();
   const isDevelopment = process.env.NODE_ENV === "development";
 
@@ -28,20 +30,20 @@ function buildDeliveryPayload(
     sent: true,
     deliveryMode,
     previewUrl: emailResult?.previewUrl ?? null,
-    devCode: isDevelopment && !smtpOk ? code : null,
-    realEmailExpected: smtpOk,
+    devCode: isDevelopment && !emailConfigured ? code : null,
+    realEmailExpected: emailConfigured,
     mailtrapSandbox: isMailtrapSandbox(),
   };
 }
 
 function buildStatusPayload(pendingCode: string | null) {
   const isDevelopment = process.env.NODE_ENV === "development";
-  const smtpConfigured = isSmtpConfigured();
+  const emailConfigured = isEmailDeliveryConfigured();
 
   return {
     hasPendingCode: Boolean(pendingCode),
-    devCode: isDevelopment && pendingCode && !smtpConfigured ? pendingCode : null,
-    realEmailExpected: smtpConfigured,
+    devCode: isDevelopment && pendingCode && !emailConfigured ? pendingCode : null,
+    realEmailExpected: emailConfigured,
     mailtrapSandbox: isMailtrapSandbox(),
     isDevelopment,
   };

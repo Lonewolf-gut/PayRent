@@ -21,6 +21,17 @@ export function isSmtpConfigured() {
   return true;
 }
 
+export function isResendConfigured() {
+  return (
+    process.env.EMAIL_PROVIDER?.trim().toLowerCase() === "resend" &&
+    Boolean(process.env.RESEND_API_KEY?.trim())
+  );
+}
+
+export function isEmailDeliveryConfigured() {
+  return isResendConfigured() || isSmtpConfigured();
+}
+
 export function isMailtrapSandbox() {
   return process.env.SMTP_HOST?.includes("sandbox.smtp.mailtrap.io") ?? false;
 }

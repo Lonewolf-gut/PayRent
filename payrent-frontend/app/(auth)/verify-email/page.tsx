@@ -11,6 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getPostAuthRoute } from "@/lib/auth/post-auth-route";
+import {
+  FRESH_DASHBOARD_LOGIN_KEY,
+  getPostEmailVerificationRoute,
+  getVerificationDismissedKey,
+  skipToDashboard,
+} from "@/lib/auth/verification-flow";
 import type { UserRole } from "@prisma/client";
 
 type VerificationDelivery = {
@@ -117,25 +123,27 @@ export default function VerifyEmailPage() {
         return;
       }
 
-      await update();
+      const updated = await update({ user: { emailVerified: true } });
       await queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
       toast.success("Email verified successfully");
 
-      const role = session?.user?.role as UserRole | undefined;
+      const role = (updated?.user?.role ?? session?.user?.role) as UserRole | undefined;
       if (session?.user?.id) {
-        sessionStorage.removeItem(`verification-prompt-dismissed:${session.user.id}`);
+        sessionStorage.removeItem(getVerificationDismissedKey(session.user.id));
       }
-      sessionStorage.setItem("fresh-dashboard-login", "1");
-      router.push(
-        role
-          ? getPostAuthRoute({
-              role,
-              emailVerified: true,
-              phoneVerified: Boolean(session?.user?.phoneVerified),
-            })
-          : "/verify-phone"
-      );
+      sessionStorage.setItem(FRESH_DASHBOARD_LOGIN_KEY, "1");
+
+      const destination = role
+        ? getPostEmailVerificationRoute({
+            role,
+            phoneVerified: Boolean(
+              updated?.user?.phoneVerified ?? session?.user?.phoneVerified
+            ),
+          })
+        : "/verify-phone";
+
       router.refresh();
+      router.push(destination);
     } catch {
       toast.error("Verification failed. Please try again.");
     } finally {
@@ -274,8 +282,15 @@ export default function VerifyEmailPage() {
             className="text-muted-foreground hover:text-foreground"
             onClick={() => {
               const role = session?.user?.role as UserRole | undefined;
-              sessionStorage.setItem("fresh-dashboard-login", "1");
-              router.push(role ? getPostLoginRoute(role) : "/");
+              if (session?.user?.id) {
+                sessionStorage.setItem(
+                  getVerificationDismissedKey(session.user.id),
+                  "true"
+                );
+              }
+              sessionStorage.setItem(FRESH_DASHBOARD_LOGIN_KEY, "1");
+              router.push(skipToDashboard(role));
+              router.refresh();
             }}
           >
             Skip for now
