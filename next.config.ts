@@ -1,13 +1,15 @@
 import type { NextConfig } from "next";
 
-const isProductionBuild = process.env.npm_lifecycle_event === "build";
-const isWindowsDev = process.platform === "win32" && !isProductionBuild;
+const lifecycle = process.env.npm_lifecycle_event ?? "";
+const isDevServer = lifecycle === "dev" || lifecycle === "dev:turbo";
+const isProductionBuild = lifecycle === "build";
+const isWindowsDev = process.platform === "win32" && isDevServer;
+const useStandaloneOutput = isProductionBuild && process.env.STANDALONE_BUILD === "1";
 const turboFsCacheEnabled = process.env.TURBOPACK_FS_CACHE === "1";
 const apiOrigin = (process.env.API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
-  distDir: isProductionBuild ? ".next" : ".next-dev",
-  ...(isProductionBuild ? { output: "standalone" as const } : {}),
+  ...(useStandaloneOutput ? { output: "standalone" as const } : {}),
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -38,9 +40,7 @@ const nextConfig: NextConfig = {
         source: `/api/auth/${path}`,
         destination: `${apiOrigin}/api/auth/${path}`,
       })),
-      // Use fallback so local NextAuth routes (session, csrf, callback, etc.)
-      // are matched before proxying unmatched /api/* to the backend.
-      fallback: [
+      afterFiles: [
         {
           source: "/api/:path*",
           destination: `${apiOrigin}/api/:path*`,
