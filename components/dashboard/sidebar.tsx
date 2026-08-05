@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useQueries } from "@tanstack/react-query";
 import {
   Home,
@@ -23,6 +24,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { parseSidebarBadgeCount } from "@/lib/nav/sidebar-badge-count";
+import {
+  countUnseenNavItems,
+  extractNavItemIds,
+} from "@/lib/nav/section-views";
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { getStaffPortalHomePath } from "@/lib/auth/route-guards";
 import { Badge } from "@/components/ui/badge";
@@ -53,21 +59,29 @@ export interface NavItem {
   label: string;
   icon: keyof typeof ICONS;
   badgeCountEndpoint?: string;
+  badgeCountStatuses?: string[];
 }
 
 function useSidebarBadges(items: NavItem[]) {
+  const { data: session } = useSession();
+  const userId = session?.user?.id ?? "";
+
   const countQueries = useQueries({
     queries: items
       .filter((item) => item.badgeCountEndpoint)
       .map((item) => ({
-        queryKey: ["sidebar-badge", item.href],
+        queryKey: ["sidebar-badge", item.href, userId],
         queryFn: async () => {
           const res = await fetch(item.badgeCountEndpoint as string);
           const json = await res.json();
-          return Number(json.data?.total ?? json.data?.length ?? json.data ?? 0);
+          const total = parseSidebarBadgeCount(json, item.badgeCountStatuses);
+          const itemIds = extractNavItemIds(json.data, item.badgeCountStatuses);
+          if (!itemIds.length) return total;
+          return countUnseenNavItems(userId, item.href, itemIds);
         },
-        staleTime: 1000 * 60 * 5,
-        refetchInterval: 1000 * 60 * 5,
+        staleTime: 30_000,
+        refetchInterval: 60_000,
+        enabled: !!userId,
       })),
   });
 
