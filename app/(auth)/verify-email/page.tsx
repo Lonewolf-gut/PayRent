@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/utils/api-message";
-import { showDevVerificationCodeToast } from "@/lib/utils/dev-verification-toast";
+import { showDevVerificationCodeToast, resetDevVerificationToast } from "@/lib/utils/dev-verification-toast";
 import {
   FRESH_DASHBOARD_LOGIN_KEY,
   getPostEmailVerificationRoute,
@@ -43,16 +43,26 @@ export default function VerifyEmailPage() {
 
   const email = session?.user?.email ?? "";
 
-  const applyDelivery = useCallback((data: VerificationDelivery | null | undefined) => {
-    if (!data) return;
+  const applyDelivery = useCallback(
+    (
+      data: VerificationDelivery | null | undefined,
+      options?: { forceToast?: boolean }
+    ) => {
+      if (!data) return;
 
-    setPreviewUrl(data.previewUrl ?? null);
+      setPreviewUrl(data.previewUrl ?? null);
 
-    if (data.devCode) {
-      setCode(data.devCode);
-      showDevVerificationCodeToast(data.devCode, "email");
-    }
-  }, []);
+      const otpCode = data.devCode ?? null;
+      if (!otpCode) return;
+
+      setCode(otpCode);
+      showDevVerificationCodeToast(otpCode, "email", {
+        force: options?.forceToast,
+        isDevelopment: (data as { isDevelopment?: boolean }).isDevelopment,
+      });
+    },
+    []
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -161,6 +171,7 @@ export default function VerifyEmailPage() {
 
   const onResend = async () => {
     setResending(true);
+    resetDevVerificationToast("email");
     try {
       const res = await fetch("/api/auth/resend-verification", { method: "POST" });
       const json = await res.json();
@@ -170,7 +181,7 @@ export default function VerifyEmailPage() {
       }
 
       const data = json.data as VerificationDelivery;
-      applyDelivery(data);
+      applyDelivery(data, { forceToast: true });
 
       if (data.devCode) {
         return;

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { showDevVerificationCodeToast } from "@/lib/utils/dev-verification-toast";
+import { showDevVerificationCodeToast, resetDevVerificationToast } from "@/lib/utils/dev-verification-toast";
 import {
   FRESH_DASHBOARD_LOGIN_KEY,
   getVerificationDismissedKey,
@@ -21,8 +21,10 @@ import type { UserRole } from "@prisma/client";
 type PhoneVerificationDelivery = {
   phone?: string | null;
   devCode?: string | null;
+  code?: string | null;
   hasPendingCode?: boolean;
   smsConfigured?: boolean;
+  isDevelopment?: boolean;
 };
 
 export default function VerifyPhonePage() {
@@ -35,14 +37,25 @@ export default function VerifyPhonePage() {
   const [resending, setResending] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
 
-  const applyDelivery = useCallback((data: PhoneVerificationDelivery | null | undefined) => {
-    if (!data) return;
-    if (data.phone) setPhone(data.phone);
-    if (data.devCode) {
-      setCode(data.devCode);
-      showDevVerificationCodeToast(data.devCode, "phone");
-    }
-  }, []);
+  const applyDelivery = useCallback(
+    (
+      data: PhoneVerificationDelivery | null | undefined,
+      options?: { forceToast?: boolean }
+    ) => {
+      if (!data) return;
+      if (data.phone) setPhone(data.phone);
+
+      const otpCode = data.devCode ?? data.code ?? null;
+      if (!otpCode) return;
+
+      setCode(otpCode);
+      showDevVerificationCodeToast(otpCode, "phone", {
+        force: options?.forceToast,
+        isDevelopment: data.isDevelopment,
+      });
+    },
+    []
+  );
 
   const sendCode = useCallback(async (targetPhone?: string) => {
     const normalized = (targetPhone ?? phone).trim();
@@ -52,6 +65,7 @@ export default function VerifyPhonePage() {
     }
 
     setResending(true);
+    resetDevVerificationToast("phone");
     try {
       const res = await fetch("/api/auth/resend-phone-verification", {
         method: "POST",
@@ -65,9 +79,9 @@ export default function VerifyPhonePage() {
       }
 
       const data = json.data as PhoneVerificationDelivery;
-      applyDelivery(data);
+      applyDelivery(data, { forceToast: true });
 
-      if (!data.devCode) {
+      if (!data.devCode && !data.code) {
         toast.success(`Verification code sent to ${data.phone ?? normalized}.`);
       }
     } catch {
@@ -103,7 +117,8 @@ export default function VerifyPhonePage() {
           applyDelivery(statusData);
 
           const targetPhone = statusData.phone?.trim() ?? "";
-          if (!statusData.hasPendingCode && !statusData.devCode && targetPhone.length >= 10) {
+          const pendingOtp = statusData.devCode ?? statusData.code ?? null;
+          if (!statusData.hasPendingCode && !pendingOtp && targetPhone.length >= 10) {
             await requestCode(targetPhone);
           }
         }
