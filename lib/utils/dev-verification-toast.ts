@@ -1,6 +1,9 @@
 import { toast } from "sonner";
 
-let lastToastedCode: string | null = null;
+let lastToastedCodes: Record<"email" | "phone", string | null> = {
+  email: null,
+  phone: null,
+};
 
 /**
  * Local testing helper — shows OTP in a toast when email/SMS is not delivered.
@@ -12,9 +15,9 @@ export function showDevVerificationCodeToast(
 ) {
   if (process.env.NODE_ENV !== "development") return;
   if (!code || code.length < 4) return;
-  if (code === lastToastedCode) return;
+  if (code === lastToastedCodes[channel]) return;
 
-  lastToastedCode = code;
+  lastToastedCodes[channel] = code;
 
   const label = channel === "email" ? "Email verification code" : "Phone verification code";
 

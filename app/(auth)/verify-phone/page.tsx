@@ -34,53 +34,17 @@ export default function VerifyPhonePage() {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
-  const [devCode, setDevCode] = useState<string | null>(null);
-  const [smsConfigured, setSmsConfigured] = useState(false);
 
   const applyDelivery = useCallback((data: PhoneVerificationDelivery | null | undefined) => {
     if (!data) return;
     if (data.phone) setPhone(data.phone);
-    setDevCode(data.devCode ?? null);
-    setSmsConfigured(Boolean(data.smsConfigured));
     if (data.devCode) {
       setCode(data.devCode);
       showDevVerificationCodeToast(data.devCode, "phone");
     }
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadVerification() {
-      try {
-        const statusRes = await fetch("/api/auth/resend-phone-verification");
-        const statusJson = await statusRes.json();
-        if (cancelled) return;
-
-        if (statusJson.success) {
-          applyDelivery(statusJson.data as PhoneVerificationDelivery);
-        }
-      } catch {
-        if (!cancelled) {
-          toast.error("Could not load your verification status.");
-        }
-      } finally {
-        if (!cancelled) setBootstrapping(false);
-      }
-    }
-
-    if (session?.user) {
-      void loadVerification();
-    } else {
-      setBootstrapping(false);
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [session?.user, applyDelivery]);
-
-  async function sendCode(targetPhone?: string) {
+  const sendCode = useCallback(async (targetPhone?: string) => {
     const normalized = (targetPhone ?? phone).trim();
     if (normalized.length < 10) {
       toast.error("Enter a valid mobile number first.");
@@ -103,18 +67,65 @@ export default function VerifyPhonePage() {
       const data = json.data as PhoneVerificationDelivery;
       applyDelivery(data);
 
-      if (data.devCode) {
-        toast.success("Your verification code is shown below.");
-        return;
+      if (!data.devCode) {
+        toast.success(`Verification code sent to ${data.phone ?? normalized}.`);
       }
-
-      toast.success(`Verification code sent to ${data.phone ?? normalized}.`);
     } catch {
       toast.error("Could not send verification code");
     } finally {
       setResending(false);
     }
-  }
+  }, [applyDelivery, phone]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function requestCode(targetPhone: string) {
+      const res = await fetch("/api/auth/resend-phone-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: targetPhone }),
+      });
+      const json = await res.json();
+      if (cancelled || !json.success) return;
+
+      applyDelivery(json.data as PhoneVerificationDelivery);
+    }
+
+    async function loadVerification() {
+      try {
+        const statusRes = await fetch("/api/auth/resend-phone-verification");
+        const statusJson = await statusRes.json();
+        if (cancelled) return;
+
+        if (statusJson.success) {
+          const statusData = statusJson.data as PhoneVerificationDelivery;
+          applyDelivery(statusData);
+
+          const targetPhone = statusData.phone?.trim() ?? "";
+          if (!statusData.hasPendingCode && !statusData.devCode && targetPhone.length >= 10) {
+            await requestCode(targetPhone);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error("Could not load your verification status.");
+        }
+      } finally {
+        if (!cancelled) setBootstrapping(false);
+      }
+    }
+
+    if (session?.user) {
+      void loadVerification();
+    } else {
+      setBootstrapping(false);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user, applyDelivery]);
 
   const onVerify = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -175,17 +186,6 @@ export default function VerifyPhonePage() {
 
         {bootstrapping ? (
           <p className="mt-6 text-center text-sm text-muted-foreground">Loading…</p>
-        ) : null}
-
-        {!smsConfigured && devCode ? (
-          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
-            <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
-              Your verification code
-            </p>
-            <p className="mt-2 font-mono text-3xl font-bold tracking-[0.35em] text-amber-950">
-              {devCode}
-            </p>
-          </div>
         ) : null}
 
         <form onSubmit={onVerify} className="mt-8 space-y-4">
