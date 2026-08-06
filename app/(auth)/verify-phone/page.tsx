@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { showDevVerificationCodeToast } from "@/lib/utils/dev-verification-toast";
 import {
   FRESH_DASHBOARD_LOGIN_KEY,
   getVerificationDismissedKey,
@@ -41,7 +42,10 @@ export default function VerifyPhonePage() {
     if (data.phone) setPhone(data.phone);
     setDevCode(data.devCode ?? null);
     setSmsConfigured(Boolean(data.smsConfigured));
-    if (data.devCode) setCode(data.devCode);
+    if (data.devCode) {
+      setCode(data.devCode);
+      showDevVerificationCodeToast(data.devCode, "phone");
+    }
   }, []);
 
   useEffect(() => {

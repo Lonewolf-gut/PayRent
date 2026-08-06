@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/utils/api-message";
+import { showDevVerificationCodeToast } from "@/lib/utils/dev-verification-toast";
 import {
   FRESH_DASHBOARD_LOGIN_KEY,
   getPostEmailVerificationRoute,
@@ -57,6 +58,7 @@ export default function VerifyEmailPage() {
 
     if (data.devCode) {
       setCode(data.devCode);
+      showDevVerificationCodeToast(data.devCode, "email");
     }
   }, []);
 
@@ -329,7 +331,7 @@ export default function VerifyEmailPage() {
               router.refresh();
             }}
           >
-            Skip for now
+            {session?.user?.phoneVerified ? "Skip for now" : "Continue to phone verification"}
           </button>
         </div>
       </div>
