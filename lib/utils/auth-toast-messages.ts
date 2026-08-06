@@ -26,6 +26,8 @@ const REGISTER_MESSAGES: Record<string, string> = {
   RATE_LIMIT: "Too many attempts. Please wait a moment and try again.",
   DATABASE_UNAVAILABLE:
     "We can't reach the database. Start Docker Desktop, then run: docker compose up -d postgres redis",
+  SCHEMA_MISMATCH:
+    "The database needs to be updated. In your backend folder, run: npm run db:push",
 };
 
 export function getSignInErrorMessage(
@@ -75,6 +77,10 @@ export function getRegisterErrorMessage(
 
   if (status === 503 && errorCode === "DATABASE_UNAVAILABLE") {
     return REGISTER_MESSAGES.DATABASE_UNAVAILABLE;
+  }
+
+  if (status === 503 && errorCode === "SCHEMA_MISMATCH") {
+    return REGISTER_MESSAGES.SCHEMA_MISMATCH;
   }
 
   if (status === 503 && /database|5432|postgres|docker/i.test(apiMessage)) {
