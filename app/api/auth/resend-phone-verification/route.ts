@@ -15,6 +15,7 @@ function buildStatusPayload(pendingCode: string | null, phone: string | null) {
     phone,
     hasPendingCode: Boolean(pendingCode),
     devCode: isDevelopment && pendingCode ? pendingCode : null,
+    code: isDevelopment && pendingCode ? pendingCode : null,
     smsConfigured: smsProvider !== "log",
     isDevelopment,
   };
@@ -59,6 +60,7 @@ export const POST = withAuth(async (req, _ctx, session) => {
     phone: result.phone,
     sent: smsProvider !== "log",
     devCode: isDevelopment ? result.code : null,
+    code: isDevelopment ? result.code : null,
     smsConfigured: smsProvider !== "log",
     isDevelopment,
   });
