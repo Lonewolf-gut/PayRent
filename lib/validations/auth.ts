@@ -22,16 +22,21 @@ export const registerSchema = z.object({
   email: normalizedEmail,
   password: passwordSchema,
   fullName: z.string().min(2, "Please enter your full name"),
-  phone: z.string().min(10, "Please enter a valid phone number").optional(),
+  phone: z.preprocess(
+    (value) => (typeof value === "string" && !value.trim() ? undefined : value),
+    z.string().min(10, "Please enter a valid phone number").optional()
+  ),
   role: z.enum(["BUYER", "MERCHANT", "MARKETER", "LENDER"]),
   entityType: z.enum(["INDIVIDUAL", "COMPANY"]).optional(),
   companyName: z.string().min(2).optional(),
   dateOfBirth: z.string().optional(),
-  dataProcessingConsent: z.literal(true, {
-    error: "You must consent to data collection and processing to register.",
-  }),
-  termsAccepted: z.literal(true, {
-    error: "You must accept the terms of service to register.",
+  dataProcessingConsent: z.coerce
+    .boolean()
+    .refine((value) => value === true, {
+      message: "You must consent to data collection and processing to register.",
+    }),
+  termsAccepted: z.coerce.boolean().refine((value) => value === true, {
+    message: "You must accept the terms of service to register.",
   }),
 }).superRefine((data, ctx) => {
   if (data.entityType === "COMPANY" && !data.companyName?.trim()) {

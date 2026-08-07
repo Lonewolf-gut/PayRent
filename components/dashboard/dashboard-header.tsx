@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { signOut, useSession } from "next-auth/react";
 import { LogOut, Menu, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfileImage } from "@/components/shared/profile-image";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,18 +36,6 @@ import { getRoleSignOutPath, getStaffPortalHomePath } from "@/lib/auth/route-gua
 import { useSettingsProfile } from "@/hooks/use-settings-profile";
 import { useDashboardTheme } from "@/components/dashboard/dashboard-theme-provider";
 import { cn } from "@/lib/utils";
-
-function getInitials(name?: string | null, email?: string | null) {
-  if (name) {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase();
-  }
-  if (!email) return "U";
-  return email.slice(0, 2).toUpperCase();
-}
 
 type DashboardHeaderProps = {
   navItems?: NavItem[];
@@ -144,19 +132,16 @@ export function DashboardHeader({
           <NotificationsPopover />
           <DropdownMenu>
             <DropdownMenuTrigger
-              className="flex min-w-0 items-center gap-2.5 rounded-full border border-border/60 bg-muted/30 py-1 pl-1 pr-3 outline-none ring-emerald-600 focus-visible:ring-2"
+              className="flex min-w-0 items-center gap-2 rounded-full border border-border/60 bg-muted/30 py-1 pl-1 pr-2.5 outline-none ring-emerald-600 focus-visible:ring-2"
               aria-label="Open account menu"
             >
-                <Avatar size="lg" className="size-11">
-                  {avatarImage ? (
-                    <AvatarImage
-                      key={avatarImage}
-                      src={avatarImage}
-                      alt="Profile photo"
-                    />
-                  ) : null}
-                  <AvatarFallback className="text-sm">{getInitials(fullName, email)}</AvatarFallback>
-                </Avatar>
+                <ProfileImage
+                  image={avatarImage}
+                  name={fullName}
+                  email={email}
+                  size="sm"
+                  className="size-9"
+                />
                 <span className="hidden sm:inline">
                   <AccountVerificationBadge />
                 </span>
@@ -240,7 +225,6 @@ export function AdminDashboardHeader({
 
   const email = session?.user?.email ?? profile?.email ?? "";
   const image = session?.user?.image ?? profile?.image ?? null;
-  const initials = email ? email.slice(0, 2).toUpperCase() : "AD";
 
   return (
     <div className="border-b bg-card">
@@ -281,15 +265,14 @@ export function AdminDashboardHeader({
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
           <NotificationsPopover />
-          <div className="flex min-w-0 items-center gap-2.5 rounded-none border border-border/60 bg-muted/30 py-1 pl-1 pr-3">
-            <Avatar size="lg" className="size-11 rounded-none">
-              {image ? (
-                <AvatarImage key={image} src={image} alt="Admin profile photo" />
-              ) : null}
-              <AvatarFallback className="rounded-none bg-emerald-100 text-sm text-emerald-800">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+          <div className="flex min-w-0 items-center gap-2 rounded-none border border-border/60 bg-muted/30 py-1 pl-1 pr-3">
+            <ProfileImage
+              image={image}
+              name={email}
+              email={email}
+              size="sm"
+              className="size-9 rounded-none"
+            />
             {email ? (
               <span className="hidden max-w-[12rem] truncate text-sm text-muted-foreground sm:inline">
                 {email}
