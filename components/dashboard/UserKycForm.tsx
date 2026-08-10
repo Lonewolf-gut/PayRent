@@ -20,14 +20,13 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { KYC_DOCUMENT_LABELS, UTILITY_BILL_LABELS } from "@/lib/constants/financing-docs";
+import { UTILITY_BILL_LABELS } from "@/lib/constants/financing-docs";
 import {
   EMPLOYMENT_STATUS_OPTIONS,
   getEmploymentStatusLabel,
   isEmploymentRecorded,
   requiresEmploymentDocuments,
 } from "@/lib/constants/employment-status";
-import { SecureFileLink } from "@/components/shared/secure-file-link";
 import { toast } from "sonner";
 
 const PROFILE_COMPLETE_STATUSES = new Set([
@@ -76,8 +75,10 @@ function applyStatusToForm(
   setEmploymentStatus((status.employmentStatus as EmploymentStatusValue) ?? "");
   setProfile({
     dateOfBirth: (status.dateOfBirth as string) ?? "",
-    occupation: (status.occupation as string) ?? "",
-    employerName: (status.employerName as string) ?? "",
+    occupation:
+      (status.occupation as string) ?? (status.lenderType as string) ?? "",
+    employerName:
+      (status.employerName as string) ?? (status.institutionName as string) ?? "",
     monthlyIncome:
       status.monthlyIncome != null ? String(status.monthlyIncome) : "",
     residentialAddress: (status.residentialAddress as string) ?? "",
@@ -110,13 +111,6 @@ const ID_PLACEHOLDERS: Record<DocumentType, string> = {
   VOTER_ID: "1234567890",
   PASSPORT: "G1234567",
   DRIVERS_LICENSE: "V1234567",
-};
-
-type KycDocument = {
-  id: string;
-  documentType: string;
-  fileName: string;
-  fileUrl: string;
 };
 
 export function UserKycForm({
@@ -193,21 +187,15 @@ export function UserKycForm({
         if (profile.companyTin.trim()) payload.companyTin = profile.companyTin;
       } else {
         payload.employmentStatus = employmentStatus;
-        if (profile.dateOfBirth) payload.dateOfBirth = profile.dateOfBirth;
-        if (profile.occupation.trim()) payload.occupation = profile.occupation;
-        if (profile.employerName.trim()) payload.employerName = profile.employerName;
+        payload.dateOfBirth = profile.dateOfBirth || undefined;
+        payload.occupation = profile.occupation.trim() || undefined;
+        payload.employerName = profile.employerName.trim() || undefined;
         if (profile.monthlyIncome.trim()) {
           payload.monthlyIncome = Number(profile.monthlyIncome);
         }
-        if (profile.residentialAddress.trim()) {
-          payload.residentialAddress = profile.residentialAddress;
-        }
-        if (profile.staffId.trim() && employmentStatus === "EMPLOYED") {
-          payload.staffId = profile.staffId;
-        }
-        if (profile.ssnitNumber.trim() && employmentStatus === "EMPLOYED") {
-          payload.ssnitNumber = profile.ssnitNumber;
-        }
+        payload.residentialAddress = profile.residentialAddress.trim() || undefined;
+        payload.staffId = profile.staffId.trim() || undefined;
+        payload.ssnitNumber = profile.ssnitNumber.trim() || undefined;
       }
 
       const res = await fetch("/api/kyc", {
@@ -392,13 +380,6 @@ export function UserKycForm({
   const identityVerified = Boolean(status?.kycVerified);
   const employmentVerified = Boolean(status?.employmentVerified);
   const addressVerified = Boolean(status?.addressVerified);
-  const submittedDocuments: KycDocument[] =
-    status?.kycDocuments ??
-    status?.verifications?.flatMap(
-      (v: { documents?: KycDocument[] }) => v.documents ?? []
-    ) ??
-    [];
-
   if (isLoading) {
     return <p className="text-muted-foreground">Loading verification status...</p>;
   }
@@ -1027,21 +1008,6 @@ export function UserKycForm({
                 </div>
               </div>
             )}
-
-            {submittedDocuments.length > 0 ? (
-              <div className="mt-4 space-y-2 rounded-lg border p-3">
-                <p className="text-sm font-medium">Submitted documents</p>
-                {submittedDocuments.map((doc) => (
-                  <SecureFileLink
-                    key={doc.id}
-                    request={{ scope: "kyc", documentId: doc.id }}
-                    className="block text-sm text-emerald-600 hover:underline"
-                  >
-                    {KYC_DOCUMENT_LABELS[doc.documentType] ?? doc.documentType}: {doc.fileName}
-                  </SecureFileLink>
-                ))}
-              </div>
-            ) : null}
 
             <Button
               className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto"
