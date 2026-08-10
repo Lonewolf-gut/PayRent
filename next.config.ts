@@ -34,10 +34,16 @@ const nextConfig: NextConfig = {
     ];
 
     return {
-      beforeFiles: backendAuthRoutes.map((path) => ({
-        source: `/api/auth/${path}`,
-        destination: `${apiOrigin}/api/auth/${path}`,
-      })),
+      beforeFiles: [
+        ...backendAuthRoutes.map((path) => ({
+          source: `/api/auth/${path}`,
+          destination: `${apiOrigin}/api/auth/${path}`,
+        })),
+        {
+          source: "/uploads/:path*",
+          destination: `${apiOrigin}/uploads/:path*`,
+        },
+      ],
       // Use fallback so local NextAuth routes (session, csrf, callback, etc.)
       // are matched before proxying unmatched /api/* to the backend.
       fallback: [
