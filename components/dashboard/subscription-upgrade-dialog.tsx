@@ -42,7 +42,7 @@ export function SubscriptionUpgradeDialog() {
   });
 
   const currentPlan = normalizeSubscriptionPlan(
-    subscriptionData?.subscription?.plan ?? "FREE"
+    subscriptionData?.subscription?.plan ?? subscriptionData?.access?.plan ?? "FREE"
   );
 
   function handlePlanSelect(plan: CheckoutPlanId) {
@@ -62,11 +62,11 @@ export function SubscriptionUpgradeDialog() {
         )}
       >
         <div className="flex max-h-[90vh] flex-col overflow-y-auto border border-border bg-background text-foreground shadow-xl">
-          <DialogHeader className="border-b border-border px-6 py-5 text-center">
-            <DialogTitle className="text-2xl font-semibold text-foreground">
+          <DialogHeader className="border-b border-border px-4 py-2.5 text-center sm:px-6 sm:py-5">
+            <DialogTitle className="text-base font-semibold text-foreground sm:text-2xl">
               Adjust your plan
             </DialogTitle>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground sm:text-sm">
               Save 20% when billed annually on checkout
             </p>
           </DialogHeader>
@@ -82,7 +82,7 @@ export function SubscriptionUpgradeDialog() {
   );
 }
 
-export function SidebarUpgradeCard() {
+export function SidebarUpgradeCard({ compact = false }: { compact?: boolean }) {
   const { data: session } = useSession();
   const { openUpgrade } = useSubscriptionUpgrade();
   const role = session?.user?.role;
@@ -100,7 +100,9 @@ export function SidebarUpgradeCard() {
     enabled: !!session?.user,
   });
 
-  const plan = normalizeSubscriptionPlan(subscriptionData?.subscription?.plan ?? "FREE");
+  const plan = normalizeSubscriptionPlan(
+    subscriptionData?.subscription?.plan ?? subscriptionData?.access?.plan ?? "FREE"
+  );
   const planLabel = PLAN_CATALOG[plan]?.name ?? "Free";
   const showCard = role === "MERCHANT" || role === "MARKETER";
 
@@ -110,16 +112,31 @@ export function SidebarUpgradeCard() {
     profile?.fullName?.trim() || session.user.email?.split("@")[0] || "Account";
 
   return (
-    <div className="mx-3 mb-4 rounded-none border bg-muted/40 p-3">
-      <p className="truncate text-sm font-medium">{displayName}</p>
-      <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
-      <p className="mt-2 text-xs font-medium text-foreground">{planLabel}</p>
+    <div
+      className={cn(
+        "rounded-none border bg-muted/40",
+        compact ? "p-2" : "mx-3 mb-4 p-3"
+      )}
+    >
+      <p className={cn("truncate font-medium", compact ? "text-xs" : "text-sm")}>
+        {displayName}
+      </p>
+      {!compact ? (
+        <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
+      ) : null}
+      <p className={cn("font-medium text-foreground", compact ? "mt-1 text-[11px]" : "mt-2 text-xs")}>
+        {planLabel}
+      </p>
       {!isPaidPlan(plan) ? (
         <Button
-          className="mt-3 w-full justify-start gap-2 rounded-none bg-slate-900 text-white hover:bg-slate-800"
+          size={compact ? "sm" : "default"}
+          className={cn(
+            "w-full justify-start gap-2 rounded-none bg-slate-900 text-white hover:bg-slate-800",
+            compact ? "mt-2 h-8 text-xs" : "mt-3"
+          )}
           onClick={() => openUpgrade()}
         >
-          <Sparkles className="h-4 w-4" />
+          <Sparkles className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
           Upgrade
         </Button>
       ) : null}
