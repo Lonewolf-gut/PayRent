@@ -7,6 +7,8 @@ const isWindowsDev = process.platform === "win32" && isDevServer;
 const useStandaloneOutput = isProductionBuild && process.env.STANDALONE_BUILD === "1";
 const turboFsCacheEnabled = process.env.TURBOPACK_FS_CACHE === "1";
 const apiOrigin = (process.env.API_URL ?? "http://localhost:3001").replace(/\/$/, "");
+const s3PublicUrl =
+  process.env.NEXT_PUBLIC_S3_PUBLIC_URL?.trim() || process.env.S3_PUBLIC_URL?.trim();
 
 const nextConfig: NextConfig = {
   ...(useStandaloneOutput ? { output: "standalone" as const } : {}),
@@ -16,8 +18,8 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
-      ...(process.env.S3_PUBLIC_URL
-        ? [{ protocol: "https" as const, hostname: new URL(process.env.S3_PUBLIC_URL).hostname }]
+      ...(s3PublicUrl
+        ? [{ protocol: "https" as const, hostname: new URL(s3PublicUrl).hostname }]
         : []),
     ],
   },
