@@ -8,6 +8,25 @@ export const SUPPORT_PHONE = "+233 30 000 0000";
 export const SUPPORT_ADDRESS = "Accra, Ghana";
 export const EMAIL_DOMAIN = "payforme.com";
 
+export const SOCIAL_LINKS = [
+  {
+    label: "LinkedIn",
+    href: "https://www.linkedin.com/company/payforme",
+  },
+  {
+    label: "X",
+    href: "https://x.com/payforme",
+  },
+  {
+    label: "Instagram",
+    href: "https://www.instagram.com/payforme",
+  },
+  {
+    label: "TikTok",
+    href: "https://www.tiktok.com/@payforme",
+  },
+] as const;
+
 export const ROLE_LABELS: Record<UserRole, string> = {
   BUYER: "Customers",
   MERCHANT: "Merchant",
@@ -70,18 +89,18 @@ export const APPLICATION_STATUS_LABELS: Record<string, string> = {
 };
 
 export const FINANCING_STATUS_LABELS: Record<string, string> = {
-  CREATED: "Created",
-  ELIGIBILITY_PENDING: "Eligibility Pending",
-  MANDATE_PENDING: "Mandate Pending",
-  READY_FOR_LENDER_REVIEW: "Ready for Lender Review",
-  PENDING: "Pending",
-  UNDER_REVIEW: "Under Review",
-  APPROVED: "Approved",
+  CREATED: "Submitted — waiting for merchant approval",
+  ELIGIBILITY_PENDING: "Waiting for admin approval",
+  MANDATE_PENDING: "PDF mandate sent to bank",
+  READY_FOR_LENDER_REVIEW: "Waiting for lender confirmation",
+  PENDING: "Submitted — waiting for merchant approval",
+  UNDER_REVIEW: "Waiting for admin approval",
+  APPROVED: "Waiting for lender confirmation",
   REJECTED: "Rejected",
   WITHDRAWN: "Withdrawn",
-  FUNDED: "Funded",
-  DISBURSED: "Disbursed",
-  REPAYMENT_ACTIVE: "Repayment Active",
+  FUNDED: "Financing active — mandate in place",
+  DISBURSED: "Financing active — mandate in place",
+  REPAYMENT_ACTIVE: "Financing active — mandate in place",
   COMPLETED: "Completed",
   CLOSED: "Closed",
   DEFAULTED: "Defaulted",
