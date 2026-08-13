@@ -1,29 +1,43 @@
-import { prisma } from "@/lib/db/prisma";
-import { shouldExposeOtpCodes } from "@/lib/auth/expose-otp";
-import { apiResponse, withAuth } from "@/lib/api/handler";
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import {
+  fetchBackendPendingCode,
+  isDevOtpEnabled,
+  readPendingPhoneCodeFromDb,
+} from "@/lib/api/verification-code";
 
-export const GET = withAuth(async (req, _ctx, session) => {
-  if (!shouldExposeOtpCodes()) {
-    return apiResponse({ error: "Not found" }, 404);
+export const dynamic = "force-dynamic";
+
+export async function GET(req: NextRequest) {
+  if (!isDevOtpEnabled()) {
+    return NextResponse.json(
+      { success: false, message: "Not found", data: null, errors: null },
+      { status: 404 }
+    );
   }
 
   const purpose = req.nextUrl.searchParams.get("purpose") ?? "PHONE_VERIFY";
+  const cookie = req.headers.get("cookie");
 
-  const pending = await prisma.otpCode.findFirst({
-    where: {
-      userId: session.user.id,
+  let code = await fetchBackendPendingCode(cookie, purpose);
+
+  if (!code) {
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (userId) {
+      code = await readPendingPhoneCodeFromDb(userId, purpose);
+    }
+  }
+
+  return NextResponse.json({
+    success: true,
+    message: "OK",
+    data: {
+      code,
+      devCode: code,
+      isDevelopment: true,
       purpose,
-      used: false,
-      expiresAt: { gt: new Date() },
     },
-    orderBy: { createdAt: "desc" },
-    select: { code: true },
+    errors: null,
   });
-
-  return apiResponse({
-    code: pending?.code ?? null,
-    devCode: pending?.code ?? null,
-    isDevelopment: true,
-    purpose,
-  });
-});
+}
