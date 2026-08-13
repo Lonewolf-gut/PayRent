@@ -21,7 +21,7 @@ import {
   RESIDENTIAL_TYPES,
   isUnlimitedPlan,
 } from "@/lib/subscription-limits";
-import { assertLandlordListingLimit } from "@/lib/subscription/listing-access";
+import { assertLandlordListingLimit, merchantHasMarketplaceListingVisibility } from "@/lib/subscription/listing-access";
 import { getSubscriptionAccess } from "@/lib/subscription/access";
 import { roleHasUnlimitedBrowse } from "@/lib/subscription/roles";
 import { assignAgentToProperty } from "@/lib/services/agent-assignment.service";
@@ -65,6 +65,7 @@ async function fetchLimitedProperties(
 
   const baseWhere: Prisma.PropertyWhereInput = {
     status: "ACTIVE",
+    ...merchantListingPublicVisibilityWhere(),
     ...categoryTypeFilter,
     ...(filters.minRent && { monthlyRent: { gte: filters.minRent } }),
     ...(filters.maxRent && { monthlyRent: { lte: filters.maxRent } }),
@@ -260,10 +261,15 @@ export const POST = withAuth(
       `${landlordName} (${session.user.email}) submitted "${parsed.data.name}" for verification.`
     );
 
+    const access = await getSubscriptionAccess(session.user.id);
+    const submittedMessage = merchantHasMarketplaceListingVisibility(access)
+      ? `Your listing "${parsed.data.name}" has been submitted and is pending admin review. Once approved, it will appear on the marketplace.`
+      : `Your listing "${parsed.data.name}" has been submitted and is pending admin review. Once approved, subscribe to Pro or Max to make it visible on the public properties page.`;
+
     await notifyUserInAppAndEmail(
       session.user.id,
       "Listing submitted",
-      `Your listing "${parsed.data.name}" has been submitted and is pending admin review.`
+      submittedMessage
     );
 
     return apiResponse(property, 201);
