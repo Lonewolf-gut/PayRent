@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/dashboard/status-badge";
@@ -41,7 +42,7 @@ export default function LandlordApplicationsPage() {
       <div>
         <h1 className="text-2xl font-bold">Buyer applications</h1>
         <p className="text-muted-foreground">
-          Review applications, request clarification, and approve tenancy decisions.
+          Review applications, request clarification, and approve buyer decisions.
         </p>
       </div>
 
