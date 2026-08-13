@@ -21,6 +21,7 @@ import { getProfileDisplayName } from "@/lib/utils/display-name";
 import { SUPPORT_EMAIL, PLATFORM_NAME } from "@/constants/platform";
 import { sendEmail, buildEmailTemplate } from "@/lib/services/email.service";
 import { consentService } from "@/lib/services/consent.service";
+import { shouldExposeOtpCodes } from "@/lib/auth/expose-otp";
 import { normalizeGhanaPhoneNumber } from "@/lib/integrations/paystack/banks";
 
 export type RegisterContext = {
@@ -218,7 +219,12 @@ export class AuthService {
     );
     await verificationReminderService.notifyIfUnverified(user.id, user.role);
 
-    return { userId: user.id, email: user.email, role: user.role };
+    return {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      ...(shouldExposeOtpCodes() ? { devCode: otp } : {}),
+    };
   }
 
   async verifyEmail(userId: string, code: string) {
