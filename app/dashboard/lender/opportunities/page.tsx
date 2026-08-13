@@ -89,13 +89,16 @@ export default function LenderOpportunitiesPage() {
   return (
     <div className="space-y-6">
       {financingAccess && !financingAccess.isPaid ? (
-        <div className="rounded-none border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-none border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
           Free plan: {financingAccess.financedCount} of {financingAccess.limit ?? 100} properties financed.
           {financingAccess.remaining === 0 ? (
             <>
               {" "}
               Subscribe for unlimited financing access.{" "}
-              <Link href="/dashboard/lender/subscription" className="font-medium underline">
+              <Link
+                href="/dashboard/lender/subscription"
+                className="font-medium text-amber-900 underline underline-offset-2 dark:text-amber-300"
+              >
                 View plans
               </Link>
             </>
@@ -147,7 +150,7 @@ export default function LenderOpportunitiesPage() {
                   </p>
                 </div>
                 {req.mandate && req.mandate.status !== "ACTIVE" && (
-                  <p className="text-sm text-amber-700">
+                  <p className="text-sm text-amber-700 dark:text-amber-300">
                     Repayment mandate must be active before you can approve funding.
                   </p>
                 )}

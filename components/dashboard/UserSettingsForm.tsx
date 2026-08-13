@@ -8,7 +8,13 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Accordion,
   AccordionContent,
@@ -724,40 +730,48 @@ export default function UserSettingsForm({
             <form onSubmit={handleAddBankAccount} className="space-y-4">
               <div className="grid gap-2">
                 <Label>Account type</Label>
-                <NativeSelect
-                  value={accountType}
-                  onChange={(e) => setAccountType(e.target.value)}
-                >
-                  <option value="BANK">Bank</option>
-                  <option value="MOMO">MoMo</option>
-                </NativeSelect>
+                <Select value={accountType} onValueChange={setAccountType}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BANK">Bank</SelectItem>
+                    <SelectItem value="MOMO">MoMo</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid gap-2">
                 <Label>{accountType === "MOMO" ? "Mobile money network" : "Bank"}</Label>
                 {providers.length > 0 ? (
-                <NativeSelect
-                  value={bankCode}
-                  onChange={(e) => {
-                    const selected = providers.find((item) => item.code === e.target.value);
-                    setBankCode(e.target.value);
+                <Select
+                  value={bankCode || undefined}
+                  onValueChange={(value) => {
+                    const selected = providers.find((item) => item.code === value);
+                    setBankCode(value);
                     setBankName(selected?.name ?? "");
                   }}
                   disabled={providersLoading}
                 >
-                  <option value="">
-                    {providersLoading
-                      ? "Loading providers…"
-                      : accountType === "MOMO"
-                        ? "Select MTN, Telecel, or AirtelTigo"
-                        : "Select your bank"}
-                  </option>
-                  {providers.map((provider) => (
-                    <option key={provider.code} value={provider.code}>
-                      {provider.name}
-                    </option>
-                  ))}
-                </NativeSelect>
+                  <SelectTrigger className="w-full">
+                    <SelectValue
+                      placeholder={
+                        providersLoading
+                          ? "Loading providers…"
+                          : accountType === "MOMO"
+                            ? "Select MTN, Telecel, or AirtelTigo"
+                            : "Select your bank"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {providers.map((provider) => (
+                      <SelectItem key={provider.code} value={provider.code}>
+                        {provider.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 ) : (
                   <Input
                     value={bankName}
