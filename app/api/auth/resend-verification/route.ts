@@ -64,7 +64,7 @@ function buildDeliveryPayload(
   const emailConfigured = isEmailDeliveryConfigured();
   const isDevelopment = shouldExposeOtpCodes();
   const emailError = emailResult?.error ?? null;
-  const devCode = !delivered ? code : resolveEmailDevCode(code);
+  const devCode = resolveEmailDevCode(code);
 
   return {
     sent: delivered,

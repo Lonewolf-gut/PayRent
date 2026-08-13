@@ -85,19 +85,17 @@ export default function VerifyEmailPage() {
           await applyDelivery(statusData);
 
           const fallbackCode = await fetchDevVerificationCode("EMAIL_VERIFY");
-          if (statusData.devCode || fallbackCode) {
-            if (fallbackCode && !statusData.devCode) {
-              setCode(fallbackCode);
-              setDevCode(fallbackCode);
-              showDevVerificationCodeToast(fallbackCode, "email", {
-                isDevelopment: (statusData as { isDevelopment?: boolean }).isDevelopment,
-              });
-            }
+          if (fallbackCode && !statusData.devCode) {
+            setCode(fallbackCode);
+            setDevCode(fallbackCode);
+            showDevVerificationCodeToast(fallbackCode, "email", {
+              isDevelopment: (statusData as { isDevelopment?: boolean }).isDevelopment,
+            });
             setBootstrapping(false);
             return;
           }
 
-          if (statusData.realEmailExpected && statusData.hasPendingCode) {
+          if (statusData.devCode) {
             setBootstrapping(false);
             return;
           }
