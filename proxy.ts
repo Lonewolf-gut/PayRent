@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { getPostLoginRoute } from "@/lib/auth/permissions";
 import {
   ADMIN_HOME_PATH,
   COMPLIANCE_HOME_PATH,
@@ -9,6 +10,7 @@ import {
   isNonAdminDashboardPath,
   isPublicAuthPath,
 } from "@/lib/auth/route-guards";
+import type { UserRole } from "@prisma/client";
 
 const publicRoutes = [
   "/",
@@ -100,7 +102,9 @@ export async function proxy(req: NextRequest) {
       ? ADMIN_HOME_PATH
       : isComplianceOfficer
         ? COMPLIANCE_HOME_PATH
-        : "/dashboard";
+        : role
+          ? getPostLoginRoute(role as UserRole)
+          : "/dashboard";
     return NextResponse.redirect(new URL(destination, nextUrl));
   }
 
