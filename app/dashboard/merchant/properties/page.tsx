@@ -435,7 +435,7 @@ export default function LandlordPropertiesPage() {
     PENDING_VERIFICATION: { label: "Pending verification", variant: "outline" },
     ACTIVE: { label: "Active", variant: "default" },
     RENTED: { label: "Rented", variant: "destructive" },
-    TRIAL_SUSPENDED: { label: "Hidden (trial ended)", variant: "secondary" },
+    TRIAL_SUSPENDED: { label: "Hidden (upgrade required)", variant: "secondary" },
     INACTIVE: { label: "Inactive", variant: "ghost" },
   };
 

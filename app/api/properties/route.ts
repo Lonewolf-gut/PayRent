@@ -34,7 +34,7 @@ async function getBrowsePlan(userId?: string | null, role?: string | null) {
     return "MAX" as const;
   }
   const access = await getSubscriptionAccess(userId);
-  if (access.hasFullAccess && !access.isPaid) return "MAX" as const;
+  if (isUnlimitedPlan(access.plan)) return "MAX" as const;
   return access.plan;
 }
 

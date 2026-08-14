@@ -119,7 +119,7 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
     overview:
       "PayForme helps merchants market homes, cars, and appliances while giving Customers lender-backed financing options and Affiliate advocacy.",
     whyChoose: [
-      "Start with a 7-day trial, then list on the Free plan (1 home, 1 car, 1 appliance)",
+      "List on the Free plan with 1 home, 1 car, and 1 appliance (3 total)",
       "Connect each listing to Customer financing backed by lenders",
       "Assign Affiliates to promote and advocate your listings",
       "Receive tracked applications and settlement updates",

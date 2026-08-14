@@ -9,7 +9,7 @@ import {
   getPropertyCategory,
   isUnlimitedPlan,
 } from "@/lib/subscription-limits";
-import { getSubscriptionAccess, TRIAL_DAYS } from "@/lib/subscription/access";
+import { getSubscriptionAccess } from "@/lib/subscription/access";
 import { isPaidPlan } from "@/lib/subscription/plans";
 
 export async function assertMerchantCanCreateListing(userId: string) {
@@ -128,14 +128,7 @@ export async function assertLandlordListingLimit(
   await assertMerchantCanCreateListing(userId);
 
   const access = await getSubscriptionAccess(userId);
-  if (access.trialExpired && !access.isPaid) {
-    throw new AppError(
-      `Your ${TRIAL_DAYS}-day trial has ended. Upgrade at /pricing to add or restore listings.`,
-      403,
-      "TRIAL_EXPIRED"
-    );
-  }
-  if (access.hasFullAccess) return;
+  if (isUnlimitedPlan(access.plan)) return;
 
   const limits = getPlanLimits(access.plan);
   if (!limits) return;

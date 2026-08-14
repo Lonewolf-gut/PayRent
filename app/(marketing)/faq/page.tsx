@@ -102,11 +102,11 @@ const faqSections = [
       },
       {
         q: "How do merchant and Affiliate subscriptions work?",
-        a: "Merchants start with a 7-day trial with full listing access, then Free plan limits apply unless they upgrade. Affiliates have no trial: the Free plan includes 1 promoted listing with commission, and Pro or Max unlocks more promotion capacity. Upgrade from the Pricing page via wallet or Paystack.",
+        a: "Merchants and Affiliates start on the Free plan with listing or promotion limits. Upgrade to Pro or Max from the Pricing page via wallet or Paystack for more capacity.",
       },
       {
         q: "What are the Free plan limits?",
-        a: "Merchants can have 1 residential listing, 1 car, and 1 appliance (3 total) after trial. Free Affiliates can promote 1 listing. Pro and Max unlock higher or unlimited capacity.",
+        a: "Merchants can list 1 residential property, 1 car, and 1 appliance (3 total). Free Affiliates can promote 1 listing. Pro and Max unlock higher or unlimited capacity.",
       },
       {
         q: "Can I cancel my subscription?",

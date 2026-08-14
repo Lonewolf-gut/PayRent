@@ -43,10 +43,9 @@ export const PLAN_CATALOG: Record<
     tagline: "Get started on PayForMe",
     highlight: false,
     features: [
-      "Merchants: subscription required before listing products",
+      "Merchants: Free plan includes 1 home, 1 car, and 1 appliance (3 total)",
       "Affiliates: promote 1 listing free, then upgrade for more",
       "Lenders: finance up to 100 properties free",
-      "7-day full-access trial for merchants",
       "Email support",
     ],
   },

@@ -13,9 +13,9 @@ export function roleRequiresSubscription(role: UserRole): role is SubscriptionEl
   return (SUBSCRIPTION_ELIGIBLE_ROLES as readonly UserRole[]).includes(role);
 }
 
-/** Only merchants receive the introductory subscription trial. */
-export function roleGetsSubscriptionTrial(role: UserRole) {
-  return role === "MERCHANT";
+/** Subscription trials are no longer offered. */
+export function roleGetsSubscriptionTrial(_role: UserRole) {
+  return false;
 }
 
 /** Roles with fully free platform access (no subscription product). */

@@ -4,7 +4,6 @@ import { getBusinessRules } from "@/lib/services/business-rules.service";
 import { subscriptionService } from "@/lib/services/subscription.service";
 import { isPaidPlan, normalizeSubscriptionPlan } from "@/lib/subscription/plans";
 import {
-  roleGetsSubscriptionTrial,
   roleHasFreePlatformAccess,
   roleRequiresSubscription,
   roleUsesLenderFinancingLimit,
@@ -23,23 +22,6 @@ export type SubscriptionAccess = {
   hasFullAccess: boolean;
   requiresSubscription: boolean;
 };
-
-export function getTrialEndDate(from = new Date()) {
-  const ends = new Date(from);
-  ends.setDate(ends.getDate() + TRIAL_DAYS);
-  return ends;
-}
-
-async function backfillTrialEndsAt(userId: string, createdAt: Date) {
-  const trialEndsAt = getTrialEndDate(createdAt);
-  await prisma.user
-    .update({
-      where: { id: userId },
-      data: { trialEndsAt },
-    })
-    .catch(() => undefined);
-  return trialEndsAt;
-}
 
 export async function loadSubscriptionAccess(userId: string): Promise<SubscriptionAccess> {
   const [user, sub] = await Promise.all([
@@ -79,7 +61,7 @@ export async function loadSubscriptionAccess(userId: string): Promise<Subscripti
     };
   }
 
-  if (role === "MARKETER") {
+  if (role === "MERCHANT" || role === "MARKETER") {
     return {
       plan,
       isPaid,
@@ -91,42 +73,19 @@ export async function loadSubscriptionAccess(userId: string): Promise<Subscripti
     };
   }
 
-  let trialEndsAt = user?.trialEndsAt ?? null;
-  if (!trialEndsAt && user?.createdAt && roleGetsSubscriptionTrial(role)) {
-    trialEndsAt = await backfillTrialEndsAt(userId, user.createdAt);
-  }
-
-  const now = new Date();
-  const trialActive = Boolean(trialEndsAt && trialEndsAt > now);
-  const trialExpired = Boolean(trialEndsAt && trialEndsAt <= now);
-  const hasFullAccess = isPaid || trialActive;
-
   return {
     plan,
     isPaid,
-    trialEndsAt,
-    trialActive,
-    trialExpired,
-    hasFullAccess,
-    requiresSubscription: true,
+    trialEndsAt: null,
+    trialActive: false,
+    trialExpired: false,
+    hasFullAccess: isPaid,
+    requiresSubscription,
   };
 }
 
 export async function getSubscriptionAccess(userId: string): Promise<SubscriptionAccess> {
-  const access = await loadSubscriptionAccess(userId);
-
-  if (access.requiresSubscription && access.trialExpired && !access.isPaid) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-    if (user?.role === "MERCHANT") {
-      const { suspendListingsAfterTrial } = await import("@/lib/subscription/trial.service");
-      void suspendListingsAfterTrial(userId);
-    }
-  }
-
-  return access;
+  return loadSubscriptionAccess(userId);
 }
 
 export async function assertPlatformAccess(
@@ -147,20 +106,20 @@ export async function assertPlatformAccess(
     return loadSubscriptionAccess(userId);
   }
 
-  if (resolvedRole === "MARKETER") {
+  if (resolvedRole === "MERCHANT" || resolvedRole === "MARKETER") {
     return getSubscriptionAccess(userId);
   }
 
   const access = await getSubscriptionAccess(userId);
-  if (access.hasFullAccess) return access;
+  if (access.isPaid) return access;
 
   throw new AppError(
-    `Your ${TRIAL_DAYS}-day trial has ended. Upgrade at /pricing to ${feature}.`,
+    `Upgrade at /pricing to ${feature}.`,
     403,
-    "TRIAL_EXPIRED"
+    "SUBSCRIPTION_REQUIRED"
   );
 }
 
 export function hasUnlimitedListingAccess(access: SubscriptionAccess) {
-  return access.hasFullAccess || access.plan === "MAX";
+  return access.plan === "MAX";
 }
