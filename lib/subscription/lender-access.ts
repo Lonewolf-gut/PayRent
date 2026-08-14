@@ -1,8 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors";
 import { getBusinessRules } from "@/lib/services/business-rules.service";
-import { getSubscriptionAccess } from "@/lib/subscription/access";
-import { isPaidPlan } from "@/lib/subscription/plans";
 
 export async function countLenderFinancedProperties(lenderId: string) {
   return prisma.investment.count({
@@ -10,13 +8,7 @@ export async function countLenderFinancedProperties(lenderId: string) {
   });
 }
 
-export async function assertLenderCanFinanceMore(
-  lenderId: string,
-  lenderUserId: string
-) {
-  const access = await getSubscriptionAccess(lenderUserId);
-  if (isPaidPlan(access.plan)) return;
-
+export async function assertLenderCanFinanceMore(lenderId: string) {
   const [rules, financedCount] = await Promise.all([
     getBusinessRules(),
     countLenderFinancedProperties(lenderId),
@@ -24,7 +16,7 @@ export async function assertLenderCanFinanceMore(
 
   if (financedCount >= rules.lenderFreeFinancingLimit) {
     throw new AppError(
-      `Free lenders can finance up to ${rules.lenderFreeFinancingLimit} properties. Subscribe at /pricing for unlimited financing access.`,
+      `You can finance up to ${rules.lenderFreeFinancingLimit} properties on your lender account.`,
       403,
       "LENDER_FINANCING_LIMIT"
     );
@@ -32,7 +24,6 @@ export async function assertLenderCanFinanceMore(
 }
 
 export async function getLenderFinancingAccess(lenderUserId: string) {
-  const access = await getSubscriptionAccess(lenderUserId);
   const rules = await getBusinessRules();
   const lender = await prisma.lender.findUnique({
     where: { userId: lenderUserId },
@@ -43,14 +34,12 @@ export async function getLenderFinancingAccess(lenderUserId: string) {
     ? await countLenderFinancedProperties(lender.id)
     : 0;
 
-  const limit = isPaidPlan(access.plan) ? null : rules.lenderFreeFinancingLimit;
+  const limit = rules.lenderFreeFinancingLimit;
 
   return {
-    plan: access.plan,
-    isPaid: access.isPaid,
     financedCount,
     limit,
-    remaining: limit == null ? null : Math.max(0, limit - financedCount),
-    requiresSubscription: limit != null && financedCount >= limit,
+    remaining: Math.max(0, limit - financedCount),
+    atLimit: financedCount >= limit,
   };
 }

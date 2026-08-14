@@ -25,7 +25,7 @@ function hasActivePaidPlan(plan?: SubscriptionPlan | null, status?: string | nul
 function assertSubscriptionEligibleRole(role: UserRole) {
   if (!roleRequiresSubscription(role)) {
     throw new AppError(
-      "Subscriptions are available for merchant, affiliate, and lender accounts.",
+      "Subscriptions are available for merchant and affiliate accounts.",
       403,
       "SUBSCRIPTION_NOT_AVAILABLE"
     );

@@ -261,10 +261,7 @@ export class FinancingService {
   }
 
   async approveRequest(lenderId: string, input: ApproveFinancingInput) {
-    await assertLenderCanFinanceMore(lenderId, (await prisma.lender.findUniqueOrThrow({
-      where: { id: lenderId },
-      select: { userId: true },
-    })).userId);
+    await assertLenderCanFinanceMore(lenderId);
 
     const rules = await getBusinessRules();
     if (input.interestRate > rules.maxInterestRatePercent) {
@@ -786,8 +783,8 @@ export class FinancingService {
     });
   }
 
-  async getPendingForLender(lenderUserId?: string) {
-    const requests = await prisma.financingRequest.findMany({
+  async getPendingForLender(_lenderUserId?: string) {
+    return prisma.financingRequest.findMany({
       where: { status: { in: ["PENDING", "UNDER_REVIEW", "READY_FOR_LENDER_REVIEW"] } },
       include: {
         tenant: {
@@ -801,16 +798,6 @@ export class FinancingService {
       },
       orderBy: { createdAt: "desc" },
     });
-
-    if (!lenderUserId) return requests;
-
-    const { getLenderFinancingAccess } = await import(
-      "@/lib/subscription/lender-access"
-    );
-    const access = await getLenderFinancingAccess(lenderUserId);
-    if (access.limit == null) return requests;
-
-    return requests.slice(0, access.limit);
   }
 
   async getPendingAdminReview() {
