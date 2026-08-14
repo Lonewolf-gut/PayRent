@@ -7,6 +7,7 @@ import { Navbar } from "@/components/rentvest/navbar";
 import { MarketingSignedInExtras } from "@/components/marketing/marketing-signed-in-extras";
 import { MarketingSubscriptionShell } from "@/components/marketing/marketing-subscription-shell";
 import { MarketingThemeGuard } from "@/components/marketing/marketing-theme-guard";
+import { AgentReferralTracker } from "@/components/properties/agent-referral-tracker";
 
 export default async function MarketingLayout({
   children,
@@ -19,6 +20,7 @@ export default async function MarketingLayout({
   return (
     <MarketingSubscriptionShell>
       <MarketingThemeGuard>
+      <AgentReferralTracker />
       <Navbar />
       <main className="bg-white text-slate-900">{children}</main>
       <MarketingSignedInExtras />
