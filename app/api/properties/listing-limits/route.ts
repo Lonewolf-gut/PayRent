@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import {
+  getAffiliatePlanLimits,
   getPlanLimits,
   getPropertyCategory,
   isUnlimitedPlan,
@@ -10,8 +11,13 @@ import { apiResponse, withAuth } from "@/lib/api/handler";
 export const GET = withAuth(
   async (_req, _ctx, session) => {
     const access = await getSubscriptionAccess(session.user.id);
-    const unlimited = access.hasFullAccess || isUnlimitedPlan(access.plan);
-    const limits = getPlanLimits(access.isPaid ? access.plan : "FREE");
+    const isMarketer = session.user.role === "MARKETER";
+    const unlimited = isMarketer
+      ? isUnlimitedPlan(access.plan)
+      : access.hasFullAccess || isUnlimitedPlan(access.plan);
+    const limits = isMarketer
+      ? getAffiliatePlanLimits(access.isPaid ? access.plan : "FREE")
+      : getPlanLimits(access.isPaid ? access.plan : "FREE");
 
     const usage = { residential: 0, car: 0, appliance: 0, total: 0 };
 

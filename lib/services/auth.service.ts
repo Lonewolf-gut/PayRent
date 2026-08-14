@@ -13,7 +13,6 @@ import {
 import { auditService } from "@/lib/services/audit.service";
 import { AppError } from "@/lib/errors";
 import { getTrialEndDate } from "@/lib/subscription/access";
-import { roleRequiresSubscription } from "@/lib/subscription/roles";
 import type { RegisterInput } from "@/lib/validations/auth";
 import type { UserRole } from "@prisma/client";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
@@ -60,9 +59,7 @@ export class AuthService {
           phone: input.phone,
           passwordHash,
           role: input.role as UserRole,
-          ...(roleRequiresSubscription(input.role as UserRole)
-            ? { trialEndsAt: getTrialEndDate() }
-            : {}),
+          ...(input.role === "MERCHANT" ? { trialEndsAt: getTrialEndDate() } : {}),
         },
       });
 

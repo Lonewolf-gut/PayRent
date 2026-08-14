@@ -5,7 +5,6 @@ import {
   syncPropertyAgentContact,
 } from "@/lib/services/agent-assignment.service";
 import { notificationService } from "@/lib/services/notification.service";
-import { assertPlatformAccess } from "@/lib/subscription/access";
 import { assertAgentAssignmentLimit } from "@/lib/subscription/listing-access";
 
 export class AgentPropertyService {
@@ -34,7 +33,6 @@ export class AgentPropertyService {
         })
       ).id
     );
-    await assertPlatformAccess(agentUserId, "browse listings to promote");
 
     return prisma.property.findMany({
       where: {
@@ -58,8 +56,7 @@ export class AgentPropertyService {
     if (!agent) throw new AppError("Affiliate profile required", 403);
 
     await assertEligibleAgent(agent.id);
-    await assertPlatformAccess(agentUserId, "claim listings to promote");
-    await assertAgentAssignmentLimit(agentUserId);
+    await assertAgentAssignmentLimit(agentUserId, "affiliate");
 
     const property = await prisma.property.findFirst({
       where: {

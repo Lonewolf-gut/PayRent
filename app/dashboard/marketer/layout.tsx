@@ -1,4 +1,5 @@
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { AffiliateLimitsBanner } from "@/components/dashboard/AffiliateLimitsBanner";
 
 const navItems = [
   { href: "/dashboard/marketer", label: "Overview", icon: "Home" as const },
@@ -14,6 +15,7 @@ const navItems = [
 export default function AgentLayout({ children }: { children: React.ReactNode }) {
   return (
     <DashboardShell items={navItems} title="Affiliate">
+      <AffiliateLimitsBanner />
       {children}
     </DashboardShell>
   );

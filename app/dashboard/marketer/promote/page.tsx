@@ -58,6 +58,19 @@ export default function AgentPromotePage() {
     },
   });
 
+  const { data: assignmentLimits } = useQuery({
+    queryKey: ["listing-limits"],
+    queryFn: async () => {
+      const res = await fetch("/api/properties/listing-limits");
+      const json = await res.json();
+      return json.data as {
+        unlimited: boolean;
+        usage: { total: number };
+        limits: { total: number | null } | null;
+      };
+    },
+  });
+
   const { data: referralLinks, isLoading: linksLoading } = useQuery({
     queryKey: ["agent-referral-links"],
     queryFn: async () => {
@@ -68,6 +81,10 @@ export default function AgentPromotePage() {
   });
 
   const promotableListings = useMemo(() => myListings ?? [], [myListings]);
+  const promotionLimit = assignmentLimits?.limits?.total ?? 1;
+  const promotionUsed = assignmentLimits?.usage.total ?? 0;
+  const atPromotionLimit =
+    !assignmentLimits?.unlimited && promotionUsed >= promotionLimit;
 
   const claimMutation = useMutation({
     mutationFn: async (propertyId: string) => {
@@ -81,6 +98,7 @@ export default function AgentPromotePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agent-browse-listings"] });
       queryClient.invalidateQueries({ queryKey: ["agent-listings"] });
+      queryClient.invalidateQueries({ queryKey: ["listing-limits"] });
       toast.success("Listing claimed. You can now create promotion links.");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -155,10 +173,10 @@ export default function AgentPromotePage() {
                 </div>
                 <Button
                   onClick={() => claimMutation.mutate(listing.id)}
-                  disabled={claimMutation.isPending}
+                  disabled={claimMutation.isPending || atPromotionLimit}
                   className="bg-emerald-600 hover:bg-emerald-700"
                 >
-                  Claim to promote
+                  {atPromotionLimit ? "Upgrade to claim more" : "Claim to promote"}
                 </Button>
               </div>
             ))

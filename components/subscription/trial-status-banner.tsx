@@ -8,7 +8,6 @@ import { Clock, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { TRIAL_DAYS } from "@/lib/subscription/pricing";
-import { roleRequiresSubscription } from "@/lib/subscription/roles";
 import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
 
 type SubscriptionAccess = {
@@ -37,7 +36,7 @@ export function TrialStatusBanner({
   const { openUpgrade } = useSubscriptionUpgrade();
   const [dismissed, setDismissed] = useState(false);
   const role = session?.user?.role;
-  const showTrialUi = role ? roleRequiresSubscription(role) : false;
+  const showTrialUi = role === "MERCHANT";
 
   const { data } = useQuery({
     queryKey: ["subscription"],

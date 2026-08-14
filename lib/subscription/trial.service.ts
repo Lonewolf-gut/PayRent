@@ -45,7 +45,7 @@ export async function processExpiredTrials() {
 
   const users = await prisma.user.findMany({
     where: {
-      role: { in: ["MERCHANT", "MARKETER"] },
+      role: "MERCHANT",
       OR: [
         { trialEndsAt: { lte: now } },
         { trialEndsAt: null, createdAt: { lte: legacyCutoff } },

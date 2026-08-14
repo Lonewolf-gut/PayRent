@@ -4,6 +4,7 @@ import { getBusinessRules } from "@/lib/services/business-rules.service";
 import { subscriptionService } from "@/lib/services/subscription.service";
 import { isPaidPlan, normalizeSubscriptionPlan } from "@/lib/subscription/plans";
 import {
+  roleGetsSubscriptionTrial,
   roleHasFreePlatformAccess,
   roleRequiresSubscription,
   roleUsesLenderFinancingLimit,
@@ -78,8 +79,20 @@ export async function loadSubscriptionAccess(userId: string): Promise<Subscripti
     };
   }
 
+  if (role === "MARKETER") {
+    return {
+      plan,
+      isPaid,
+      trialEndsAt: null,
+      trialActive: false,
+      trialExpired: false,
+      hasFullAccess: isPaid,
+      requiresSubscription: true,
+    };
+  }
+
   let trialEndsAt = user?.trialEndsAt ?? null;
-  if (!trialEndsAt && user?.createdAt && requiresSubscription) {
+  if (!trialEndsAt && user?.createdAt && roleGetsSubscriptionTrial(role)) {
     trialEndsAt = await backfillTrialEndsAt(userId, user.createdAt);
   }
 
@@ -132,6 +145,10 @@ export async function assertPlatformAccess(
 
   if (resolvedRole && roleHasFreePlatformAccess(resolvedRole)) {
     return loadSubscriptionAccess(userId);
+  }
+
+  if (resolvedRole === "MARKETER") {
+    return getSubscriptionAccess(userId);
   }
 
   const access = await getSubscriptionAccess(userId);

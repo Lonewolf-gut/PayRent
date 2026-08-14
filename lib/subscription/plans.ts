@@ -44,9 +44,9 @@ export const PLAN_CATALOG: Record<
     highlight: false,
     features: [
       "Merchants: subscription required before listing products",
-      "Affiliates: 1 house, 1 car, 1 appliance (3 total) after trial",
+      "Affiliates: promote 1 listing free, then upgrade for more",
       "Lenders: finance up to 100 properties free",
-      "7-day full-access trial for merchants and affiliates",
+      "7-day full-access trial for merchants",
       "Email support",
     ],
   },
