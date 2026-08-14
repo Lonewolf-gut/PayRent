@@ -1,4 +1,4 @@
-export const AGENT_REFERRAL_COOKIE = "agent_ref";
+export { AGENT_REFERRAL_COOKIE } from "@/lib/constants/agent-referral-cookie";
 
 import { getBusinessRulesSync } from "@/lib/services/business-rules.service";
 
