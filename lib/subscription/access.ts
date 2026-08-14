@@ -6,7 +6,6 @@ import { isPaidPlan, normalizeSubscriptionPlan } from "@/lib/subscription/plans"
 import {
   roleHasFreePlatformAccess,
   roleRequiresSubscription,
-  roleUsesLenderFinancingLimit,
 } from "@/lib/subscription/roles";
 import { TRIAL_DAYS } from "@/lib/subscription/pricing";
 import type { UserRole } from "@prisma/client";
@@ -62,18 +61,6 @@ export async function loadSubscriptionAccess(userId: string): Promise<Subscripti
       trialActive: false,
       trialExpired: false,
       hasFullAccess: true,
-      requiresSubscription: false,
-    };
-  }
-
-  if (roleUsesLenderFinancingLimit(role)) {
-    return {
-      plan,
-      isPaid,
-      trialEndsAt: null,
-      trialActive: false,
-      trialExpired: false,
-      hasFullAccess: isPaid,
       requiresSubscription: false,
     };
   }

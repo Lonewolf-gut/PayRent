@@ -163,17 +163,17 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
       "Track repayments and portfolio performance through the dashboard.",
     ],
     subscription: {
-      headline: "100 properties free, then subscribe",
+      headline: "Free for lenders",
       description:
-        "Lenders can finance up to 100 properties on the free tier. Subscribe to Pro or Max for unlimited financing access across the marketplace.",
+        "Lender accounts are free. Review the full financing queue, approve requests, and track repayments without a monthly subscription.",
       features: [
-        "Finance up to 100 properties free",
-        "Full financing request queue within your limit",
+        "Full financing request queue",
         "Portfolio and repayment reporting",
         "Wallet and settlement tools",
+        "Collaboration with merchants and affiliates",
       ],
       limitedAccess:
-        "After 100 financed properties, subscribe at /pricing for unlimited lender access.",
+        "Lenders can finance up to 100 properties on a single account. Platform fees may apply to specific transactions.",
     },
   },
   agent: {
