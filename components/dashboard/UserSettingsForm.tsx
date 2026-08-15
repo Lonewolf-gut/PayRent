@@ -94,15 +94,27 @@ export default function UserSettingsForm({
     async function loadSettings() {
       try {
         const res = await fetch(settingsApi);
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.message ?? "Unable to load settings");
-        setEmail(json.data.user?.email ?? "");
-        setEmailVerified(Boolean(json.data.user?.emailVerified));
-        setFullName(json.data.user?.fullName ?? "");
-        setImageUrl(json.data.user?.image ?? "");
-        setPreviewUrl(json.data.user?.image ?? "");
-        setBankAccounts(json.data.bankAccounts ?? []);
-        setTwoFactorEnabled(Boolean(json.data.user?.twoFactorEnabled));
+        const json = await readApiJson(res);
+        if (!res.ok || json.success === false) {
+          throw new Error(getApiErrorMessage(json, "Unable to load settings"));
+        }
+        const data = json.data as {
+          user?: {
+            email?: string;
+            emailVerified?: boolean;
+            fullName?: string;
+            image?: string;
+            twoFactorEnabled?: boolean;
+          };
+          bankAccounts?: BankAccount[];
+        };
+        setEmail(data.user?.email ?? "");
+        setEmailVerified(Boolean(data.user?.emailVerified));
+        setFullName(data.user?.fullName ?? "");
+        setImageUrl(data.user?.image ?? "");
+        setPreviewUrl(data.user?.image ?? "");
+        setBankAccounts(data.bankAccounts ?? []);
+        setTwoFactorEnabled(Boolean(data.user?.twoFactorEnabled));
       } catch (error: unknown) {
         toast.error(error instanceof Error ? error.message : String(error));
       }
