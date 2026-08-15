@@ -25,6 +25,17 @@ const nextConfig: NextConfig = {
       { source: "/dashboard/agent/:path*", destination: "/dashboard/marketer/:path*", permanent: true },
     ];
   },
+  async rewrites() {
+    const backendUrl = process.env.INTERNAL_API_URL?.replace(/\/$/, "");
+    if (!backendUrl) return [];
+
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${backendUrl}/api/:path*`,
+      },
+    ];
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb",
