@@ -23,6 +23,7 @@ import {
   isSaleListing,
   type PropertyCategory,
 } from "@/lib/subscription-limits";
+import { resolvePropertyImageDisplayUrl } from "@/lib/utils/property-image-display";
 import type { PropertyType } from "@prisma/client";
 
 function listingIcon(type: string) {
@@ -152,10 +153,13 @@ export default function PropertiesPage() {
               <Card key={property.id} className="gap-1 overflow-hidden py-0 [&_img]:rounded-none">
                 <div className="relative aspect-[4/3] bg-muted sm:aspect-video">
                   <PropertySaveButton propertyId={property.id} />
-                  {property.images?.[0]?.url ? (
+                  {property.images?.[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={property.images[0].url}
+                      src={
+                        property.images[0].displayUrl ??
+                        resolvePropertyImageDisplayUrl(property.images[0])
+                      }
                       alt={property.name}
                       className="h-full w-full object-cover"
                     />
