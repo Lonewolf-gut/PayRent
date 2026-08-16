@@ -42,6 +42,10 @@ export default function VerifyEmailPage() {
 
   const email = session?.user?.email ?? "";
 
+  useEffect(() => {
+    persistAuthReturnUrl(searchParams.get("callbackUrl"));
+  }, [searchParams]);
+
   const applyDelivery = useCallback((data: VerificationDelivery | null | undefined) => {
     if (!data) return;
 

@@ -38,6 +38,10 @@ export default function VerifyPhonePage() {
   const [devCode, setDevCode] = useState<string | null>(null);
   const [smsConfigured, setSmsConfigured] = useState(false);
 
+  useEffect(() => {
+    persistAuthReturnUrl(searchParams.get("callbackUrl"));
+  }, [searchParams]);
+
   const applyDelivery = useCallback((data: PhoneVerificationDelivery | null | undefined) => {
     if (!data) return;
     if (data.phone) setPhone(data.phone);

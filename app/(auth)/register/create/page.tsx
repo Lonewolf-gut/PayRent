@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { signIn } from "next-auth/react";
-import { appendCallbackUrl, resolveAuthReturnUrl } from "@/lib/utils/auth-callback-url";
+import { appendCallbackUrl, buildLoginUrl, resolveAuthReturnUrl } from "@/lib/utils/auth-callback-url";
 import { readApiJson, stripSensitiveQueryParams } from "@/lib/utils/api-message";
 import {
   getPostRegisterSignInErrorMessage,
@@ -42,7 +42,7 @@ const roleLabels: Record<"BUYER" | "MERCHANT" | "MARKETER" | "LENDER", string> =
   LENDER: "investor",
 };
 
-export default function RegisterCreatePage() {
+function RegisterCreatePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialRole = (searchParams.get("role") ?? "BUYER") as
@@ -300,11 +300,22 @@ export default function RegisterCreatePage() {
         </form>
         <p className="mt-6 text-center text-sm text-slate-600">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-emerald-600 hover:underline">
+          <Link
+            href={buildLoginUrl(resolveAuthReturnUrl(searchParams.get("callbackUrl"), false), role)}
+            className="font-medium text-emerald-600 hover:underline"
+          >
             Sign in
           </Link>
         </p>
       </div>
     </AuthSplitLayout>
+  );
+}
+
+export default function RegisterCreatePage() {
+  return (
+    <Suspense fallback={<p className="py-16 text-center text-sm text-muted-foreground">Loading…</p>}>
+      <RegisterCreatePageInner />
+    </Suspense>
   );
 }
