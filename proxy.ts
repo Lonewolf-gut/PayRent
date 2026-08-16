@@ -25,6 +25,7 @@ const publicRoutes = [
   "/faq",
   "/pricing",
   "/r",
+  "/referral",
   "/api/auth",
   "/api/properties",
   "/api/subscriptions/plans",
@@ -115,7 +116,8 @@ export async function proxy(req: NextRequest) {
   }
 
   if (!isPublic && !isLoggedIn) {
-    const callbackUrl = encodeURIComponent(pathname);
+    const callbackPath = `${pathname}${nextUrl.search || ""}`;
+    const callbackUrl = encodeURIComponent(callbackPath);
     const loginPath = pathname.startsWith("/admin")
       ? "/admin/login"
       : pathname.startsWith("/compliance")

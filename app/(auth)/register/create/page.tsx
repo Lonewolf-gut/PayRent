@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { signIn } from "next-auth/react";
+import { appendCallbackUrl, resolveAuthReturnUrl } from "@/lib/utils/auth-callback-url";
 import { readApiJson, stripSensitiveQueryParams } from "@/lib/utils/api-message";
 import {
   getPostRegisterSignInErrorMessage,
@@ -121,7 +122,8 @@ export default function RegisterCreatePage() {
         id: toastId,
       });
       sessionStorage.setItem("fresh-dashboard-login", "1");
-      router.push("/verify-email");
+      const returnUrl = resolveAuthReturnUrl(searchParams.get("callbackUrl"), false);
+      router.push(appendCallbackUrl("/verify-email", returnUrl));
       router.refresh();
     } catch {
       toast.error("Something went wrong while creating your account. Please try again.", {

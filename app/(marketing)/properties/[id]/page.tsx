@@ -25,7 +25,8 @@ import { PropertyLocationSheet, PropertyLocationTrigger } from "@/components/pro
 import { PropertySpecsGrid } from "@/components/properties/property-specs-grid";
 import { SimilarPropertiesSection } from "@/components/properties/similar-properties";
 import { PropertyActionPanel } from "@/components/properties/property-action-panel";
-import { AgentReferralTracker } from "@/components/properties/agent-referral-tracker";
+import { useAuthReturnPath } from "@/hooks/use-auth-return-path";
+import { buildLoginUrl, buildRegisterUrl } from "@/lib/utils/auth-callback-url";
 import { buildPropertySpecs } from "@/lib/utils/property-specs";
 import { isEmploymentRecorded } from "@/lib/constants/employment-status";
 import { isSaleListing } from "@/lib/subscription-limits";
@@ -38,6 +39,7 @@ import {
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const returnPath = useAuthReturnPath();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
@@ -177,7 +179,6 @@ export default function PropertyDetailPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-      <AgentReferralTracker />
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <PropertyImageGallery images={images} title={property.name} />
@@ -372,9 +373,14 @@ export default function PropertyDetailPage() {
                 <p className="mb-4 text-sm text-muted-foreground">
                   Sign in to buy with wallet, apply, or request financing for this listing.
                 </p>
-                <Button asChild className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700">
-                  <Link href="/login">Sign in</Link>
-                </Button>
+                <div className="flex flex-col gap-2">
+                  <Button asChild className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700">
+                    <Link href={buildLoginUrl(returnPath, "BUYER")}>Sign in</Link>
+                  </Button>
+                  <Button asChild variant="outline" className="w-full rounded-none">
+                    <Link href={buildRegisterUrl(returnPath)}>Create account</Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
