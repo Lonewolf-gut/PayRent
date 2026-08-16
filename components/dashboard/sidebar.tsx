@@ -102,9 +102,11 @@ export function SidebarNavContent({
         </div>
       ) : null}
       <div className="px-4 py-4">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {title}
-        </p>
+        {title ? (
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {title}
+          </p>
+        ) : null}
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-6">
         {items.map((item) => {
