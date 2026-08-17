@@ -41,7 +41,7 @@ export function KycDocumentUploadField({
         onClick={() => inputRef.current?.click()}
       >
         <Upload className="h-4 w-4" />
-        {file ? "Change file" : label}
+        {file ? `Change file — ${label}` : label}
       </Button>
       {file ? (
         <p className="text-xs text-muted-foreground">Selected: {file.name}</p>

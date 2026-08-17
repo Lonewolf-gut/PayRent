@@ -157,6 +157,8 @@ export function UserKycForm({
   const [employmentLetter, setEmploymentLetter] = useState<File | null>(null);
   const [staffIdDocument, setStaffIdDocument] = useState<File | null>(null);
   const [addressProof, setAddressProof] = useState<File | null>(null);
+  const [idNumberError, setIdNumberError] = useState<string | null>(null);
+  const [ssnitNumberError, setSsnitNumberError] = useState<string | null>(null);
   const [billType, setBillType] = useState<
     "ELECTRICITY" | "WATER" | "LANDLINE" | "INTERNET"
   >("ELECTRICITY");
@@ -641,17 +643,32 @@ export function UserKycForm({
                         <Label>SSNIT number</Label>
                         <Input
                           value={profile.ssnitNumber}
-                          onChange={(e) =>
-                            setProfile({ ...profile, ssnitNumber: e.target.value })
-                          }
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setProfile({ ...profile, ssnitNumber: value });
+                            if (!value.trim()) {
+                              setSsnitNumberError(null);
+                              return;
+                            }
+                            setSsnitNumberError(validateSsnitNumber(value));
+                          }}
+                          onBlur={() => {
+                            if (!profile.ssnitNumber.trim()) return;
+                            setSsnitNumberError(validateSsnitNumber(profile.ssnitNumber));
+                          }}
                           placeholder={SSNIT_NUMBER_FORMAT.placeholder}
                           maxLength={SSNIT_NUMBER_FORMAT.exactLength}
+                          aria-invalid={Boolean(ssnitNumberError)}
                         />
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Must be exactly {SSNIT_NUMBER_FORMAT.exactLength} characters (1 letter +
-                          12 digits). You will also upload your SSNIT document in the employment
-                          verification step.
-                        </p>
+                        {ssnitNumberError ? (
+                          <p className="mt-1 text-xs text-destructive">{ssnitNumberError}</p>
+                        ) : (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Must be exactly {SSNIT_NUMBER_FORMAT.exactLength} characters (1 letter +
+                            12 digits). You will also upload your SSNIT document in the employment
+                            verification step.
+                          </p>
+                        )}
                       </div>
                     </>
                   ) : null}
@@ -717,43 +734,61 @@ export function UserKycForm({
                 <Label>SSNIT number</Label>
                 <Input
                   value={profile.ssnitNumber}
-                  onChange={(e) =>
-                    setProfile({ ...profile, ssnitNumber: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setProfile({ ...profile, ssnitNumber: value });
+                    if (!value.trim()) {
+                      setSsnitNumberError(null);
+                      return;
+                    }
+                    setSsnitNumberError(validateSsnitNumber(value));
+                  }}
+                  onBlur={() => {
+                    if (!profile.ssnitNumber.trim()) {
+                      setSsnitNumberError("SSNIT number is required for employed users.");
+                      return;
+                    }
+                    setSsnitNumberError(validateSsnitNumber(profile.ssnitNumber));
+                  }}
                   placeholder={SSNIT_NUMBER_FORMAT.placeholder}
                   maxLength={SSNIT_NUMBER_FORMAT.exactLength}
                   disabled={employmentVerified || employmentPending}
+                  aria-invalid={Boolean(ssnitNumberError)}
                 />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Must be exactly {SSNIT_NUMBER_FORMAT.exactLength} characters (1 letter + 12
-                  digits).
-                </p>
+                {ssnitNumberError ? (
+                  <p className="mt-1 text-xs text-destructive">{ssnitNumberError}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Must be exactly {SSNIT_NUMBER_FORMAT.exactLength} characters (1 letter + 12
+                    digits) — not fewer or more.
+                  </p>
+                )}
               </div>
               <div className="sm:col-span-2">
-                <Label>Employment letter</Label>
-                <Input
-                  type="file"
+                <KycDocumentUploadField
+                  label="Upload employment letter"
                   accept="image/*,.pdf"
                   disabled={employmentVerified || employmentPending}
-                  onChange={(e) => setEmploymentLetter(e.target.files?.[0] ?? null)}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label>Staff ID document</Label>
-                <Input
-                  type="file"
-                  accept="image/*,.pdf"
-                  disabled={employmentVerified || employmentPending}
-                  onChange={(e) => setStaffIdDocument(e.target.files?.[0] ?? null)}
+                  file={employmentLetter}
+                  onChange={setEmploymentLetter}
                 />
               </div>
               <div className="sm:col-span-2">
-                <Label>SSNIT registration document</Label>
-                <Input
-                  type="file"
+                <KycDocumentUploadField
+                  label="Upload staff ID document"
                   accept="image/*,.pdf"
                   disabled={employmentVerified || employmentPending}
-                  onChange={(e) => setSsnitDocument(e.target.files?.[0] ?? null)}
+                  file={staffIdDocument}
+                  onChange={setStaffIdDocument}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <KycDocumentUploadField
+                  label="Upload SSNIT registration document"
+                  accept="image/*,.pdf"
+                  disabled={employmentVerified || employmentPending}
+                  file={ssnitDocument}
+                  onChange={setSsnitDocument}
                 />
               </div>
               <Button
@@ -764,7 +799,8 @@ export function UserKycForm({
                   employmentMutation.isPending ||
                   !profileComplete ||
                   !profile.staffId.trim() ||
-                  !profile.ssnitNumber.trim()
+                  !profile.ssnitNumber.trim() ||
+                  Boolean(ssnitNumberError)
                 }
                 onClick={() => employmentMutation.mutate()}
               >
@@ -951,13 +987,14 @@ export function UserKycForm({
                   <Label>Document type</Label>
                   <Select
                     value={identity.documentType}
-                    onValueChange={(value) =>
+                    onValueChange={(value) => {
                       setIdentity({
                         ...identity,
                         documentType: value as DocumentType,
                         idNumber: "",
-                      })
-                    }
+                      });
+                      setIdNumberError(null);
+                    }}
                     disabled={identityVerified || verificationPending}
                   >
                     <SelectTrigger>
@@ -978,15 +1015,40 @@ export function UserKycForm({
                     placeholder={ID_DOCUMENT_FORMATS[identity.documentType].placeholder}
                     value={identity.idNumber}
                     maxLength={ID_DOCUMENT_FORMATS[identity.documentType].exactLength}
-                    onChange={(e) =>
-                      setIdentity({ ...identity, idNumber: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setIdentity({ ...identity, idNumber: value });
+                      if (!value.trim()) {
+                        setIdNumberError(null);
+                        return;
+                      }
+                      setIdNumberError(
+                        validateIdentityDocumentNumber(identity.documentType, value)
+                      );
+                    }}
+                    onBlur={() => {
+                      if (!identity.idNumber.trim()) {
+                        setIdNumberError("Enter your ID number before submitting.");
+                        return;
+                      }
+                      setIdNumberError(
+                        validateIdentityDocumentNumber(
+                          identity.documentType,
+                          identity.idNumber
+                        )
+                      );
+                    }}
                     disabled={identityVerified || verificationPending}
+                    aria-invalid={Boolean(idNumberError)}
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Must be exactly {ID_DOCUMENT_FORMATS[identity.documentType].exactLength}{" "}
-                    characters.
-                  </p>
+                  {idNumberError ? (
+                    <p className="mt-1 text-xs text-destructive">{idNumberError}</p>
+                  ) : (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Must be exactly {ID_DOCUMENT_FORMATS[identity.documentType].exactLength}{" "}
+                      characters — not fewer or more.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label>Full name (as on ID)</Label>
@@ -1062,7 +1124,8 @@ export function UserKycForm({
                 identityVerified ||
                 verificationPending ||
                 verificationMutation.isPending ||
-                !profileComplete
+                !profileComplete ||
+                Boolean(idNumberError)
               }
               onClick={() => verificationMutation.mutate()}
             >

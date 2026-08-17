@@ -3,7 +3,6 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 const navItems = [
   { href: "/dashboard/buyer", label: "Overview", icon: "Home" as const },
   { href: "/dashboard/buyer/kyc", label: "Profile & KYC", icon: "Shield" as const },
-  { href: "/dashboard/buyer/applications", label: "Applications", icon: "FileText" as const },
   { href: "/dashboard/buyer/financing-documents", label: "Financing Docs", icon: "FileText" as const },
   { href: "/dashboard/buyer/properties", label: "Properties", icon: "Building2" as const },
   { href: "/dashboard/buyer/financing", label: "Pay for Rent", icon: "CreditCard" as const },

@@ -3,8 +3,14 @@ import { z } from "zod";
 import { twoFactorService } from "@/lib/services/two-factor.service";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 
-export const GET = withAuth(async (_req, _ctx, session) => {
+export const GET = withAuth(async (req: NextRequest, _ctx, session) => {
   const status = await twoFactorService.getStatus(session.user.id);
+
+  if (req.nextUrl.searchParams.get("resume") === "1" && status.pendingSetup) {
+    const resume = await twoFactorService.resumeSetup(session.user.id, session.user.email);
+    return apiResponse({ ...status, ...resume });
+  }
+
   return apiResponse(status);
 });
 

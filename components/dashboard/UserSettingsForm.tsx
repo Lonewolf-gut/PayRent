@@ -123,10 +123,16 @@ export default function UserSettingsForm({
     async function loadTwoFactorStatus() {
       try {
         const res = await fetch("/api/auth/2fa");
-        const json = await res.json();
+        const json = await readApiJson(res);
         if (!res.ok || !json.success) return;
-        setTwoFactorEnabled(Boolean(json.data?.enabled));
-        setTwoFaPending(Boolean(json.data?.pendingSetup));
+        const data = json.data as {
+          enabled?: boolean;
+          pendingSetup?: boolean;
+          otpauthUrl?: string;
+          secret?: string;
+        };
+        setTwoFactorEnabled(Boolean(data?.enabled));
+        setTwoFaPending(Boolean(data?.pendingSetup));
       } catch {
         // Non-blocking; settings payload may still include enabled flag.
       }
@@ -469,8 +475,42 @@ export default function UserSettingsForm({
     await startTwoFactorSetup();
   }
 
+  async function resumeTwoFactorSetup() {
+    setTwoFaLoading(true);
+    try {
+      const res = await fetch("/api/auth/2fa?resume=1");
+      const json = await readApiJson(res);
+      if (!res.ok || !json.success) {
+        throw new Error(
+          getApiErrorMessage(
+            json,
+            "Could not resume 2FA setup. Confirm the backend is running and ENCRYPTION_KEY is set."
+          )
+        );
+      }
+      const otpauthUrl = json.data?.otpauthUrl as string | undefined;
+      const secret = json.data?.secret as string | undefined;
+      if (!otpauthUrl || !secret) {
+        throw new Error("2FA setup could not be resumed. Try enabling 2FA again.");
+      }
+      setTwoFaOtpauthUrl(otpauthUrl);
+      setTwoFaSecret(secret);
+      setTwoFaPending(true);
+      setTwoFaToken("");
+      setTwoFaDialogOpen(true);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setTwoFaLoading(false);
+    }
+  }
+
   async function handleContinue2FaSetup() {
-    await startTwoFactorSetup();
+    if (twoFaOtpauthUrl && twoFaSecret) {
+      setTwoFaDialogOpen(true);
+      return;
+    }
+    await resumeTwoFactorSetup();
   }
 
   async function handleVerify2Fa() {
