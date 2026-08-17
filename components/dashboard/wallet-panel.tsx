@@ -90,6 +90,15 @@ export function WalletPanel({
     },
   });
 
+  const { data: paymentConfig } = useQuery({
+    queryKey: ["payment-config"],
+    queryFn: async () => {
+      const res = await fetch("/api/payments/config");
+      const json = await res.json();
+      return json.data as { isDemo?: boolean; demoProviderLabel?: string };
+    },
+  });
+
   const { data: bankAccounts = [] } = useQuery({
     queryKey: ["settings-bank-accounts", settingsApiPath],
     queryFn: async () => {
@@ -257,6 +266,16 @@ export function WalletPanel({
           .
         </p>
       </div>
+
+      {paymentConfig?.isDemo && showWithdraw ? (
+        <div className="rounded-none border border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-950">
+          <p className="font-medium">{paymentConfig.demoProviderLabel ?? "Demo payouts"}</p>
+          <p className="mt-1 text-muted-foreground">
+            Affiliate and merchant withdrawals to MoMo or bank are simulated instantly in demo mode
+            after OTP and 2FA — no live payout API required.
+          </p>
+        </div>
+      ) : null}
 
       <Card>
         <CardContent className="pt-6">

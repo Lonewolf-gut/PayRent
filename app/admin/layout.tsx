@@ -32,6 +32,8 @@ const navItems = [
 
   { href: "/admin/financing", label: "Financing", icon: "TrendingUp" as const },
 
+  { href: "/admin/financing/demo", label: "Financing demo", icon: "BarChart3" as const },
+
   { href: "/admin/settlements", label: "Settlements", icon: "DollarSign" as const },
 
   { href: "/admin/withdrawals", label: "Withdrawals", icon: "Wallet" as const },

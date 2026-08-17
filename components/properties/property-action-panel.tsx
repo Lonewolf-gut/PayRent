@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
-import { Wallet, CreditCard, MessageSquare, ShieldAlert } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { CreditCard, ShieldAlert, ShoppingBag, Wallet, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -78,6 +78,17 @@ export function PropertyActionPanel({
   const [preferredPaymentDay, setPreferredPaymentDay] = useState("1");
   const [contactPhone, setContactPhone] = useState("");
 
+  const { data: paymentConfig } = useQuery({
+    queryKey: ["payment-config"],
+    queryFn: async () => {
+      const res = await fetch("/api/payments/config");
+      const json = await res.json();
+      return json.data as { usesCheckoutForListings?: boolean; demoProviderLabel?: string };
+    },
+  });
+
+  const usesCheckout = Boolean(paymentConfig?.usesCheckoutForListings);
+
   const applyMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/applications", {
@@ -131,6 +142,21 @@ export function PropertyActionPanel({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const checkoutMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/properties/${propertyId}/checkout`, { method: "POST" });
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error(json.message ?? json.data?.error ?? "Checkout failed");
+      }
+      return json.data.checkout as { checkoutUrl: string };
+    },
+    onSuccess: (checkout) => {
+      router.push(checkout.checkoutUrl);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const purchaseMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/properties/${propertyId}/purchase`, { method: "POST" });
@@ -159,26 +185,43 @@ export function PropertyActionPanel({
         <Card className="rounded-none">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Wallet className="size-5" />
-              Buy with wallet
+              {usesCheckout ? (
+                <ShoppingBag className="size-5" />
+              ) : (
+                <Wallet className="size-5" />
+              )}
+              {usesCheckout ? "Buy with checkout" : "Buy with wallet"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Pay GHS {purchasePrice.toLocaleString()} directly from your wallet.
+              Pay GHS {purchasePrice.toLocaleString()}{" "}
+              {usesCheckout
+                ? `through ${paymentConfig?.demoProviderLabel ?? "PayForMe Checkout"}. Funds settle to the platform admin account, then the merchant is paid.`
+                : "directly from your wallet."}
             </p>
-            <p className="text-sm">
-              Balance:{" "}
-              <span className="font-semibold text-emerald-700">
-                GHS {walletBalance.toLocaleString()}
-              </span>
-            </p>
+            {!usesCheckout ? (
+              <p className="text-sm">
+                Balance:{" "}
+                <span className="font-semibold text-emerald-700">
+                  GHS {walletBalance.toLocaleString()}
+                </span>
+              </p>
+            ) : null}
             <Button
               className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
-              disabled={purchaseMutation.isPending}
-              onClick={() => purchaseMutation.mutate()}
+              disabled={usesCheckout ? checkoutMutation.isPending : purchaseMutation.isPending}
+              onClick={() =>
+                usesCheckout ? checkoutMutation.mutate() : purchaseMutation.mutate()
+              }
             >
-              {purchaseMutation.isPending ? "Processing..." : "Buy now"}
+              {usesCheckout
+                ? checkoutMutation.isPending
+                  ? "Starting checkout…"
+                  : "Continue to checkout"
+                : purchaseMutation.isPending
+                  ? "Processing..."
+                  : "Buy now"}
             </Button>
           </CardContent>
         </Card>

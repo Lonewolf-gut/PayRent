@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,6 +58,9 @@ export default function AdminFinancingPage() {
         <p className="text-sm text-muted-foreground">
           {data?.pendingCount ?? 0} pending review · {data?.total ?? 0} in current filter
         </p>
+        <Button asChild size="sm" variant="outline" className="mt-3 rounded-none">
+          <Link href="/admin/financing/demo">Open financing demo walkthrough</Link>
+        </Button>
       </div>
       <div className="flex flex-wrap gap-2">
         {[
