@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import { notificationService } from "@/lib/services/notification.service";
 import { auditService } from "@/lib/services/audit.service";
 import { AppError } from "@/lib/errors";
+import { isDemoMode } from "@/lib/config/demo";
 import type { CreateApplicationInput, ReviewApplicationInput } from "@/lib/validations/application";
 
 export class ApplicationService {
@@ -39,7 +40,7 @@ export class ApplicationService {
         propertyId: input.propertyId,
         tenantId,
         referredAgentProfileId: referredAgentProfileId ?? undefined,
-        status: "SUBMITTED",
+        status: isDemoMode() ? "APPROVED" : "SUBMITTED",
         requestedMoveInDate: input.requestedMoveInDate
           ? new Date(input.requestedMoveInDate)
           : undefined,

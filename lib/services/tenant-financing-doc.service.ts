@@ -10,6 +10,7 @@ import {
   notifyAllAdminsInAppAndEmail,
   notifyUserInAppAndEmail,
 } from "@/lib/services/verification-notifications";
+import { isDemoMode } from "@/lib/config/demo";
 
 export class TenantFinancingDocService {
   async listForTenant(userId: string) {
@@ -59,6 +60,7 @@ export class TenantFinancingDocService {
     }
 
     const fileUrl = await saveFinancingDocument(file, userId);
+    const autoApprove = isDemoMode();
     const doc = await prisma.tenantFinancingDocument.upsert({
       where: {
         tenantId_documentType: { tenantId: tenant.id, documentType },
@@ -68,14 +70,15 @@ export class TenantFinancingDocService {
         documentType,
         fileName: file.name,
         fileUrl,
-        status: "PENDING",
+        status: autoApprove ? "APPROVED" : "PENDING",
+        reviewedAt: autoApprove ? new Date() : undefined,
       },
       update: {
         fileName: file.name,
         fileUrl,
-        status: "PENDING",
+        status: autoApprove ? "APPROVED" : "PENDING",
         reviewNotes: null,
-        reviewedAt: null,
+        reviewedAt: autoApprove ? new Date() : null,
         reviewedBy: null,
       },
     });

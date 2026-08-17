@@ -20,6 +20,7 @@ import {
   type RepaymentPreference,
 } from "@/lib/services/eligibility.service";
 import { repaymentService } from "@/lib/services/repayment.service";
+import { isDemoMode } from "@/lib/config/demo";
 
 export class FinancingService {
   private async assertEligibility(tenantId: string) {
@@ -31,7 +32,7 @@ export class FinancingService {
     const verifiedBank = await prisma.bankAccount.findFirst({
       where: { userId: tenant.userId, isVerified: true },
     });
-    if (!verifiedBank) {
+    if (!verifiedBank && !isDemoMode()) {
       throw new AppError("Add and validate a bank account before requesting financing", 400);
     }
 
