@@ -107,7 +107,7 @@ export const DEMO_CAR_LISTINGS: DemoListingSeed[] = [
     description:
       "Demo listing — nearly new Nissan Sentra 2022 with manufacturer service records.",
     amenities: ["Automatic", "AC", "Apple CarPlay", "Lane assist"],
-    imageUrl: demoImage("photo-1558618666-fcd25c85cd64"),
+    imageUrl: demoImage("photo-1555215695-3004980ad54e"),
     stockQuantity: 1,
     deliveryTerms: "Ships from Takoradi within 5 days.",
     attributes: { make: "Nissan", model: "Sentra", year: 2022, mileageKm: 15000 },
