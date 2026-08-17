@@ -10,7 +10,6 @@ import {
   notifyAllAdminsInAppAndEmail,
   notifyUserInAppAndEmail,
 } from "@/lib/services/verification-notifications";
-import { isDemoMode } from "@/lib/config/demo";
 
 export class TenantFinancingDocService {
   async listForTenant(userId: string) {
@@ -60,7 +59,6 @@ export class TenantFinancingDocService {
     }
 
     const fileUrl = await saveFinancingDocument(file, userId);
-    const autoApprove = isDemoMode();
     const doc = await prisma.tenantFinancingDocument.upsert({
       where: {
         tenantId_documentType: { tenantId: tenant.id, documentType },
@@ -70,15 +68,14 @@ export class TenantFinancingDocService {
         documentType,
         fileName: file.name,
         fileUrl,
-        status: autoApprove ? "APPROVED" : "PENDING",
-        reviewedAt: autoApprove ? new Date() : undefined,
+        status: "PENDING",
       },
       update: {
         fileName: file.name,
         fileUrl,
-        status: autoApprove ? "APPROVED" : "PENDING",
+        status: "PENDING",
         reviewNotes: null,
-        reviewedAt: autoApprove ? new Date() : null,
+        reviewedAt: null,
         reviewedBy: null,
       },
     });
@@ -172,33 +169,56 @@ export class TenantFinancingDocService {
         : `Your ${FINANCING_DOC_LABELS[doc.documentType as TenantFinancingDocType]} was rejected.${reviewNotes ? ` Note: ${reviewNotes}` : ""}`
     );
 
+    if (status === "APPROVED") {
+      const { financingService } = await import("@/lib/services/financing.service");
+      await financingService.tryActivatePendingRequests(doc.tenantId);
+    }
+
     return doc;
   }
 
   async assertFinancingDocsApproved(tenantId: string) {
-    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant) throw new AppError("Customer profile required", 403);
+    const approved = await this.areFinancingDocsApproved(tenantId);
+    if (!approved) {
+      const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+      if (!tenant) throw new AppError("Customer profile required", 403);
 
-    const requiredTypes = getRequiredFinancingDocTypes(tenant.entityType);
-    const docs = await prisma.tenantFinancingDocument.findMany({
-      where: { tenantId },
-    });
+      const requiredTypes = getRequiredFinancingDocTypes(tenant.entityType);
+      const docs = await prisma.tenantFinancingDocument.findMany({
+        where: { tenantId },
+      });
 
-    const missing = requiredTypes.filter(
-      (type) =>
-        !docs.some(
-          (doc: TenantFinancingDocument) =>
-            doc.documentType === type && doc.status === "APPROVED"
-        )
-    );
+      const missing = requiredTypes.filter(
+        (type) =>
+          !docs.some(
+            (doc: TenantFinancingDocument) =>
+              doc.documentType === type && doc.status === "APPROVED"
+          )
+      );
 
-    if (missing.length > 0) {
       throw new AppError(
         `Upload and get admin approval for: ${missing.map((t) => FINANCING_DOC_LABELS[t]).join(", ")}`,
         400,
         "FINANCING_DOCS_REQUIRED"
       );
     }
+  }
+
+  async areFinancingDocsApproved(tenantId: string) {
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) return false;
+
+    const requiredTypes = getRequiredFinancingDocTypes(tenant.entityType);
+    const docs = await prisma.tenantFinancingDocument.findMany({
+      where: { tenantId },
+    });
+
+    return requiredTypes.every((type) =>
+      docs.some(
+        (doc: TenantFinancingDocument) =>
+          doc.documentType === type && doc.status === "APPROVED"
+      )
+    );
   }
 }
 
