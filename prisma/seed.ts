@@ -1,5 +1,6 @@
 import { PrismaClient, type UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDemoCategoryListings } from "./demo-listings";
 
 const prisma = new PrismaClient();
 
@@ -241,6 +242,8 @@ async function main() {
     });
   }
 
+  const demoListingResults = await seedDemoCategoryListings(prisma, landlord.id);
+
   console.log("Seed completed:", {
     admin: admin.email,
     buyer: tenantUser.email,
@@ -249,6 +252,9 @@ async function main() {
     lender: lenderUser.email,
     compliance: complianceUser.email,
   });
+  console.log(
+    `Demo category listings: ${demoListingResults.length} (5 cars + 5 appliances, prefixed [Demo])`
+  );
   console.log("Demo password for all: Password123!");
 }
 
