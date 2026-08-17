@@ -28,6 +28,13 @@ import {
   requiresEmploymentDocuments,
 } from "@/lib/constants/employment-status";
 import { SecureFileLink } from "@/components/shared/secure-file-link";
+import { KycDocumentUploadField } from "@/components/dashboard/kyc-document-upload-field";
+import {
+  ID_DOCUMENT_FORMATS,
+  SSNIT_NUMBER_FORMAT,
+  validateIdentityDocumentNumber,
+  validateSsnitNumber,
+} from "@/lib/constants/identity-document-formats";
 import { toast } from "sonner";
 
 const PROFILE_COMPLETE_STATUSES = new Set([
@@ -103,13 +110,6 @@ const DOCUMENT_LABELS: Record<DocumentType, string> = {
   VOTER_ID: "Voter ID",
   PASSPORT: "Passport",
   DRIVERS_LICENSE: "Driver's licence",
-};
-
-const ID_PLACEHOLDERS: Record<DocumentType, string> = {
-  GHANA_CARD: "GHA-123456789-1",
-  VOTER_ID: "1234567890",
-  PASSPORT: "G1234567",
-  DRIVERS_LICENSE: "V1234567",
 };
 
 type KycDocument = {
@@ -206,7 +206,9 @@ export function UserKycForm({
           payload.staffId = profile.staffId;
         }
         if (profile.ssnitNumber.trim() && employmentStatus === "EMPLOYED") {
-          payload.ssnitNumber = profile.ssnitNumber;
+          const ssnitError = validateSsnitNumber(profile.ssnitNumber);
+          if (ssnitError) throw new Error(ssnitError);
+          payload.ssnitNumber = profile.ssnitNumber.trim();
         }
       }
 
@@ -248,6 +250,8 @@ export function UserKycForm({
       if (!employmentLetter || !staffIdDocument || !ssnitDocument) {
         throw new Error("Employment letter, staff ID document, and SSNIT document are required.");
       }
+      const ssnitError = validateSsnitNumber(profile.ssnitNumber);
+      if (ssnitError) throw new Error(ssnitError);
       formData.append("employmentLetter", employmentLetter);
       formData.append("staffIdDocument", staffIdDocument);
       formData.append("ssnitDocument", ssnitDocument);
@@ -329,15 +333,11 @@ export function UserKycForm({
         if (!identity.idNumber.trim()) {
           throw new Error("Enter your ID number before submitting.");
         }
-        if (identity.idNumber.trim().length < 3) {
-          throw new Error("ID number must be at least 3 characters.");
-        }
-        if (
-          identity.documentType === "GHANA_CARD" &&
-          !/^GHA-\d{9}-\d$/.test(identity.idNumber.trim())
-        ) {
-          throw new Error("Ghana Card number must match GHA-XXXXXXXXX-X.");
-        }
+        const idError = validateIdentityDocumentNumber(
+          identity.documentType,
+          identity.idNumber
+        );
+        if (idError) throw new Error(idError);
         if (identity.documentType === "DRIVERS_LICENSE" && !identity.dateOfBirth) {
           throw new Error("Date of birth is required for driver's licence verification.");
         }
@@ -644,11 +644,13 @@ export function UserKycForm({
                           onChange={(e) =>
                             setProfile({ ...profile, ssnitNumber: e.target.value })
                           }
-                          placeholder="Enter your SSNIT membership number"
+                          placeholder={SSNIT_NUMBER_FORMAT.placeholder}
+                          maxLength={SSNIT_NUMBER_FORMAT.exactLength}
                         />
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Required for employed users. You will also submit an SSNIT registration
-                          document in the employment verification step.
+                          Must be exactly {SSNIT_NUMBER_FORMAT.exactLength} characters (1 letter +
+                          12 digits). You will also upload your SSNIT document in the employment
+                          verification step.
                         </p>
                       </div>
                     </>
@@ -718,8 +720,14 @@ export function UserKycForm({
                   onChange={(e) =>
                     setProfile({ ...profile, ssnitNumber: e.target.value })
                   }
+                  placeholder={SSNIT_NUMBER_FORMAT.placeholder}
+                  maxLength={SSNIT_NUMBER_FORMAT.exactLength}
                   disabled={employmentVerified || employmentPending}
                 />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Must be exactly {SSNIT_NUMBER_FORMAT.exactLength} characters (1 letter + 12
+                  digits).
+                </p>
               </div>
               <div className="sm:col-span-2">
                 <Label>Employment letter</Label>
@@ -967,13 +975,18 @@ export function UserKycForm({
                 <div>
                   <Label>{DOCUMENT_LABELS[identity.documentType]} number</Label>
                   <Input
-                    placeholder={ID_PLACEHOLDERS[identity.documentType]}
+                    placeholder={ID_DOCUMENT_FORMATS[identity.documentType].placeholder}
                     value={identity.idNumber}
+                    maxLength={ID_DOCUMENT_FORMATS[identity.documentType].exactLength}
                     onChange={(e) =>
                       setIdentity({ ...identity, idNumber: e.target.value })
                     }
                     disabled={identityVerified || verificationPending}
                   />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Must be exactly {ID_DOCUMENT_FORMATS[identity.documentType].exactLength}{" "}
+                    characters.
+                  </p>
                 </div>
                 <div>
                   <Label>Full name (as on ID)</Label>
@@ -999,30 +1012,30 @@ export function UserKycForm({
                   </div>
                 ) : null}
                 <div>
-                  <Label>ID front photo</Label>
-                  <Input
-                    type="file"
+                  <KycDocumentUploadField
+                    label="Upload ID front photo"
                     accept="image/*"
                     disabled={identityVerified || verificationPending}
-                    onChange={(e) => setIdFront(e.target.files?.[0] ?? null)}
+                    file={idFront}
+                    onChange={setIdFront}
                   />
                 </div>
                 <div>
-                  <Label>ID back photo</Label>
-                  <Input
-                    type="file"
+                  <KycDocumentUploadField
+                    label="Upload ID back photo"
                     accept="image/*"
                     disabled={identityVerified || verificationPending}
-                    onChange={(e) => setIdBack(e.target.files?.[0] ?? null)}
+                    file={idBack}
+                    onChange={setIdBack}
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <Label>Face photo (selfie)</Label>
-                  <Input
-                    type="file"
+                  <KycDocumentUploadField
+                    label="Upload face photo (selfie)"
                     accept="image/*"
                     disabled={identityVerified || verificationPending}
-                    onChange={(e) => setFacePhoto(e.target.files?.[0] ?? null)}
+                    file={facePhoto}
+                    onChange={setFacePhoto}
                   />
                 </div>
               </div>

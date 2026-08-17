@@ -1,11 +1,66 @@
 import type { NextConfig } from "next";
+import { getBackendApiBaseUrl } from "./lib/utils/backend-api-url";
 
-const isProductionBuild = process.env.npm_lifecycle_event === "build";
-const isWindowsDev = process.platform === "win32" && !isProductionBuild;
+const lifecycle = process.env.npm_lifecycle_event ?? "";
+const isDevLifecycle =
+  lifecycle === "dev" || lifecycle === "dev:turbo" || lifecycle === "dev:webpack";
+const isProductionBuild = lifecycle === "build";
+const isWindowsDev = process.platform === "win32" && isDevLifecycle;
 const turboFsCacheEnabled = process.env.TURBOPACK_FS_CACHE === "1";
 
+function cdnRemotePatterns() {
+  const urls = [
+    process.env.S3_PUBLIC_URL,
+    process.env.NEXT_PUBLIC_S3_PUBLIC_URL,
+    process.env.NEXT_PUBLIC_CDN_URL,
+  ].filter(Boolean) as string[];
+
+  const patterns: Array<{
+    protocol: "https" | "http";
+    hostname: string;
+    port?: string;
+    pathname?: string;
+  }> = [];
+
+  for (const raw of urls) {
+    try {
+      const parsed = new URL(raw);
+      patterns.push({
+        protocol: parsed.protocol.replace(":", "") as "https" | "http",
+        hostname: parsed.hostname,
+        ...(parsed.port ? { port: parsed.port } : {}),
+        pathname: "/**",
+      });
+    } catch {
+      // ignore invalid URLs
+    }
+  }
+
+  return patterns;
+}
+
+function uploadRemotePatterns() {
+  const backendUrl = getBackendApiBaseUrl();
+  if (!backendUrl) return [];
+
+  try {
+    const parsed = new URL(backendUrl);
+    const protocol = parsed.protocol.replace(":", "") as "http" | "https";
+    return [
+      {
+        protocol,
+        hostname: parsed.hostname,
+        ...(parsed.port ? { port: parsed.port } : {}),
+        pathname: "/uploads/**",
+      },
+    ];
+  } catch {
+    return [];
+  }
+}
+
 const nextConfig: NextConfig = {
-  distDir: isProductionBuild ? ".next" : ".next-dev",
+  distDir: isDevLifecycle ? ".next-dev" : ".next",
   ...(isProductionBuild ? { output: "standalone" as const } : {}),
   typescript: {
     ignoreBuildErrors: true,
@@ -13,10 +68,23 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
-      ...(process.env.S3_PUBLIC_URL
-        ? [{ protocol: "https" as const, hostname: new URL(process.env.S3_PUBLIC_URL).hostname }]
-        : []),
+      ...cdnRemotePatterns(),
+      ...uploadRemotePatterns(),
     ],
+  },
+  async rewrites() {
+    const backendUrl = getBackendApiBaseUrl();
+    if (!backendUrl) return [];
+
+    // Property/profile uploads are stored on PayRent-Backend (public/uploads).
+    return {
+      beforeFiles: [
+        {
+          source: "/uploads/:path*",
+          destination: `${backendUrl}/uploads/:path*`,
+        },
+      ],
+    };
   },
   async redirects() {
     return [

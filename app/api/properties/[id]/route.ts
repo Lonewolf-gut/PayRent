@@ -2,7 +2,7 @@ import {
   savePropertyDocumentUpload,
   savePropertyImageUpload,
 } from "@/lib/integrations/documents";
-import type { Prisma, PropertyType } from "@prisma/client";
+import type { Prisma, PropertyType, UserRole } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { propertyRepository } from "@/lib/repositories/property.repository";
 import { propertyDetailService } from "@/lib/services/property-detail.service";
@@ -22,7 +22,12 @@ import { firstZodIssueMessage } from "@/lib/validations/auth";
 export const GET = withPublicHandler(async (req, context) => {
   const { id } = await context.params;
   const session = await resolveAppSession(req);
-  const property = await propertyDetailService.getDetail(id, session?.user?.id ?? null);
+  const property = await propertyDetailService.getDetail(
+    id,
+    session?.user?.id
+      ? { userId: session.user.id, role: session.user.role as UserRole }
+      : null
+  );
   if (!property) return apiError(new AppError("Property not found", 404));
   return apiResponse(property);
 });

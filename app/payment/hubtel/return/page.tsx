@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
@@ -16,7 +16,7 @@ const WALLET_PATH: Partial<Record<UserRole, string>> = {
   ADMIN: "/admin/wallet",
 };
 
-export default function HubtelPaymentReturnPage() {
+function HubtelPaymentReturnPageInner() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const status = searchParams.get("status");
@@ -68,5 +68,13 @@ export default function HubtelPaymentReturnPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function HubtelPaymentReturnPage() {
+  return (
+    <Suspense fallback={<p className="py-16 text-center text-sm text-muted-foreground">Loading…</p>}>
+      <HubtelPaymentReturnPageInner />
+    </Suspense>
   );
 }

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { proxyToInternalApi } from "@/lib/utils/internal-api-proxy";
+import { getPostLoginRoute } from "@/lib/auth/permissions";
 import {
   ADMIN_HOME_PATH,
   COMPLIANCE_HOME_PATH,
@@ -9,6 +11,7 @@ import {
   isNonAdminDashboardPath,
   isPublicAuthPath,
 } from "@/lib/auth/route-guards";
+import type { UserRole } from "@prisma/client";
 
 const publicRoutes = [
   "/",
@@ -21,6 +24,8 @@ const publicRoutes = [
   "/privacy",
   "/faq",
   "/pricing",
+  "/r",
+  "/referral",
   "/api/auth",
   "/api/properties",
   "/api/subscriptions/plans",
@@ -63,7 +68,11 @@ export async function proxy(req: NextRequest) {
   const isAuthRoute = authRoutes.includes(pathname);
   const isApiRoute = pathname.startsWith("/api");
 
-  if (isApiRoute) return NextResponse.next();
+  if (isApiRoute) {
+    const proxied = await proxyToInternalApi(req);
+    if (proxied) return proxied;
+    return NextResponse.next();
+  }
 
   if (isAdmin) {
     if (pathname === "/admin/login") {
@@ -100,12 +109,15 @@ export async function proxy(req: NextRequest) {
       ? ADMIN_HOME_PATH
       : isComplianceOfficer
         ? COMPLIANCE_HOME_PATH
-        : "/dashboard";
+        : role
+          ? getPostLoginRoute(role as UserRole)
+          : "/dashboard";
     return NextResponse.redirect(new URL(destination, nextUrl));
   }
 
   if (!isPublic && !isLoggedIn) {
-    const callbackUrl = encodeURIComponent(pathname);
+    const callbackPath = `${pathname}${nextUrl.search || ""}`;
+    const callbackUrl = encodeURIComponent(callbackPath);
     const loginPath = pathname.startsWith("/admin")
       ? "/admin/login"
       : pathname.startsWith("/compliance")
@@ -116,7 +128,9 @@ export async function proxy(req: NextRequest) {
     );
   }
 
-  const response = NextResponse.next();
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-invoke-path", `${pathname}${nextUrl.search}`);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-XSS-Protection", "1; mode=block");

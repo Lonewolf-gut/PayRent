@@ -11,11 +11,11 @@ import type { NavItem } from "@/components/dashboard/sidebar";
 
 export function DashboardShell({
   items,
-  title,
+  title = "",
   children,
 }: {
   items: NavItem[];
-  title: string;
+  title?: string;
   children: React.ReactNode;
 }) {
   return (
