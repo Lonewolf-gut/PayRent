@@ -211,6 +211,7 @@ async function upsertDemoListing(
   });
 
   const data = {
+    name: listing.name,
     propertyType: listing.propertyType,
     region: listing.region,
     city: listing.city,
