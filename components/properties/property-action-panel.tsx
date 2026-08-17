@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CreditCard, ShieldAlert, ShoppingBag, Wallet, MessageSquare } from "lucide-react";
+import { CreditCard, ShoppingBag, Wallet, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import {
+  FinancingFlowStepper,
+  buildFinancingFlowSteps,
+} from "@/components/properties/financing-flow-stepper";
 
 type PropertyActionPanelProps = {
   propertyId: string;
@@ -88,6 +92,14 @@ export function PropertyActionPanel({
   });
 
   const usesCheckout = Boolean(paymentConfig?.usesCheckoutForListings);
+  const canSubmitFinancing =
+    kycVerified && Boolean(approvedApplication) && financingDocsApproved;
+  const flowSteps = buildFinancingFlowSteps({
+    kycVerified,
+    hasApprovedApplication: Boolean(approvedApplication),
+    financingDocsApproved,
+    isSale,
+  });
 
   const applyMutation = useMutation({
     mutationFn: async () => {
@@ -181,6 +193,128 @@ export function PropertyActionPanel({
 
   return (
     <div className="space-y-4">
+      <Card className="rounded-none border-emerald-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="size-5 text-emerald-600" />
+            Request Pay-for-Me financing
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {isSale
+              ? "Hire-purchase financing for this listing — lender-backed repayment after approval."
+              : "Pay-for-me rental financing — apply, get approved, then set up your repayment mandate."}
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="rounded-none border border-dashed border-emerald-200 bg-emerald-50/40 p-4">
+            <p className="mb-3 text-sm font-medium text-emerald-900">How it works</p>
+            <FinancingFlowStepper steps={flowSteps} />
+          </div>
+
+          {!canSubmitFinancing ? (
+            <p className="text-sm text-muted-foreground">
+              Complete the steps above to unlock the Pay-for-Me request form. After you submit,
+              admin reviews eligibility, you set up a mandate, a lender approves, and repayments
+              begin once delivery is confirmed.
+            </p>
+          ) : (
+            <>
+              <StatusBadge status="APPROVED" label="Ready to submit Pay-for-Me request" />
+              <div>
+                <Label>Amount (GHS)</Label>
+                <Input
+                  type="number"
+                  className="rounded-none"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder={String(isSale ? purchasePrice : monthlyRent)}
+                />
+              </div>
+              <div>
+                <Label>Repayment period (months)</Label>
+                <Input
+                  type="number"
+                  className="rounded-none"
+                  value={months}
+                  onChange={(e) => setMonths(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Monthly income (GHS)</Label>
+                <Input
+                  type="number"
+                  className="rounded-none"
+                  value={monthlyIncome}
+                  onChange={(e) => setMonthlyIncome(e.target.value)}
+                  placeholder="For affordability assessment"
+                />
+              </div>
+              <div>
+                <Label>Preferred repayment channel</Label>
+                <Select
+                  value={preferredChannel}
+                  onValueChange={(v) =>
+                    setPreferredChannel(v as typeof preferredChannel)
+                  }
+                >
+                  <SelectTrigger className="rounded-none">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BANK_MANDATE">Bank mandate (auto-debit)</SelectItem>
+                    <SelectItem value="WALLET">Wallet balance</SelectItem>
+                    <SelectItem value="MOBILE_MONEY">Mobile money</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Preferred payment day of month</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={28}
+                  className="rounded-none"
+                  value={preferredPaymentDay}
+                  onChange={(e) => setPreferredPaymentDay(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Contact phone</Label>
+                <Input
+                  className="rounded-none"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  placeholder="For repayment reminders"
+                />
+              </div>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={financingConsent}
+                  onChange={(e) => setFinancingConsent(e.target.checked)}
+                />
+                <span>
+                  I consent to PayForMe collecting and processing my data for this financing
+                  request, including fee disclosure review. See our{" "}
+                  <Link href="/privacy" className="text-emerald-600 hover:underline">
+                    privacy policy
+                  </Link>
+                  .
+                </span>
+              </label>
+              <Button
+                className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
+                disabled={!amount || !financingConsent || financeMutation.isPending}
+                onClick={() => financeMutation.mutate()}
+              >
+                {financeMutation.isPending ? "Submitting…" : "Submit pay-for-me request"}
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       {isSale && propertyStatus === "ACTIVE" ? (
         <Card className="rounded-none">
           <CardHeader>
@@ -227,176 +361,54 @@ export function PropertyActionPanel({
         </Card>
       ) : null}
 
-      {!isSale ? (
-        <>
-          <Card className="rounded-none">
-            <CardHeader>
-              <CardTitle>Apply for this property</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Preferred move-in date</Label>
-                <Input
-                  type="date"
-                  className="rounded-none"
-                  value={moveInDate}
-                  onChange={(e) => setMoveInDate(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>Notes (optional)</Label>
-                <Input
-                  className="rounded-none"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Tell the merchant about yourself"
-                />
-              </div>
-              <Button
-                className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
-                disabled={applyMutation.isPending || !!approvedApplication}
-                onClick={() => applyMutation.mutate()}
-              >
-                {approvedApplication ? "Application approved" : "Submit application"}
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-none">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="size-5" />
-                Request Pay-for-Me financing
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!kycVerified ? (
-                <div className="space-y-3 border border-amber-200 bg-amber-50 p-4 text-sm">
-                  <div className="flex items-start gap-2">
-                    <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
-                    <p className="text-amber-900">
-                      Your account must be fully verified before you can apply for financing.
-                      Complete identity, employment, and address verification on your dashboard.
-                    </p>
-                  </div>
-                  <Button className="w-full rounded-none" asChild>
-                    <Link href="/dashboard/buyer/kyc">Complete verification</Link>
-                  </Button>
+      {!approvedApplication ? (
+        <Card className="rounded-none">
+          <CardHeader>
+            <CardTitle>
+              {isSale ? "Apply to purchase on credit" : "Apply for this property"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!isSale ? (
+              <>
+                <div>
+                  <Label>Preferred move-in date</Label>
+                  <Input
+                    type="date"
+                    className="rounded-none"
+                    value={moveInDate}
+                    onChange={(e) => setMoveInDate(e.target.value)}
+                  />
                 </div>
-              ) : !approvedApplication ? (
-                <p className="text-sm text-muted-foreground">
-                  Submit and get approval for your rental application before requesting financing.
-                </p>
-              ) : !financingDocsApproved ? (
-                <div className="space-y-3 text-sm">
-                  <p className="text-muted-foreground">
-                    Upload your payslip and 6–12 month bank statement on your dashboard for admin
-                    review. Verification documents cannot be uploaded on this page.
-                  </p>
-                  <Button className="w-full rounded-none" asChild>
-                    <Link href="/dashboard/buyer/financing-documents">
-                      Upload financing documents
-                    </Link>
-                  </Button>
+                <div>
+                  <Label>Notes (optional)</Label>
+                  <Input
+                    className="rounded-none"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Tell the merchant about yourself"
+                  />
                 </div>
-              ) : (
-                <>
-                  <StatusBadge status="APPROVED" label="Ready for financing" />
-                  <div>
-                    <Label>Amount (GHS)</Label>
-                    <Input
-                      type="number"
-                      className="rounded-none"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      placeholder={String(monthlyRent)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Repayment period (months)</Label>
-                    <Input
-                      type="number"
-                      className="rounded-none"
-                      value={months}
-                      onChange={(e) => setMonths(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Monthly income (GHS)</Label>
-                    <Input
-                      type="number"
-                      className="rounded-none"
-                      value={monthlyIncome}
-                      onChange={(e) => setMonthlyIncome(e.target.value)}
-                      placeholder="For affordability assessment"
-                    />
-                  </div>
-                  <div>
-                    <Label>Preferred repayment channel</Label>
-                    <Select
-                      value={preferredChannel}
-                      onValueChange={(v) =>
-                        setPreferredChannel(v as typeof preferredChannel)
-                      }
-                    >
-                      <SelectTrigger className="rounded-none">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="BANK_MANDATE">Bank mandate (auto-debit)</SelectItem>
-                        <SelectItem value="WALLET">Wallet balance</SelectItem>
-                        <SelectItem value="MOBILE_MONEY">Mobile money</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Preferred payment day of month</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={28}
-                      className="rounded-none"
-                      value={preferredPaymentDay}
-                      onChange={(e) => setPreferredPaymentDay(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Contact phone</Label>
-                    <Input
-                      className="rounded-none"
-                      value={contactPhone}
-                      onChange={(e) => setContactPhone(e.target.value)}
-                      placeholder="For repayment reminders"
-                    />
-                  </div>
-                  <label className="flex items-start gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="mt-1"
-                      checked={financingConsent}
-                      onChange={(e) => setFinancingConsent(e.target.checked)}
-                    />
-                    <span>
-                      I consent to PayForMe collecting and processing my data for this financing
-                      request, including fee disclosure review. See our{" "}
-                      <Link href="/privacy" className="text-emerald-600 hover:underline">
-                        privacy policy
-                      </Link>
-                      .
-                    </span>
-                  </label>
-                  <Button
-                    className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
-                    disabled={!amount || !financingConsent || financeMutation.isPending}
-                    onClick={() => financeMutation.mutate()}
-                  >
-                    Submit pay-for-me request
-                  </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Tell the merchant you want to buy this item with Pay-for-Me financing. Once they
+                approve your application, you can submit your financing request above.
+              </p>
+            )}
+            <Button
+              className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
+              disabled={applyMutation.isPending}
+              onClick={() => applyMutation.mutate()}
+            >
+              {applyMutation.isPending
+                ? "Submitting…"
+                : isSale
+                  ? "Submit purchase application"
+                  : "Submit application"}
+            </Button>
+          </CardContent>
+        </Card>
       ) : null}
 
       {(contacts.landlord?.userId || contacts.agent?.userId) && (
