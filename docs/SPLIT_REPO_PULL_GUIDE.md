@@ -7,6 +7,20 @@ PayRent is split into two apps:
 | **PayRent-Frontend** | 3000 | UI, NextAuth (`/api/auth/*`), proxies other `/api/*` to backend |
 | **PayRent-Backend** | 3001 | Prisma, all business APIs, webhooks, cron |
 
+## Fix: Frontend `npm run build` fails on Windows (standalone / `(marketing)`)
+
+If the build compiles but fails at **Collecting build traces** with an `ENOENT` path under `app\(marketing)\`:
+
+1. Pull the latest `next.config.ts` (standalone is skipped on Windows by default), **or**
+2. Before building, run:
+   ```powershell
+   $env:NEXT_OUTPUT_STANDALONE="0"
+   npm run build
+   ```
+3. For local work, use `npm run dev` — production build is not required.
+
+Standalone output is still enabled on Linux/macOS CI for deployment. Force it on Windows with `NEXT_OUTPUT_STANDALONE=1` only if you deploy from Windows.
+
 ## Fix: `Module not found` on Frontend build
 
 If `npm run build` in **PayRent-Frontend** fails with missing modules such as:
