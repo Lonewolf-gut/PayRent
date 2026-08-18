@@ -23,7 +23,10 @@ Standalone output is still enabled on Linux/macOS CI for deployment. Force it on
 
 ## Fix: `Cannot find module backend-api-url` on Frontend build
 
-`next.config.ts` imports `lib/utils/backend-api-url.ts`. In a split Frontend repo, pull it from PayRent:
+`next.config.ts` no longer imports this file (logic is inlined). The app still needs
+`lib/utils/backend-api-url.ts` for API proxying — it is auto-created on `npm run dev` / `npm run build`.
+
+If you are on an older checkout, pull the scripts or create the file manually:
 
 ```powershell
 git fetch payrent
@@ -31,26 +34,40 @@ git checkout payrent/cursor/demo-payments-financing-5e51 -- `
   lib/utils/backend-api-url.ts `
   lib/utils/internal-api-proxy.ts `
   proxy.ts `
-  next.config.ts
+  next.config.ts `
+  scripts/ensure-split-repo-files.js `
+  scripts/fix-swc-win.js `
+  scripts/build-win.js
+```
+
+Or run once:
+
+```powershell
+npm run ensure:split-repo
 ```
 
 ## Fix: `@next/swc-win32-x64-msvc` is not a valid Win32 application
 
-Corrupted or mismatched Next/SWC binaries. In **PayRent-Frontend**:
+Corrupted or mismatched Next/SWC binaries (often when `next` is 16.3.x but SWC stayed on 16.2.x).
+
+**Fast fix (no full reinstall):**
 
 ```powershell
-npm run dev:fix
-npm install
+npm run fix:swc
 npm run build
 ```
 
-Or reinstall matching versions (use the same major.minor as your `next` package):
+**Windows one-shot build (recommended):**
 
 ```powershell
-Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
-npm install
-npm install next@16.2.6 @next/swc-win32-x64-msvc@16.2.6 --save-exact
-npm run build
+npm run build:win
+```
+
+**If that still fails:**
+
+```powershell
+npm run dev:fix
+npm run build:win
 ```
 
 ## Fix: `Module not found` on Frontend build
