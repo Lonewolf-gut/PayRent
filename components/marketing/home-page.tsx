@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ArrowRight,
   Building2,
-  Check,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -152,20 +151,20 @@ export default function HomePage() {
                   {[...column, ...column].map((image, imageIndex) => {
                     const isLcp = columnIndex === 0 && imageIndex === 0;
                     return (
-                    <div
-                      key={`${image.url}-${imageIndex}`}
-                      className="relative h-[250px] w-full bg-transparent shadow-none"
-                    >
-                      <Image
-                        src={image.url}
-                        alt="Hero property showcase"
-                        fill
-                        sizes="(max-width: 1024px) 45vw, 320px"
-                        priority={isLcp}
-                        loading={isLcp ? "eager" : "lazy"}
-                        className="object-cover"
-                      />
-                    </div>
+                      <div
+                        key={`${image.url}-${imageIndex}`}
+                        className="relative h-[250px] w-full bg-transparent shadow-none"
+                      >
+                        <Image
+                          src={image.url}
+                          alt="Hero property showcase"
+                          fill
+                          sizes="(max-width: 1024px) 45vw, 320px"
+                          priority={isLcp}
+                          loading={isLcp ? "eager" : "lazy"}
+                          className="object-cover"
+                        />
+                      </div>
                     );
                   })}
                 </div>
