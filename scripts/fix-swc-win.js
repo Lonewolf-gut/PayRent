@@ -13,6 +13,11 @@ if (process.platform !== "win32") {
   process.exit(0);
 }
 
+if (process.env.SKIP_FIX_SWC === "1") {
+  console.log("[fix-swc] Skipped (SKIP_FIX_SWC=1).");
+  process.exit(0);
+}
+
 const nextPkgPath = path.join(projectRoot, "node_modules", "next", "package.json");
 if (!fs.existsSync(nextPkgPath)) {
   console.error("[fix-swc] Run npm install first — next is not installed.");
@@ -22,24 +27,86 @@ if (!fs.existsSync(nextPkgPath)) {
 const nextVersion = JSON.parse(fs.readFileSync(nextPkgPath, "utf8")).version;
 const swcPackage = `@next/swc-win32-x64-msvc@${nextVersion}`;
 const swcDir = path.join(projectRoot, "node_modules", "@next", "swc-win32-x64-msvc");
+const swcBinary = path.join(swcDir, "next-swc.win32-x64-msvc.node");
 
-console.log(`[fix-swc] Installing ${swcPackage} to match next@${nextVersion}...`);
+function runNpm(args) {
+  const command = ["npm", ...args].join(" ");
+  console.log(`[fix-swc] Running: ${command}`);
+
+  const result = spawnSync(command, {
+    cwd: projectRoot,
+    stdio: "inherit",
+    shell: true,
+    env: process.env,
+  });
+
+  if (result.error) {
+    console.error("[fix-swc] npm spawn error:", result.error.message);
+  }
+
+  return result.status ?? 1;
+}
+
+function nativeSwcLooksValid() {
+  if (!fs.existsSync(swcBinary)) return false;
+
+  try {
+    require(swcBinary);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+if (nativeSwcLooksValid()) {
+  console.log(`[fix-swc] Native SWC for next@${nextVersion} is already loadable.`);
+  process.exit(0);
+}
+
+console.log(`[fix-swc] Repairing ${swcPackage}...`);
 
 if (fs.existsSync(swcDir)) {
   fs.rmSync(swcDir, { recursive: true, force: true });
 }
 
-const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
-const result = spawnSync(npmCmd, ["install", swcPackage, "--no-save"], {
-  cwd: projectRoot,
-  stdio: "inherit",
-  shell: false,
-});
+let status = runNpm([
+  "install",
+  swcPackage,
+  "--no-save",
+  "--no-audit",
+  "--no-fund",
+  "--legacy-peer-deps",
+]);
 
-if (result.status !== 0) {
-  console.error("[fix-swc] SWC reinstall failed. Try: npm run dev:fix");
-  process.exit(result.status ?? 1);
+if (status === 0 && nativeSwcLooksValid()) {
+  console.log("[fix-swc] Native SWC repaired.");
+  process.exit(0);
 }
 
-console.log("[fix-swc] Done.");
+console.warn("[fix-swc] Native SWC install failed or binary still invalid. Trying WASM fallback...");
+
+status = runNpm([
+  "install",
+  `@next/swc-wasm-nodejs@${nextVersion}`,
+  "--no-save",
+  "--no-audit",
+  "--no-fund",
+  "--legacy-peer-deps",
+]);
+
+if (status !== 0) {
+  console.error(
+    [
+      "[fix-swc] SWC repair failed.",
+      "Manual fix (PowerShell):",
+      `  Remove-Item -Recurse -Force node_modules\\@next\\swc-win32-x64-msvc -ErrorAction SilentlyContinue`,
+      `  npm install ${swcPackage} --no-save --legacy-peer-deps`,
+      "Or skip auto-fix for this run:",
+      "  $env:SKIP_FIX_SWC=\"1\"; npm run build",
+    ].join("\n")
+  );
+  process.exit(status);
+}
+
+console.log("[fix-swc] Installed WASM SWC fallback. Build may be slower but should work.");
 process.exit(0);

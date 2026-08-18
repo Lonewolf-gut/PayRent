@@ -53,7 +53,15 @@ Corrupted or mismatched Next/SWC binaries (often when `next` is 16.3.x but SWC s
 **Fast fix (no full reinstall):**
 
 ```powershell
-npm run fix:swc
+Remove-Item -Recurse -Force node_modules\@next\swc-win32-x64-msvc -ErrorAction SilentlyContinue
+npm install @next/swc-win32-x64-msvc@16.2.6 --no-save --legacy-peer-deps
+npm run build
+```
+
+If native SWC still fails, WASM fallback is installed automatically by `npm run fix:swc`:
+
+```powershell
+npm install @next/swc-wasm-nodejs@16.2.6 --no-save --legacy-peer-deps
 npm run build
 ```
 
