@@ -31,7 +31,11 @@ export const GET = withAuth(
 
     const requests = await prisma.financingRequest.findMany({
       where: { tenantId: tenant.id },
-      include: { property: { include: { images: { take: 1 } } } },
+      include: {
+        property: { include: { images: { take: 1 } } },
+        feeDisclosure: true,
+        mandate: { select: { status: true } },
+      },
       orderBy: { createdAt: "desc" },
     });
     return apiResponse(requests);

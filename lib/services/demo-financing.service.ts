@@ -68,14 +68,16 @@ export class DemoFinancingService {
     switch (status) {
       case "ELIGIBILITY_PENDING":
         return "Admin approves eligibility";
-      case "MANDATE_PENDING":
-        return "Demo stops here — bank mandate would be sent next";
       case "READY_FOR_LENDER_REVIEW":
       case "PENDING":
       case "UNDER_REVIEW":
-        return "Demo lender approves financing offer";
+        return "Demo lender sends financing offer with interest rate";
       case "APPROVED":
-        return "Buyer accepts financing terms";
+        return "Buyer reviews interest rate and accepts — mandate sent to bank";
+      case "MANDATE_PENDING":
+        return mandateStatus === "ACTIVE"
+          ? "Financing disbursed — merchant confirms delivery"
+          : "Repayment mandate processing at bank";
       case "DISBURSED":
         return "Merchant confirms delivery — repayment schedule starts";
       case "REPAYMENT_ACTIVE":
@@ -117,15 +119,9 @@ export class DemoFinancingService {
       await financingService.adminReviewRequest(financingRequestId, adminUserId, "APPROVE");
       steps.push({
         from: "ELIGIBILITY_PENDING",
-        to: "MANDATE_PENDING",
-        action: "Admin approved eligibility",
+        to: "READY_FOR_LENDER_REVIEW",
+        action: "Admin approved eligibility — request sent to lender queue",
       });
-    } else if (request.status === "MANDATE_PENDING") {
-      throw new AppError(
-        "Demo walkthrough stops before sending the repayment mandate to the bank.",
-        400,
-        "DEMO_STOPS_BEFORE_BANK"
-      );
     } else if (
       ["READY_FOR_LENDER_REVIEW", "PENDING", "UNDER_REVIEW"].includes(request.status)
     ) {
@@ -134,8 +130,25 @@ export class DemoFinancingService {
       await financingService.acceptBuyerTerms(request.tenant.userId, request.id);
       steps.push({
         from: "APPROVED",
+        to: "MANDATE_PENDING",
+        action: "Buyer accepted lender offer — repayment mandate sent to bank",
+      });
+      const afterAccept = await prisma.financingRequest.findUnique({
+        where: { id: request.id },
+      });
+      if (afterAccept?.status === "DISBURSED") {
+        steps.push({
+          from: "MANDATE_PENDING",
+          to: "DISBURSED",
+          action: "Sandbox bank activated mandate — funds disbursed to merchant",
+        });
+      }
+    } else if (request.status === "MANDATE_PENDING") {
+      await this.ensureActiveMandateForFinancingRequest(financingRequestId, adminUserId);
+      steps.push({
+        from: "MANDATE_PENDING",
         to: "DISBURSED",
-        action: "Buyer accepted lender offer — funds disbursed to merchant",
+        action: "Sandbox bank activated mandate — funds disbursed to merchant",
       });
     } else if (request.status === "DISBURSED") {
       await financingService.confirmDelivery(
@@ -180,7 +193,6 @@ export class DemoFinancingService {
 
     for (let i = 0; i < maxIterations; i++) {
       const state = await this.getWalkthroughState(financingRequestId);
-      if (state.status === "MANDATE_PENDING") break;
       if (state.status === "REPAYMENT_ACTIVE") break;
       if (state.status === "REJECTED") {
         throw new AppError("Financing request was rejected — create a new request", 400);
@@ -189,7 +201,6 @@ export class DemoFinancingService {
       lastResult = await this.advanceOneStep(financingRequestId, adminUserId);
       allSteps.push(...lastResult.steps);
 
-      if (lastResult.currentStatus === "MANDATE_PENDING") break;
       if (lastResult.currentStatus === "REPAYMENT_ACTIVE") break;
     }
 

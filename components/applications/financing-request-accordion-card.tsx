@@ -55,11 +55,36 @@ type FinancingRequestAccordionCardProps = {
     id: string;
     status: string;
     requestedAmount: number | string;
+    approvedAmount?: number | string | null;
+    offeredInterestRate?: number | string | null;
+    offeredPlanType?: string | null;
     durationMonths: number;
+    buyerAcceptedAt?: string | null;
     repaymentPreference?: { bankAccountId?: string } | null;
+    feeDisclosure?: {
+      totalRepayable?: number | string;
+      monthlyPayment?: number | string;
+      interestRate?: number | string;
+      principalAmount?: number | string;
+    } | null;
   } | null;
   financingDocs?: RequestDocumentBundle | null;
 };
+
+function showFinancingStatusOnly(financingStatus?: string | null) {
+  if (!financingStatus || financingStatus === "CREATED") return false;
+  return [
+    "ELIGIBILITY_PENDING",
+    "READY_FOR_LENDER_REVIEW",
+    "PENDING",
+    "UNDER_REVIEW",
+    "APPROVED",
+    "MANDATE_PENDING",
+    "DISBURSED",
+    "REPAYMENT_ACTIVE",
+    "REJECTED",
+  ].includes(financingStatus);
+}
 
 function displayListingName(name?: string) {
   return name?.replace(/^\[Demo\]\s*/i, "") ?? "Listing";
@@ -107,6 +132,35 @@ export function FinancingRequestAccordionCard({
   const replaceableDocs = canReplaceFinancingDocuments(application.status, financingDocs);
   const isRejected =
     application.status === "REJECTED" || financing?.status === "REJECTED";
+  const financingPrimary = showFinancingStatusOnly(financing?.status);
+  const offerAmount = Number(
+    financing?.approvedAmount ?? financing?.feeDisclosure?.principalAmount ?? financing?.requestedAmount ?? 0
+  );
+  const offerRate = Number(
+    financing?.offeredInterestRate ?? financing?.feeDisclosure?.interestRate ?? 0
+  );
+  const monthlyPayment = Number(financing?.feeDisclosure?.monthlyPayment ?? 0);
+  const totalRepayable = Number(financing?.feeDisclosure?.totalRepayable ?? 0);
+  const canAcceptOffer = financing?.status === "APPROVED" && !financing?.buyerAcceptedAt;
+
+  const acceptOfferMutation = useMutation({
+    mutationFn: async () => {
+      if (!financingRequestId) throw new Error("Financing request not found.");
+      const res = await fetch("/api/financing/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ financingRequestId }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message ?? json.error?.message ?? "Could not accept offer");
+    },
+    onSuccess: () => {
+      toast.success("Offer accepted — repayment mandate sent to bank");
+      queryClient.invalidateQueries({ queryKey: ["applications"] });
+      queryClient.invalidateQueries({ queryKey: ["financing"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const removeDocMutation = useMutation({
     mutationFn: async (documentType: TenantFinancingDocType) => {
@@ -187,10 +241,12 @@ export function FinancingRequestAccordionCard({
               <p className="mt-2 text-sm font-medium text-foreground">{waitingLabel}</p>
             </div>
             <div className="flex flex-col items-start gap-2 sm:items-end">
-              <StatusBadge
-                status={application.status}
-                label={APPLICATION_STATUS_LABELS[application.status] ?? application.status}
-              />
+              {!financingPrimary ? (
+                <StatusBadge
+                  status={application.status}
+                  label={APPLICATION_STATUS_LABELS[application.status] ?? application.status}
+                />
+              ) : null}
               {financing ? (
                 <StatusBadge
                   status={financing.status}
@@ -329,6 +385,45 @@ export function FinancingRequestAccordionCard({
                   Editing is locked once the merchant responds to your application.
                 </p>
               )}
+
+              {canAcceptOffer ? (
+                <div className="space-y-3 rounded-none border border-emerald-200 bg-emerald-50/50 p-4">
+                  <p className="text-sm font-medium text-foreground">Lender financing offer</p>
+                  <div className="grid gap-2 text-sm sm:grid-cols-2">
+                    <p>
+                      Amount: <span className="font-medium">GHS {offerAmount.toLocaleString()}</span>
+                    </p>
+                    <p>
+                      Interest rate:{" "}
+                      <span className="font-medium text-emerald-800">{offerRate}%</span>
+                    </p>
+                    <p>Duration: {financing?.durationMonths} months</p>
+                    {monthlyPayment > 0 ? (
+                      <p>
+                        Est. monthly payment:{" "}
+                        <span className="font-medium">GHS {monthlyPayment.toLocaleString()}</span>
+                      </p>
+                    ) : null}
+                    {totalRepayable > 0 ? (
+                      <p className="sm:col-span-2">
+                        Total repayable: GHS {totalRepayable.toLocaleString()}
+                      </p>
+                    ) : null}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Accepting sends your repayment mandate to the bank. Funds are disbursed to the
+                    merchant only after the mandate is active.
+                  </p>
+                  <Button
+                    size="sm"
+                    className="rounded-none bg-emerald-600 hover:bg-emerald-700"
+                    disabled={acceptOfferMutation.isPending}
+                    onClick={() => acceptOfferMutation.mutate()}
+                  >
+                    {acceptOfferMutation.isPending ? "Accepting…" : "Accept offer & send mandate to bank"}
+                  </Button>
+                </div>
+              ) : null}
 
               {financing && financing.status !== "CREATED" ? (
                 <Button asChild size="sm" variant="outline" className="rounded-none">

@@ -13,9 +13,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FINANCING_STATUS_LABELS } from "@/constants/platform";
 import { useState } from "react";
 import { toast } from "sonner";
+
+function PropertyVerifiedBadge({ verified }: { verified?: boolean }) {
+  if (!verified) {
+    return (
+      <Badge variant="secondary">Listing pending verification</Badge>
+    );
+  }
+  return (
+    <Badge className="bg-emerald-700 hover:bg-emerald-700">
+      Property verified · safe to invest
+    </Badge>
+  );
+}
 
 export default function LenderOpportunitiesPage() {
   const queryClient = useQueryClient();
@@ -77,8 +89,8 @@ export default function LenderOpportunitiesPage() {
       <div>
         <h1 className="text-2xl font-bold">Listings awaiting financing</h1>
         <p className="text-muted-foreground">
-          Choose a listing to review and send a financing offer. Requests appear here after admin
-          approval and mandate setup.
+          Review verified listings and send a financing offer with your interest rate. The buyer
+          sees your rate before accepting and sending their repayment mandate to the bank.
         </p>
       </div>
       {isLoading ? (
@@ -98,9 +110,8 @@ export default function LenderOpportunitiesPage() {
             status: string;
             requestedAmount: number;
             durationMonths: number;
-            property?: { name: string; location: string; monthlyRent: number };
+            property?: { name: string; location: string; monthlyRent: number; status?: string };
             tenant?: { fullName: string; monthlyIncome: number; user?: { email: string } };
-            mandate?: { status: string; mandateSource: string };
           }) => (
             <Card key={req.id}>
               <CardHeader className="flex flex-row items-start justify-between">
@@ -108,9 +119,7 @@ export default function LenderOpportunitiesPage() {
                   <CardTitle className="text-lg">{req.property?.name}</CardTitle>
                   <p className="text-sm text-muted-foreground">{req.property?.location}</p>
                 </div>
-                <Badge>
-                  {FINANCING_STATUS_LABELS[req.status] ?? req.status.replace(/_/g, " ")}
-                </Badge>
+                <PropertyVerifiedBadge verified={req.property?.status === "ACTIVE"} />
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-2 text-sm sm:grid-cols-2">
@@ -119,22 +128,7 @@ export default function LenderOpportunitiesPage() {
                   <p>Requested: GHS {Number(req.requestedAmount).toLocaleString()}</p>
                   <p>Duration: {req.durationMonths} months</p>
                   <p>Rent: GHS {Number(req.property?.monthlyRent ?? 0).toLocaleString()}/mo</p>
-                  <p>
-                    Mandate:{" "}
-                    {req.mandate ? (
-                      <Badge variant={req.mandate.status === "ACTIVE" ? "default" : "secondary"}>
-                        {req.mandate.status.replace("_", " ")}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">Not set up</span>
-                    )}
-                  </p>
                 </div>
-                {req.mandate && req.mandate.status !== "ACTIVE" && (
-                  <p className="text-sm text-amber-700">
-                    Repayment mandate must be active before you can approve funding.
-                  </p>
-                )}
                 {selectedId === req.id ? (
                   <div className="flex flex-wrap gap-4 rounded-lg border p-4">
                     <div>
@@ -145,6 +139,9 @@ export default function LenderOpportunitiesPage() {
                         onChange={(e) => setInterestRate(e.target.value)}
                         className="w-24"
                       />
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        The buyer sees this rate before accepting.
+                      </p>
                     </div>
                     <div>
                       <Label>Repayment plan</Label>
@@ -165,7 +162,7 @@ export default function LenderOpportunitiesPage() {
                         onClick={() => approveMutation.mutate(req.id)}
                         disabled={approveMutation.isPending}
                       >
-                        Confirm approve
+                        Send financing offer
                       </Button>
                       <Button variant="ghost" onClick={() => setSelectedId(null)}>
                         Cancel
@@ -177,9 +174,8 @@ export default function LenderOpportunitiesPage() {
                     <Button
                       className="bg-emerald-600 hover:bg-emerald-700"
                       onClick={() => setSelectedId(req.id)}
-                      disabled={!req.mandate || req.mandate.status !== "ACTIVE"}
                     >
-                      Review & Approve
+                      Review & send offer
                     </Button>
                     <Button
                       variant="outline"

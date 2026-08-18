@@ -79,13 +79,6 @@ export function buildRequestPipeline(input: {
       description: "Platform admin reviews affordability and eligibility.",
     },
     {
-      id: "mandate",
-      label: "Repayment mandate",
-      approver: "You + Administrator",
-      status: getFinancingStepStatus(finStatus, "MANDATE_PENDING", appApproved),
-      description: "Set up and activate your bank repayment mandate.",
-    },
-    {
       id: "lender",
       label: "Lender financing",
       approver: "Lender",
@@ -94,7 +87,21 @@ export function buildRequestPipeline(input: {
         ["READY_FOR_LENDER_REVIEW", "PENDING", "UNDER_REVIEW"],
         appApproved
       ),
-      description: "A lender reviews listings and chooses requests to finance.",
+      description: "A lender reviews the listing and sends a financing offer with an interest rate.",
+    },
+    {
+      id: "buyer-offer",
+      label: "Review lender offer",
+      approver: "You (Customer)",
+      status: getFinancingStepStatus(finStatus, "APPROVED", appApproved),
+      description: "Review the lender's amount, interest rate, and estimated payment before accepting.",
+    },
+    {
+      id: "mandate",
+      label: "Repayment mandate",
+      approver: "You + Bank",
+      status: getFinancingStepStatus(finStatus, "MANDATE_PENDING", appApproved),
+      description: "After you accept, your repayment mandate is sent to the bank for activation.",
     },
     {
       id: "disbursement",
@@ -159,7 +166,10 @@ export function getCurrentApproverLabel(steps: RequestPipelineStep[]) {
     return "Waiting for next step";
   }
   if (current.id === "lender") {
-    return "Waiting for lender to finance";
+    return "Waiting for financing";
+  }
+  if (current.id === "buyer-offer") {
+    return "Review lender offer — check the interest rate before accepting";
   }
   return `Waiting on: ${current.approver} — ${current.label}`;
 }
