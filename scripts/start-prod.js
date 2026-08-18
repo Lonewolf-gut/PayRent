@@ -12,7 +12,7 @@ console.log(`Starting production server on http://localhost:${port}`);
 
 const child = spawn(process.execPath, [nextCli, "start", "--hostname", "0.0.0.0", "-p", port], {
   stdio: "inherit",
-  env: { ...process.env, PORT: port },
+  env: { ...process.env, NODE_ENV: "production", PORT: port },
   cwd: projectRoot,
 });
 
