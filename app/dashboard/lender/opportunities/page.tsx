@@ -104,7 +104,11 @@ export default function LenderOpportunitiesPage() {
           )}
         </div>
       ) : null}
-      <h1 className="text-2xl font-bold">Funding Requests</h1>
+      <h1 className="text-2xl font-bold">Listings awaiting financing</h1>
+      <p className="text-muted-foreground">
+        Choose a listing to review and send a financing offer. Requests appear here after admin
+        approval and mandate setup.
+      </p>
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : !requests?.length ? (
