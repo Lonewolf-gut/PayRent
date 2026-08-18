@@ -33,7 +33,6 @@ export const PROFILE_MENU_ITEMS: Record<UserRole, ProfileMenuItem[]> = {
     { href: "/dashboard/marketer/kyc", label: "Profile & KYC" },
   ],
   LENDER: [
-    { href: "/dashboard/lender", label: "Overview" },
     { href: "/dashboard/lender/opportunities", label: "Financing Queue" },
     { href: "/dashboard/lender/wallet", label: "Wallet" },
     { href: "/dashboard/lender/portfolio", label: "Portfolio" },

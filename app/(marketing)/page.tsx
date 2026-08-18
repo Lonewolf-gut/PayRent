@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { PLATFORM_NAME, PLATFORM_TAGLINE } from "@/constants/platform";
 import { ROLE_HOW_IT_WORKS } from "@/constants/roles";
-import { LandlordAgentPricingCta } from "@/components/marketing/landlord-agent-pricing-cta";
 import { StatsBar } from "@/components/marketing/stats-bar";
 
 const whoItsFor = [
@@ -285,8 +284,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      <LandlordAgentPricingCta />
 
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">

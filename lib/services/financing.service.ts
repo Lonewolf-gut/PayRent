@@ -669,10 +669,20 @@ export class FinancingService {
     financingRequestId: string,
     adminUserId: string
   ) {
-    const request = await prisma.financingRequest.findUnique({
+    let request = await prisma.financingRequest.findUnique({
       where: { id: financingRequestId },
     });
     if (!request) return;
+
+    if (request.status === "CREATED") {
+      await this.tryActivatePendingRequests(request.tenantId, request.propertyId);
+      request = await prisma.financingRequest.findUnique({
+        where: { id: financingRequestId },
+      });
+      if (!request) return;
+    }
+
+    if (request.status === "READY_FOR_LENDER_REVIEW") return;
 
     if (request.status === "ELIGIBILITY_PENDING") {
       await this.adminReviewRequest(financingRequestId, adminUserId, "APPROVE");
@@ -681,6 +691,34 @@ export class FinancingService {
 
     if (request.status === "MANDATE_PENDING") {
       await this.promoteToLenderReview(financingRequestId, adminUserId);
+    }
+  }
+
+  private async syncReadyForLenderQueue() {
+    const admin = await prisma.user.findFirst({
+      where: { role: "ADMIN" },
+      select: { id: true },
+    });
+    if (!admin) return;
+
+    const { financingRequestDocService } = await import(
+      "@/lib/services/financing-request-doc.service"
+    );
+
+    const candidates = await prisma.financingRequest.findMany({
+      where: {
+        status: { in: ["CREATED", "ELIGIBILITY_PENDING", "MANDATE_PENDING"] },
+        application: { status: "APPROVED" },
+      },
+      select: { id: true },
+    });
+
+    for (const candidate of candidates) {
+      const docsReady = await financingRequestDocService.areFinancingDocsApproved(
+        candidate.id
+      );
+      if (!docsReady) continue;
+      await this.advanceAfterAdminDocumentApproval(candidate.id, admin.id);
     }
   }
 
@@ -720,6 +758,28 @@ export class FinancingService {
     }
 
     if (!request.mandate || request.mandate.status !== "ACTIVE") {
+      if (isDemoMode()) {
+        const { demoFinancingService } = await import("@/lib/services/demo-financing.service");
+        const admin = await prisma.user.findFirst({
+          where: { role: "ADMIN" },
+          select: { id: true },
+        });
+        if (admin) {
+          await demoFinancingService.ensureActiveMandateForFinancingRequest(
+            request.id,
+            admin.id
+          );
+        }
+      } else {
+        throw new AppError("An active repayment mandate is required before approval", 400);
+      }
+    }
+
+    const refreshed = await prisma.financingRequest.findUnique({
+      where: { id: input.financingRequestId },
+      include: { mandate: true },
+    });
+    if (!refreshed?.mandate || refreshed.mandate.status !== "ACTIVE") {
       throw new AppError("An active repayment mandate is required before approval", 400);
     }
 
@@ -1211,6 +1271,8 @@ export class FinancingService {
   }
 
   async getPendingForLender(lenderUserId?: string) {
+    await this.syncReadyForLenderQueue();
+
     const requests = await prisma.financingRequest.findMany({
       where: { status: { in: ["PENDING", "UNDER_REVIEW", "READY_FOR_LENDER_REVIEW"] } },
       include: {

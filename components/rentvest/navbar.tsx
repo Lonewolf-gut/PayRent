@@ -38,7 +38,6 @@ import type { UserRole } from "@prisma/client";
 const MARKETING_LINKS = [
   { href: "/properties", label: "Properties" },
   { href: "/#how-it-works", label: "How it works" },
-  { href: "/pricing", label: "Pricing" },
   { href: "/contact", label: "Contact" },
 ] as const;
 
@@ -98,11 +97,7 @@ export function Navbar() {
   );
   const showUpgradeInMenu =
     !!role && roleRequiresSubscription(role) && !isPaidPlan(currentPlan);
-  const marketingLinks = MARKETING_LINKS.filter((link) => {
-    if (link.href === "/pricing" && pathname === "/pricing") return false;
-    if (link.href === "/pricing" && (role === "BUYER" || role === "LENDER")) return false;
-    return true;
-  });
+  const marketingLinks = MARKETING_LINKS;
 
   return (
     <header className="sticky top-0 z-50 border-b border-emerald-100 bg-white/95 backdrop-blur-md">

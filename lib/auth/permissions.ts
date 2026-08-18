@@ -102,7 +102,7 @@ export const DASHBOARD_ROUTES: Record<UserRole, string> = {
   BUYER: "/dashboard/buyer",
   MERCHANT: "/dashboard/merchant",
   MARKETER: "/dashboard/marketer/listings",
-  LENDER: "/dashboard/lender",
+  LENDER: "/dashboard/lender/opportunities",
   ADMIN: "/admin",
   COMPLIANCE_OFFICER: "/compliance",
 };

@@ -45,11 +45,6 @@ export default async function MarketingLayout({
                 </Link>
               </li>
               <li>
-                <Link href="/pricing" className="hover:text-emerald-950">
-                  Pricing
-                </Link>
-              </li>
-              <li>
                 <Link href="/faq" className="hover:text-emerald-950">
                   FAQ&apos;s
                 </Link>

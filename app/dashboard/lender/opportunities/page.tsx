@@ -84,7 +84,13 @@ export default function LenderOpportunitiesPage() {
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : !requests?.length ? (
-        <p className="text-muted-foreground">No pending requests.</p>
+        <div className="rounded-none border border-dashed p-8 text-center text-muted-foreground">
+          <p>No listings awaiting financing right now.</p>
+          <p className="mt-2 text-sm">
+            Requests appear here after the merchant and admin have approved them. Check back after
+            admin completes document review.
+          </p>
+        </div>
       ) : (
         <div className="grid gap-4">
           {requests.map((req: {
