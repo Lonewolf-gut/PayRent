@@ -14,6 +14,7 @@ import {
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { AuthBackLink, AuthSplitLayout } from "@/components/rentvest/auth-split-layout";
 import { cn } from "@/lib/utils";
+import { buildLoginUrl, resolveAuthReturnUrl } from "@/lib/utils/auth-callback-url";
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/constants/platform";
 
 type EntityType = "INDIVIDUAL" | "COMPANY";
@@ -142,6 +143,10 @@ export function RegisterFlow() {
       role,
       entityType,
     });
+    const returnUrl = resolveAuthReturnUrl(searchParams.get("callbackUrl"), false);
+    if (returnUrl) {
+      params.set("callbackUrl", returnUrl);
+    }
     router.push(`/register/create?${params}`);
   }
 
@@ -241,7 +246,10 @@ export function RegisterFlow() {
 
         <p className="mt-8 text-center text-sm text-slate-600">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-emerald-600 hover:underline">
+          <Link
+            href={buildLoginUrl(resolveAuthReturnUrl(searchParams.get("callbackUrl"), false))}
+            className="font-medium text-emerald-600 hover:underline"
+          >
             Sign in
           </Link>
         </p>

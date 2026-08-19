@@ -119,7 +119,7 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
     overview:
       "PayForme helps merchants market homes, cars, and appliances while giving Customers lender-backed financing options and Affiliate advocacy.",
     whyChoose: [
-      "Start with a 7-day trial, then list on the Free plan (1 home, 1 car, 1 appliance)",
+      "List on the Free plan with 1 home, 1 car, and 1 appliance (3 total)",
       "Connect each listing to Customer financing backed by lenders",
       "Assign Affiliates to promote and advocate your listings",
       "Receive tracked applications and settlement updates",
@@ -141,7 +141,7 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
         "Assign Affiliates to advertise listings",
       ],
       limitedAccess:
-        "Listing creation is blocked until you subscribe. Affiliates still use trial and Free tier limits separately.",
+        "Listing creation is blocked until you subscribe. Affiliates can promote 1 listing free, then must upgrade for more assignments.",
     },
   },
   lender: {
@@ -195,17 +195,17 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
       "Close deals with transparent communication and settlement tracking.",
     ],
     subscription: {
-      headline: "Affiliate Subscription",
+      headline: "Affiliate subscription",
       description:
-        "Affiliates get a 7-day trial with full assignment capacity. After trial, Free plan limits apply to how many listings you can be assigned to. Upgrade for more capacity and visibility.",
+        "Affiliates can promote 1 listing and earn commission on it for free. Upgrade to Pro or Max to claim or accept assignments on additional listings.",
       features: [
-        "Pro: support up to 20 assigned listings",
-        "Max: unlimited assigned listings",
-        "Premium Affiliate placement on listings",
+        "Free: 1 promoted listing with commission",
+        "Pro: up to 20 assigned or claimed listings",
+        "Max: unlimited promoted listings",
         "Application review and client tools",
       ],
       limitedAccess:
-        "After trial, Free Affiliates can be assigned to 3 listings total. Merchants cannot assign you to new listings until you upgrade.",
+        "Free Affiliates cannot claim or be assigned to a second listing until they upgrade. Merchants will see a clear message when an Affiliate has reached their limit.",
     },
   },
 };

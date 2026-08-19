@@ -31,7 +31,11 @@ export const GET = withAuth(
 
     const requests = await prisma.financingRequest.findMany({
       where: { tenantId: tenant.id },
-      include: { property: { include: { images: { take: 1 } } } },
+      include: {
+        property: { include: { images: { take: 1 } } },
+        feeDisclosure: true,
+        mandate: { select: { status: true } },
+      },
       orderBy: { createdAt: "desc" },
     });
     return apiResponse(requests);
@@ -67,17 +71,16 @@ export const POST = withAuth(
 
     const referredAgentProfileId = await getReferralAgentProfileId(req);
 
-    const request = await financingService.createRequest(
-      tenant.id,
-      parsed.data.propertyId,
-      parsed.data.requestedAmount,
-      parsed.data.durationMonths,
-      parsed.data.notes,
-      parsed.data.applicationId,
+    const { request, queued } = await financingService.submitRequest(tenant.id, session.user.id, {
+      propertyId: parsed.data.propertyId,
+      applicationId: parsed.data.applicationId,
+      requestedAmount: parsed.data.requestedAmount,
+      durationMonths: parsed.data.durationMonths,
+      notes: parsed.data.notes,
       referredAgentProfileId,
-      parsed.data.repaymentPreference,
-      parsed.data.monthlyIncome
-    );
+      repaymentPreference: parsed.data.repaymentPreference,
+      monthlyIncome: parsed.data.monthlyIncome,
+    });
 
     await consentService.recordFinancingConsent(session.user.id, request.id, {
       ipAddress:
@@ -88,10 +91,11 @@ export const POST = withAuth(
       metadata: {
         propertyId: parsed.data.propertyId,
         requestedAmount: parsed.data.requestedAmount,
+        queued,
       },
     });
 
-    return apiResponse(request, 201);
+    return apiResponse({ ...request, queued }, queued ? 202 : 201);
   },
   { roles: ["BUYER"], permission: "financing:create" }
 );

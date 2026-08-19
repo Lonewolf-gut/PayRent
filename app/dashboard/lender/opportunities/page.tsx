@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,25 +16,24 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
+function PropertyVerifiedBadge({ verified }: { verified?: boolean }) {
+  if (!verified) {
+    return (
+      <Badge variant="secondary">Listing pending verification</Badge>
+    );
+  }
+  return (
+    <Badge className="bg-emerald-700 hover:bg-emerald-700">
+      Property verified · safe to invest
+    </Badge>
+  );
+}
+
 export default function LenderOpportunitiesPage() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [interestRate, setInterestRate] = useState("8");
   const [planType, setPlanType] = useState<"MONTHLY" | "DEFERRED" | "CUSTOM">("MONTHLY");
-
-  const { data: financingAccess } = useQuery({
-    queryKey: ["lender-financing-access"],
-    queryFn: async () => {
-      const res = await fetch("/api/lender/financing-access");
-      const json = await res.json();
-      return json.data as {
-        financedCount: number;
-        limit: number | null;
-        remaining: number | null;
-        isPaid: boolean;
-      };
-    },
-  });
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ["financing-pending"],
@@ -88,27 +86,23 @@ export default function LenderOpportunitiesPage() {
 
   return (
     <div className="space-y-6">
-      {financingAccess && !financingAccess.isPaid ? (
-        <div className="rounded-none border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          Free plan: {financingAccess.financedCount} of {financingAccess.limit ?? 100} properties financed.
-          {financingAccess.remaining === 0 ? (
-            <>
-              {" "}
-              Subscribe for unlimited financing access.{" "}
-              <Link href="/dashboard/lender/subscription" className="font-medium underline">
-                View plans
-              </Link>
-            </>
-          ) : (
-            <> {financingAccess.remaining} financing slots remaining.</>
-          )}
-        </div>
-      ) : null}
-      <h1 className="text-2xl font-bold">Funding Requests</h1>
+      <div>
+        <h1 className="text-2xl font-bold">Listings awaiting financing</h1>
+        <p className="text-muted-foreground">
+          Review verified listings and send a financing offer with your interest rate. The buyer
+          sees your rate before accepting and sending their repayment mandate to the bank.
+        </p>
+      </div>
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : !requests?.length ? (
-        <p className="text-muted-foreground">No pending requests.</p>
+        <div className="rounded-none border border-dashed p-8 text-center text-muted-foreground">
+          <p>No listings awaiting financing right now.</p>
+          <p className="mt-2 text-sm">
+            Requests appear here after the merchant and admin have approved them. Check back after
+            admin completes document review.
+          </p>
+        </div>
       ) : (
         <div className="grid gap-4">
           {requests.map((req: {
@@ -116,9 +110,8 @@ export default function LenderOpportunitiesPage() {
             status: string;
             requestedAmount: number;
             durationMonths: number;
-            property?: { name: string; location: string; monthlyRent: number };
+            property?: { name: string; location: string; monthlyRent: number; status?: string };
             tenant?: { fullName: string; monthlyIncome: number; user?: { email: string } };
-            mandate?: { status: string; mandateSource: string };
           }) => (
             <Card key={req.id}>
               <CardHeader className="flex flex-row items-start justify-between">
@@ -126,7 +119,7 @@ export default function LenderOpportunitiesPage() {
                   <CardTitle className="text-lg">{req.property?.name}</CardTitle>
                   <p className="text-sm text-muted-foreground">{req.property?.location}</p>
                 </div>
-                <Badge>{req.status}</Badge>
+                <PropertyVerifiedBadge verified={req.property?.status === "ACTIVE"} />
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-2 text-sm sm:grid-cols-2">
@@ -135,22 +128,7 @@ export default function LenderOpportunitiesPage() {
                   <p>Requested: GHS {Number(req.requestedAmount).toLocaleString()}</p>
                   <p>Duration: {req.durationMonths} months</p>
                   <p>Rent: GHS {Number(req.property?.monthlyRent ?? 0).toLocaleString()}/mo</p>
-                  <p>
-                    Mandate:{" "}
-                    {req.mandate ? (
-                      <Badge variant={req.mandate.status === "ACTIVE" ? "default" : "secondary"}>
-                        {req.mandate.status.replace("_", " ")}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">Not set up</span>
-                    )}
-                  </p>
                 </div>
-                {req.mandate && req.mandate.status !== "ACTIVE" && (
-                  <p className="text-sm text-amber-700">
-                    Repayment mandate must be active before you can approve funding.
-                  </p>
-                )}
                 {selectedId === req.id ? (
                   <div className="flex flex-wrap gap-4 rounded-lg border p-4">
                     <div>
@@ -161,6 +139,9 @@ export default function LenderOpportunitiesPage() {
                         onChange={(e) => setInterestRate(e.target.value)}
                         className="w-24"
                       />
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        The buyer sees this rate before accepting.
+                      </p>
                     </div>
                     <div>
                       <Label>Repayment plan</Label>
@@ -181,7 +162,7 @@ export default function LenderOpportunitiesPage() {
                         onClick={() => approveMutation.mutate(req.id)}
                         disabled={approveMutation.isPending}
                       >
-                        Confirm approve
+                        Send financing offer
                       </Button>
                       <Button variant="ghost" onClick={() => setSelectedId(null)}>
                         Cancel
@@ -193,9 +174,8 @@ export default function LenderOpportunitiesPage() {
                     <Button
                       className="bg-emerald-600 hover:bg-emerald-700"
                       onClick={() => setSelectedId(req.id)}
-                      disabled={!req.mandate || req.mandate.status !== "ACTIVE"}
                     >
-                      Review & Approve
+                      Review & send offer
                     </Button>
                     <Button
                       variant="outline"

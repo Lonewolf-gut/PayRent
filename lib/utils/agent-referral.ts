@@ -1,4 +1,4 @@
-import { AGENT_REFERRAL_COOKIE } from "@/lib/constants/agent-commission";
+import { AGENT_REFERRAL_COOKIE } from "@/lib/constants/agent-referral-cookie";
 
 export function parseAgentReferralCode(cookieHeader?: string | null): string | null {
   if (!cookieHeader) return null;
@@ -12,7 +12,22 @@ export function parseAgentReferralCode(cookieHeader?: string | null): string | n
   return null;
 }
 
-export function buildReferralUrl(origin: string, code: string, propertyId?: string) {
+export function getReferralDestinationPath(propertyId?: string | null) {
+  return propertyId ? `/properties/${propertyId}` : "/";
+}
+
+export function buildReferralUrl(origin: string, code: string, propertyId?: string | null) {
+  if (propertyId) {
+    const url = new URL(`/properties/${propertyId}`, origin);
+    url.searchParams.set("ref", code);
+    return url.toString();
+  }
+
+  return new URL(`/r/${encodeURIComponent(code)}`, origin).toString();
+}
+
+/** @deprecated Use buildReferralUrl with propertyId. */
+export function buildLegacyReferralUrl(origin: string, code: string, propertyId?: string) {
   const base = propertyId ? `${origin}/properties/${propertyId}` : origin;
   const url = new URL(base);
   url.searchParams.set("ref", code);

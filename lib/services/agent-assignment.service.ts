@@ -67,7 +67,7 @@ export async function assignAgentToProperty(
   if (agentProfileId) {
     await assertPlatformAccess(landlordUserId, "assign an Affiliate to advertise listings");
     const agent = await assertEligibleAgent(agentProfileId);
-    await assertAgentAssignmentLimit(agent.user.id);
+    await assertAgentAssignmentLimit(agent.user.id, "merchant");
     await prisma.property.update({
       where: { id: propertyId },
       data: { agentUserId: agentProfileId },
