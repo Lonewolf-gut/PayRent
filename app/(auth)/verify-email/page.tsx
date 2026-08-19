@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RentVestLogo } from "@/components/rentvest/logo";
@@ -11,6 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getPostAuthRoute } from "@/lib/auth/post-auth-route";
+import {
+  appendCallbackUrl,
+  clearPersistedAuthReturnUrl,
+  persistAuthReturnUrl,
+  resolveAuthReturnUrl,
+} from "@/lib/utils/auth-callback-url";
 import type { UserRole } from "@prisma/client";
 
 type VerificationDelivery = {
@@ -23,6 +29,7 @@ type VerificationDelivery = {
 
 export default function VerifyEmailPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { data: session, update } = useSession();
   const [code, setCode] = useState("");
@@ -34,6 +41,10 @@ export default function VerifyEmailPage() {
   const [realEmailExpected, setRealEmailExpected] = useState(false);
 
   const email = session?.user?.email ?? "";
+
+  useEffect(() => {
+    persistAuthReturnUrl(searchParams.get("callbackUrl"));
+  }, [searchParams]);
 
   const applyDelivery = useCallback((data: VerificationDelivery | null | undefined) => {
     if (!data) return;
@@ -121,20 +132,24 @@ export default function VerifyEmailPage() {
       await queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
       toast.success("Email verified successfully");
 
+      const returnUrl = resolveAuthReturnUrl(searchParams.get("callbackUrl"));
       const role = session?.user?.role as UserRole | undefined;
       if (session?.user?.id) {
         sessionStorage.removeItem(`verification-prompt-dismissed:${session.user.id}`);
       }
       sessionStorage.setItem("fresh-dashboard-login", "1");
-      router.push(
-        role
-          ? getPostAuthRoute({
-              role,
-              emailVerified: true,
-              phoneVerified: Boolean(session?.user?.phoneVerified),
-            })
-          : "/verify-phone"
-      );
+      const destination = role
+        ? getPostAuthRoute({
+            role,
+            emailVerified: true,
+            phoneVerified: Boolean(session?.user?.phoneVerified),
+            returnUrl,
+          })
+        : appendCallbackUrl("/verify-phone", returnUrl);
+      if (returnUrl && destination === returnUrl) {
+        clearPersistedAuthReturnUrl();
+      }
+      router.push(destination);
       router.refresh();
     } catch {
       toast.error("Verification failed. Please try again.");
@@ -273,9 +288,21 @@ export default function VerifyEmailPage() {
             type="button"
             className="text-muted-foreground hover:text-foreground"
             onClick={() => {
+              const returnUrl = resolveAuthReturnUrl(searchParams.get("callbackUrl"));
               const role = session?.user?.role as UserRole | undefined;
               sessionStorage.setItem("fresh-dashboard-login", "1");
-              router.push(role ? getPostLoginRoute(role) : "/");
+              const destination = role
+                ? getPostAuthRoute({
+                    role,
+                    emailVerified: true,
+                    phoneVerified: Boolean(session?.user?.phoneVerified),
+                    returnUrl,
+                  })
+                : appendCallbackUrl("/verify-phone", returnUrl);
+              if (returnUrl && destination === returnUrl) {
+                clearPersistedAuthReturnUrl();
+              }
+              router.push(destination);
             }}
           >
             Skip for now

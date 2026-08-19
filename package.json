@@ -10,10 +10,15 @@
     "dev:webpack": "node scripts/start-dev.js --webpack",
     "dev:clean-turbo": "node scripts/prune-turbopack-cache.js",
     "clean": "node scripts/clean-cache.js",
-    "dev:reset": "node scripts/stop-dev.js && node scripts/remove-dev-cache-link.js && node scripts/clean-cache.js && npm install next@16.2.6 @next/swc-win32-x64-msvc@16.2.6 react@19.2.4 react-dom@19.2.4 --no-save",
+    "dev:reset": "node scripts/stop-dev.js && node scripts/remove-dev-cache-link.js && node scripts/clean-cache.js && node scripts/fix-swc-win.js",
     "dev:fix": "npm run dev:reset",
+    "fix:swc": "node scripts/fix-swc-win.js",
+    "ensure:split-repo": "node scripts/ensure-split-repo-files.js",
+    "prebuild": "node scripts/prebuild.js",
+    "predev": "node scripts/prebuild.js",
     "build": "npm run db:generate && npm run copy-prisma-client && next build --webpack",
-    "start": "next start",
+    "build:win": "node scripts/build-win.js",
+    "start": "node scripts/start-prod.js",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -34,6 +39,7 @@
     "db:ssnit-theme": "node scripts/db-ssnit-theme.js",
     "db:migrate": "prisma migrate dev",
     "db:seed": "npx tsx prisma/seed.ts",
+    "db:seed:demo-listings": "npx tsx scripts/seed-demo-listings.ts",
     "db:studio": "prisma studio",
     "docker:up": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/docker-up.ps1",
     "docker:down": "docker compose down",
@@ -75,6 +81,7 @@
     "react-hook-form": "^7.76.1",
     "react-icons": "^5.6.0",
     "recharts": "^3.8.0",
+    "resend": "^4.8.0",
     "shadcn": "^4.8.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
@@ -86,7 +93,8 @@
     "zustand": "^5.0.14"
   },
   "optionalDependencies": {
-    "@next/swc-win32-x64-msvc": "^16.2.6"
+    "@next/swc-win32-x64-msvc": "16.2.6",
+    "@next/swc-wasm-nodejs": "16.2.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

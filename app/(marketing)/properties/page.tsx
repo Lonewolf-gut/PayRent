@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
 import { useMemo, useState } from "react";
 import { MapPin, Bed, Car, Refrigerator } from "lucide-react";
 import { PropertySaveButton } from "@/components/properties/property-save-button";
+import { PropertyListingImage } from "@/components/properties/property-listing-image";
 import {
   PROPERTY_CATEGORIES,
   PROPERTY_TYPE_LABELS,
@@ -32,6 +34,8 @@ function listingIcon(type: string) {
 }
 
 export default function PropertiesPage() {
+  const { data: session } = useSession();
+  const isBuyer = session?.user?.role === "BUYER";
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<"ALL" | PropertyCategory>("ALL");
   const [propertyType, setPropertyType] = useState("ALL");
@@ -70,10 +74,19 @@ export default function PropertiesPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Browse listings</h1>
-        <p className="mt-2 text-muted-foreground">
-          Find houses, rooms, cars, and home appliances — apply for rental financing
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Browse listings</h1>
+            <p className="mt-2 text-muted-foreground">
+              Find houses, rooms, cars, and home appliances — apply for rental financing
+            </p>
+          </div>
+          {isBuyer ? (
+            <Button asChild className="shrink-0 bg-emerald-600 hover:bg-emerald-700">
+              <Link href="/dashboard/buyer/applications">View request statuses</Link>
+            </Button>
+          ) : null}
+        </div>
         <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_200px_220px]">
           <Input
             placeholder="Search by location, name, or keyword..."
@@ -140,7 +153,7 @@ export default function PropertiesPage() {
             discountedPrice?: number | null;
             propertyType: string;
             isPremium: boolean;
-            images?: { url: string }[];
+            images?: { id?: string; url: string; displayUrl?: string | null; src?: string | null }[];
           }) => {
             const Icon = listingIcon(property.propertyType);
             const isSale = isSaleListing(property.propertyType as PropertyType);
@@ -152,10 +165,9 @@ export default function PropertiesPage() {
               <Card key={property.id} className="gap-1 overflow-hidden py-0 [&_img]:rounded-none">
                 <div className="relative aspect-[4/3] bg-muted sm:aspect-video">
                   <PropertySaveButton propertyId={property.id} />
-                  {property.images?.[0]?.url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={property.images[0].url}
+                  {property.images?.[0] ? (
+                    <PropertyListingImage
+                      image={property.images[0]}
                       alt={property.name}
                       className="h-full w-full object-cover"
                     />

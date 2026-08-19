@@ -188,6 +188,11 @@ export class ApplicationService {
       entityId: applicationId,
     });
 
+    if (input.decision === "APPROVE") {
+      const { financingService } = await import("@/lib/services/financing.service");
+      await financingService.tryActivatePendingRequests(application.tenantId, application.propertyId);
+    }
+
     return updated;
   }
 }

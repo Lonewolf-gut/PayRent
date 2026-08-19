@@ -1,17 +1,23 @@
 import { prisma } from "@/lib/db/prisma";
 import { propertyRepository } from "@/lib/repositories/property.repository";
-import type { PropertyType } from "@prisma/client";
+import type { PropertyType, UserRole } from "@prisma/client";
 import { RESIDENTIAL_TYPES } from "@/lib/subscription-limits";
+import { withResolvedPropertyListImages } from "@/lib/utils/property-media";
+
+type PropertyViewer = {
+  userId: string;
+  role: UserRole;
+};
 
 export class PropertyDetailService {
-  async getDetail(propertyId: string, viewerUserId?: string | null) {
+  async getDetail(propertyId: string, viewer?: PropertyViewer | null) {
     const property = await propertyRepository.findById(propertyId);
     if (!property) return null;
 
     await prisma.propertyView.create({
       data: {
         propertyId,
-        userId: viewerUserId ?? undefined,
+        userId: viewer?.userId ?? undefined,
       },
     });
 
@@ -24,8 +30,25 @@ export class PropertyDetailService {
     const landlordUser = property.landlord?.user;
     const agentUser = property.assignedAgent?.user;
 
+    let promotionStatus: "available" | "yours" | "claimed_by_other" | null = null;
+    if (viewer?.role === "MARKETER") {
+      const agent = await prisma.agentProfile.findUnique({
+        where: { userId: viewer.userId },
+        select: { id: true },
+      });
+      if (agent) {
+        promotionStatus =
+          property.agentUserId === agent.id
+            ? "yours"
+            : property.agentUserId
+              ? "claimed_by_other"
+              : "available";
+      }
+    }
+
     return {
       ...property,
+      promotionStatus,
       stats: {
         saveCount,
         viewCount,
@@ -75,7 +98,8 @@ export class PropertyDetailService {
     const rentMax = rent * 1.25;
     const isResidential = RESIDENTIAL_TYPES.includes(property.propertyType);
 
-    return prisma.property.findMany({
+    return withResolvedPropertyListImages(
+      await prisma.property.findMany({
       where: {
         id: { not: property.id },
         status: "ACTIVE",
@@ -91,7 +115,8 @@ export class PropertyDetailService {
       },
       orderBy: [{ isPremium: "desc" }, { createdAt: "desc" }],
       take: 4,
-    });
+    })
+    );
   }
 }
 

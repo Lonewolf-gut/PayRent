@@ -2,7 +2,7 @@ import {
   savePropertyDocumentUpload,
   savePropertyImageUpload,
 } from "@/lib/integrations/documents";
-import type { Prisma, PropertyType } from "@prisma/client";
+import type { Prisma, PropertyType, UserRole } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { propertyRepository } from "@/lib/repositories/property.repository";
 import { propertyDetailService } from "@/lib/services/property-detail.service";
@@ -22,7 +22,12 @@ import { firstZodIssueMessage } from "@/lib/validations/auth";
 export const GET = withPublicHandler(async (req, context) => {
   const { id } = await context.params;
   const session = await resolveAppSession(req);
-  const property = await propertyDetailService.getDetail(id, session?.user?.id ?? null);
+  const property = await propertyDetailService.getDetail(
+    id,
+    session?.user?.id
+      ? { userId: session.user.id, role: session.user.role as UserRole }
+      : null
+  );
   if (!property) return apiError(new AppError("Property not found", 404));
   return apiResponse(property);
 });
@@ -33,6 +38,7 @@ export const PATCH = withAuth(
     let parsed;
     let images: File[] = [];
     let surveyPlanFile: File | null = null;
+    let removedImageIds: string[] = [];
 
     if (req.headers.get("content-type")?.includes("multipart/form-data")) {
       const formData = await req.formData();
@@ -43,6 +49,17 @@ export const PATCH = withAuth(
       const rawSurveyPlan = formData.get("surveyPlan");
       surveyPlanFile =
         rawSurveyPlan instanceof File && rawSurveyPlan.name ? rawSurveyPlan : null;
+      const rawRemoved = formData.get("removedImageIds")?.toString();
+      if (rawRemoved) {
+        try {
+          const parsedRemoved = JSON.parse(rawRemoved);
+          if (Array.isArray(parsedRemoved)) {
+            removedImageIds = parsedRemoved.filter((id): id is string => typeof id === "string");
+          }
+        } catch {
+          removedImageIds = [];
+        }
+      }
     } else {
       const body = await req.json();
       parsed = propertySchema.safeParse(body);
@@ -70,6 +87,12 @@ export const PATCH = withAuth(
     const property = await prisma.property.findUnique({ where: { id } });
     if (!property || property.landlordId !== landlord.id) {
       return apiError(new AppError("Property not found", 404));
+    }
+
+    if (property.status === "ACTIVE") {
+      return apiError(
+        new AppError("Approved listings cannot be edited", 403)
+      );
     }
 
     const normalized = normalizePropertyPayload(parsed.data);
@@ -119,6 +142,15 @@ export const PATCH = withAuth(
         ? new Date(normalized.availableFrom)
         : undefined,
     };
+
+    if (removedImageIds.length > 0) {
+      await prisma.propertyImage.deleteMany({
+        where: {
+          id: { in: removedImageIds },
+          propertyId: id,
+        },
+      });
+    }
 
     if (images.length > 0) {
       updateData.images = {

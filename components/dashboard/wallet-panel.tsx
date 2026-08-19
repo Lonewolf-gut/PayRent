@@ -90,6 +90,15 @@ export function WalletPanel({
     },
   });
 
+  const { data: paymentConfig } = useQuery({
+    queryKey: ["payment-config"],
+    queryFn: async () => {
+      const res = await fetch("/api/payments/config");
+      const json = await res.json();
+      return json.data as { isDemo?: boolean; demoProviderLabel?: string };
+    },
+  });
+
   const { data: bankAccounts = [] } = useQuery({
     queryKey: ["settings-bank-accounts", settingsApiPath],
     queryFn: async () => {
@@ -258,6 +267,16 @@ export function WalletPanel({
         </p>
       </div>
 
+      {paymentConfig?.isDemo && showWithdraw ? (
+        <div className="rounded-none border border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-950">
+          <p className="font-medium">{paymentConfig.demoProviderLabel ?? "Demo payouts"}</p>
+          <p className="mt-1 text-muted-foreground">
+            Affiliate and merchant withdrawals to MoMo or bank are simulated instantly in demo mode
+            after OTP and 2FA — no live payout API required.
+          </p>
+        </div>
+      ) : null}
+
       <Card>
         <CardContent className="pt-6">
           <p className="text-sm text-muted-foreground">Available balance</p>
@@ -282,12 +301,6 @@ export function WalletPanel({
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-0 pb-6 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Your wallet balance reflects completed deposits and withdrawals only. Add a verified
-              Mobile Money account in Settings, then deposit via MoMo. Subscriptions are paid
-              separately through MoMo and cannot use wallet balance.
-            </p>
-
             {!verifiedAccounts.length && settingsHref ? (
               <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-100">
                 You do not have a saved payment method yet. Add a verified bank or MoMo account in
@@ -298,13 +311,6 @@ export function WalletPanel({
                   </Button>
                 </div>
               </div>
-            ) : null}
-
-            {verifiedAccounts.length ? (
-              <p className="text-sm text-muted-foreground">
-                MoMo deposits use a phone prompt. Bank deposits use the platform collection account
-                and a unique reference. You will be notified when the transfer is confirmed.
-              </p>
             ) : null}
 
             {bankDepositInstructions ? (

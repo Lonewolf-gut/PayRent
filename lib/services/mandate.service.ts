@@ -19,7 +19,10 @@ export class MandateService {
   private async activateMandate(mandateId: string, adminUserId?: string) {
     const mandate = await prisma.mandate.findUnique({
       where: { id: mandateId },
-      include: { tenant: { include: { user: true } }, financingRequest: true },
+      include: {
+        tenant: { include: { user: true } },
+        financingRequest: true,
+      },
     });
     if (!mandate) throw new AppError("Mandate not found", 404);
 
@@ -28,13 +31,6 @@ export class MandateService {
         where: { id: mandateId },
         data: { status: "ACTIVE", activatedAt: new Date() },
       });
-
-      if (mandate.financingRequest) {
-        await db.financingRequest.update({
-          where: { id: mandate.financingRequest.id },
-          data: { status: "READY_FOR_LENDER_REVIEW" },
-        });
-      }
 
       await db.adminReviewRecord.updateMany({
         where: {
@@ -51,10 +47,19 @@ export class MandateService {
       });
     });
 
+    if (mandate.financingRequest?.buyerAcceptedAt) {
+      const { financingService } = await import("@/lib/services/financing.service");
+      await financingService.completeFinancingDisbursement(mandate.financingRequest.id);
+    }
+
     await notifyUserInAppAndEmail(
       mandate.tenant.userId,
-      "Mandate activated",
-      "Your repayment mandate is active. Your financing request is ready for lender review."
+      mandate.financingRequest?.buyerAcceptedAt
+        ? "Mandate activated — financing disbursed"
+        : "Mandate activated",
+      mandate.financingRequest?.buyerAcceptedAt
+        ? "Your repayment mandate is active and financing has been disbursed to the merchant."
+        : "Your repayment mandate is active."
     );
 
     if (adminUserId) {

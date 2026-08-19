@@ -105,6 +105,35 @@ export class SubscriptionService {
     });
   }
 
+  async upgradeWithDemo(
+    userId: string,
+    role: UserRole,
+    plan: SubscriptionPlan,
+    billingCycle: BillingCycle
+  ) {
+    if (plan === "FREE") {
+      throw new AppError("Use cancel to return to the free plan");
+    }
+
+    assertSubscriptionEligibleRole(role);
+
+    const current = await this.getCurrent(userId);
+    if (hasActivePaidPlan(current?.plan, current?.status) && current?.plan === plan) {
+      throw new AppError(`You already have an active ${getPlanLabel(plan)} subscription`);
+    }
+
+    const { demoPaymentService } = await import(
+      "@/lib/services/payment/demo-payment.service"
+    );
+
+    return demoPaymentService.requestSubscriptionPayment({
+      userId,
+      role,
+      plan,
+      billingCycle,
+    });
+  }
+
   async upgradeWithPayment(
     _userId: string,
     _role: UserRole,
