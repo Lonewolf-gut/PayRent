@@ -9,11 +9,9 @@ PayRent is split into two apps:
 
 ## Fix: Backend build fails on marketing components
 
-PayRent-Backend is **API-only** (port 3001). It should not compile the marketing homepage.
+PayRent-Backend is **API-only** (port 3001). It must not compile marketing UI.
 
-**Recommended (API-only backend):**
-
-1. In **PayRent-Backend `.env`**:
+**One-time setup in PayRent-Backend `.env`:**
 
 ```env
 PORT=3001
@@ -22,38 +20,41 @@ DEMO_MODE=true
 PAYMENT_PROVIDER=demo
 ```
 
-2. Pull the root page that skips marketing when `BACKEND_ONLY=true`:
+**Pull backend-only helpers from PayRent monorepo:**
 
 ```powershell
 git fetch payrent
-git checkout payrent/cursor/demo-payments-financing-5e51 -- app/page.tsx
+git checkout payrent/cursor/demo-payments-financing-5e51 -- `
+  components/backend/api-landing.tsx `
+  scripts/ensure-backend-api-only.js `
+  scripts/templates/app-page.backend.tsx `
+  package.json
 ```
 
-3. Optional — remove marketing routes from the backend repo (UI lives on Frontend):
+**Remove marketing UI from the backend repo (recommended):**
 
 ```powershell
 Remove-Item -Recurse -Force "app/(marketing)" -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force "components/marketing" -ErrorAction SilentlyContinue
 ```
 
-4. Build or dev:
+**Install API-only root page and build:**
 
 ```powershell
-npm run dev
-# or
+npm run ensure:backend-only
+npm run build
+```
+
+Or on Windows:
+
+```powershell
 $env:NEXT_OUTPUT_STANDALONE="0"
 npm run build
 ```
 
-**Alternative (not recommended):** pull missing marketing files into Backend:
+The `prebuild` hook runs `ensure:backend-only` automatically when `BACKEND_ONLY=true`, replacing `app/page.tsx` with an API-only version that has **zero** marketing imports.
 
-```powershell
-git checkout payrent/cursor/demo-payments-financing-5e51 -- `
-  components/marketing/landing-faq-section.tsx `
-  components/marketing/platform-features-section.tsx `
-  lib/subscription/pricing-visibility.ts
-```
-
-You may still need more UI files — use Frontend for the landing page instead.
+**Do not** pull marketing files into Backend — use PayRent-Frontend (port 3000) for the landing page.
 
 ## Fix: Frontend `npm run build` fails on Windows (standalone / `(marketing)`)
 
