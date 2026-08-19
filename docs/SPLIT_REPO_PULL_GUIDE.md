@@ -7,6 +7,54 @@ PayRent is split into two apps:
 | **PayRent-Frontend** | 3000 | UI, NextAuth (`/api/auth/*`), proxies other `/api/*` to backend |
 | **PayRent-Backend** | 3001 | Prisma, all business APIs, webhooks, cron |
 
+## Fix: Backend build fails on marketing components
+
+PayRent-Backend is **API-only** (port 3001). It should not compile the marketing homepage.
+
+**Recommended (API-only backend):**
+
+1. In **PayRent-Backend `.env`**:
+
+```env
+PORT=3001
+BACKEND_ONLY=true
+DEMO_MODE=true
+PAYMENT_PROVIDER=demo
+```
+
+2. Pull the root page that skips marketing when `BACKEND_ONLY=true`:
+
+```powershell
+git fetch payrent
+git checkout payrent/cursor/demo-payments-financing-5e51 -- app/page.tsx
+```
+
+3. Optional — remove marketing routes from the backend repo (UI lives on Frontend):
+
+```powershell
+Remove-Item -Recurse -Force "app/(marketing)" -ErrorAction SilentlyContinue
+```
+
+4. Build or dev:
+
+```powershell
+npm run dev
+# or
+$env:NEXT_OUTPUT_STANDALONE="0"
+npm run build
+```
+
+**Alternative (not recommended):** pull missing marketing files into Backend:
+
+```powershell
+git checkout payrent/cursor/demo-payments-financing-5e51 -- `
+  components/marketing/landing-faq-section.tsx `
+  components/marketing/platform-features-section.tsx `
+  lib/subscription/pricing-visibility.ts
+```
+
+You may still need more UI files — use Frontend for the landing page instead.
+
 ## Fix: Frontend `npm run build` fails on Windows (standalone / `(marketing)`)
 
 If the build compiles but fails at **Collecting build traces** with an `ENOENT` path under `app\(marketing)\`:
@@ -134,6 +182,7 @@ DATABASE_URL=<same as backend>
 
 ```env
 PORT=3001
+BACKEND_ONLY=true
 PAYMENT_PROVIDER=demo
 DEMO_MODE=true
 DATABASE_URL=<same as frontend>
