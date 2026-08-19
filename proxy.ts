@@ -29,6 +29,7 @@ const publicRoutes = [
   "/referral",
   "/api/auth",
   "/api/properties",
+  "/api/contact",
   "/api/subscriptions/plans",
   "/admin/login",
   "/compliance/login",

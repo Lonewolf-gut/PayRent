@@ -125,6 +125,8 @@ type VerificationData = {
   occupation?: string;
   address?: string;
   billType?: string;
+  latitude?: number;
+  longitude?: number;
   employmentStatus?: string;
   requiresManualReview?: boolean;
   bankAccountId?: string;
@@ -622,7 +624,6 @@ export class KycService {
     role: UserRole,
     input: EmploymentVerifyInput,
     files: {
-      employmentLetter: File;
       staffIdDocument: File;
       ssnitDocument: File;
     }
@@ -665,7 +666,6 @@ export class KycService {
     });
 
     const documentUrls = await saveVerificationDocuments(userId, verification.id, {
-      EMPLOYMENT_LETTER: files.employmentLetter,
       STAFF_ID: files.staffIdDocument,
       SSNIT_CARD: files.ssnitDocument,
     });
@@ -684,7 +684,7 @@ export class KycService {
     await notifyUser(
       userId,
       "Employment documents submitted",
-      "Your employment letter, staff ID, and SSNIT document have been submitted and are pending administrator review."
+      "Your staff ID card and SSNIT card have been submitted and are pending administrator review."
     );
     await notifyAdmins(
       "New employment verification submission",
@@ -725,6 +725,8 @@ export class KycService {
       entityType: input.entityType,
       address: input.address,
       billType: input.billType,
+      latitude: input.latitude,
+      longitude: input.longitude,
       role,
       requiresManualReview: true,
       ...profileSnapshot,
