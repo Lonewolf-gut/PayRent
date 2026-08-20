@@ -190,6 +190,29 @@ DATABASE_URL=<same as frontend>
 REDIS_URL=redis://localhost:6379
 ```
 
+## Fix: Prisma P2024 connection pool timeout (`connection limit: 1`)
+
+This happens when the app opens many parallel API calls (admin dashboard) against a database URL with only **one** connection (common with Supabase **direct** `db.*.supabase.co:5432` links).
+
+**1. Update PayRent-Backend `.env` to use the Supabase pooler (Transaction mode, port 6543):**
+
+```env
+DATABASE_URL="postgresql://postgres.[ref]:[YOUR-PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require&connect_timeout=60&pool_timeout=60"
+```
+
+In Supabase: **Project Settings → Database → Connection string → URI → Transaction pooler**.
+
+**2. Pull the latest `lib/db/prisma.ts`** (singleton + safer connection check):
+
+```powershell
+git fetch payrent
+git checkout payrent/cursor/payforme-mandate-flow-5e51 -- lib/db/prisma.ts
+```
+
+**3. Restart backend only one instance** — stop any duplicate `npm start` / `npm run dev` on port 3001.
+
+**4. Local Docker Postgres** — use `docker-compose up -d postgres` and the localhost URL from `.env.example` (no `connection_limit=1`).
+
 ## Demo flows (backend)
 
 Set on **PayRent-Backend** (or monorepo `.env`):
