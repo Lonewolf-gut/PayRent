@@ -39,3 +39,7 @@ export const approveFinancingSchema = z.object({
 
 export type FinancingRequestInput = z.infer<typeof financingRequestSchema>;
 export type ApproveFinancingInput = z.infer<typeof approveFinancingSchema>;
+
+export const disburseFinancingSchema = z.object({
+  financingRequestId: z.string().cuid(),
+});

@@ -76,7 +76,7 @@ export class DemoFinancingService {
         return "Buyer reviews interest rate and accepts — mandate sent to bank";
       case "MANDATE_PENDING":
         return mandateStatus === "ACTIVE"
-          ? "Financing disbursed — merchant confirms delivery"
+          ? "Demo lender finances listing from wallet"
           : "Repayment mandate processing at bank";
       case "DISBURSED":
         return "Merchant confirms delivery — repayment schedule starts";
@@ -140,15 +140,32 @@ export class DemoFinancingService {
         steps.push({
           from: "MANDATE_PENDING",
           to: "DISBURSED",
-          action: "Sandbox bank activated mandate — funds disbursed to merchant",
+          action: "Demo lender financed listing after buyer acceptance",
         });
       }
     } else if (request.status === "MANDATE_PENDING") {
       await this.ensureActiveMandateForFinancingRequest(financingRequestId, adminUserId);
+
+      const refreshed = await prisma.financingRequest.findUnique({
+        where: { id: financingRequestId },
+        include: { feeDisclosure: true, mandate: true },
+      });
+
+      if (
+        refreshed?.mandate?.status === "ACTIVE" &&
+        refreshed.status !== "DISBURSED" &&
+        refreshed.feeDisclosure?.lenderUserId
+      ) {
+        await financingService.disburseByLender(
+          refreshed.feeDisclosure.lenderUserId,
+          financingRequestId
+        );
+      }
+
       steps.push({
         from: "MANDATE_PENDING",
         to: "DISBURSED",
-        action: "Sandbox bank activated mandate — funds disbursed to merchant",
+        action: "Demo lender financed listing after mandate activation",
       });
     } else if (request.status === "DISBURSED") {
       await financingService.confirmDelivery(

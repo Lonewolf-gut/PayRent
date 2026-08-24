@@ -4,6 +4,7 @@ import {
   notifyUserInAppAndEmail,
 } from "@/lib/services/verification-notifications";
 import { auditService } from "@/lib/services/audit.service";
+import { notificationService } from "@/lib/services/notification.service";
 import { AppError } from "@/lib/errors";
 import { getMandateProvider } from "@/lib/integrations/mandate";
 import type {
@@ -21,7 +22,12 @@ export class MandateService {
       where: { id: mandateId },
       include: {
         tenant: { include: { user: true } },
-        financingRequest: true,
+        financingRequest: {
+          include: {
+            property: { select: { name: true } },
+            feeDisclosure: { select: { lenderUserId: true } },
+          },
+        },
       },
     });
     if (!mandate) throw new AppError("Mandate not found", 404);
@@ -48,17 +54,26 @@ export class MandateService {
     });
 
     if (mandate.financingRequest?.buyerAcceptedAt) {
-      const { financingService } = await import("@/lib/services/financing.service");
-      await financingService.completeFinancingDisbursement(mandate.financingRequest.id);
+      const lenderUserId = mandate.financingRequest.feeDisclosure?.lenderUserId;
+      const propertyName = mandate.financingRequest.property?.name ?? "the listing";
+
+      if (lenderUserId) {
+        await notificationService.create({
+          userId: lenderUserId,
+          title: "Repayment mandate active",
+          body: `The customer's mandate for ${propertyName} is active. You can now finance this listing from your opportunities queue.`,
+          metadata: { financingRequestId: mandate.financingRequest.id },
+        });
+      }
     }
 
     await notifyUserInAppAndEmail(
       mandate.tenant.userId,
       mandate.financingRequest?.buyerAcceptedAt
-        ? "Mandate activated — financing disbursed"
+        ? "Mandate activated — awaiting lender financing"
         : "Mandate activated",
       mandate.financingRequest?.buyerAcceptedAt
-        ? "Your repayment mandate is active and financing has been disbursed to the merchant."
+        ? "Your repayment mandate is active. The lender will disburse funds once they confirm financing."
         : "Your repayment mandate is active."
     );
 

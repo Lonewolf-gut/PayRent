@@ -9,6 +9,9 @@ import { getBusinessRules } from "@/lib/services/business-rules.service";
 
 const EMPTY_LENDER_INSIGHT = {
   pending: [],
+  awaitingBuyerAcceptance: [],
+  awaitingMandate: [],
+  readyToFinance: [],
   waitingOnMerchant: 0,
   waitingOnAdminDocs: 0,
   waitingOnAdminEligibility: 0,

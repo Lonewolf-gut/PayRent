@@ -814,12 +814,71 @@ export class FinancingService {
     return requests.slice(0, access.limit);
   }
 
+  private lenderOfferInclude = {
+    tenant: {
+      include: {
+        user: { select: { email: true, image: true } },
+      },
+    },
+    property: { include: { images: { take: 1 } } },
+    mandate: true,
+    feeDisclosure: true,
+  } as const;
+
+  private async fetchAwaitingBuyerAcceptance(lenderUserId: string) {
+    return prisma.financingRequest.findMany({
+      where: {
+        status: "APPROVED",
+        buyerAcceptedAt: null,
+        feeDisclosure: { lenderUserId },
+      },
+      include: this.lenderOfferInclude,
+      orderBy: { approvedAt: "desc" },
+    });
+  }
+
+  private async fetchAwaitingMandate(lenderUserId: string) {
+    return prisma.financingRequest.findMany({
+      where: {
+        status: { in: ["APPROVED", "MANDATE_PENDING"] },
+        buyerAcceptedAt: { not: null },
+        feeDisclosure: { lenderUserId },
+        OR: [{ mandate: null }, { mandate: { status: { not: "ACTIVE" } } }],
+      },
+      include: this.lenderOfferInclude,
+      orderBy: { buyerAcceptedAt: "desc" },
+    });
+  }
+
+  private async fetchReadyToFinance(lenderUserId: string) {
+    return prisma.financingRequest.findMany({
+      where: {
+        status: { in: ["APPROVED", "MANDATE_PENDING"] },
+        buyerAcceptedAt: { not: null },
+        mandate: { status: "ACTIVE" },
+        feeDisclosure: { lenderUserId },
+      },
+      include: this.lenderOfferInclude,
+      orderBy: { buyerAcceptedAt: "desc" },
+    });
+  }
+
   async getLenderQueueInsight(lenderUserId: string) {
     await this.syncReadyForLenderQueue();
 
-    const [pending, waitingOnMerchant, waitingOnAdminEligibility, createdApprovedApps] =
-      await Promise.all([
+    const [
+      pending,
+      awaitingBuyerAcceptance,
+      awaitingMandate,
+      readyToFinance,
+      waitingOnMerchant,
+      waitingOnAdminEligibility,
+      createdApprovedApps,
+    ] = await Promise.all([
         this.fetchPendingForLender(lenderUserId),
+        this.fetchAwaitingBuyerAcceptance(lenderUserId),
+        this.fetchAwaitingMandate(lenderUserId),
+        this.fetchReadyToFinance(lenderUserId),
         prisma.financingRequest.count({
           where: {
             status: "CREATED",
@@ -852,6 +911,9 @@ export class FinancingService {
 
     return {
       pending,
+      awaitingBuyerAcceptance,
+      awaitingMandate,
+      readyToFinance,
       waitingOnMerchant,
       waitingOnAdminDocs,
       waitingOnAdminEligibility,
@@ -907,11 +969,6 @@ export class FinancingService {
       include: { user: { select: { id: true, email: true } } },
     });
     if (!lender?.user) throw new AppError("Lender not found");
-
-    const lenderBalance = await walletService.getBalance(lender.userId, "LENDER");
-    if (Number(lenderBalance.balance) < input.amount) {
-      throw new AppError("Insufficient lender wallet balance");
-    }
 
     const totalWithInterest = input.amount * (1 + input.interestRate / 100);
     const monthlyPayment = totalWithInterest / request.durationMonths;
@@ -1088,7 +1145,7 @@ export class FinancingService {
       await notificationService.create({
         userId: request.feeDisclosure.lenderUserId,
         title: "Customer accepted financing terms",
-        body: `The customer accepted your ${interestRate}% offer for ${request.property.name}. Disbursement proceeds once the repayment mandate is active.`,
+        body: `The customer accepted your ${interestRate}% offer for ${request.property.name}. You can finance this listing once the repayment mandate is active.`,
         metadata: { financingRequestId: request.id },
       });
     }
@@ -1194,6 +1251,14 @@ export class FinancingService {
     const lender = await prisma.lender.findUnique({ where: { userId: lenderUserId } });
     if (!lender) {
       throw new AppError("Lender not found for this financing offer", 404);
+    }
+
+    const lenderBalance = await walletService.getBalance(lenderUserId, "LENDER");
+    if (Number(lenderBalance.balance) < amount) {
+      throw new AppError(
+        "Insufficient lender wallet balance. Top up your wallet before financing this listing.",
+        400
+      );
     }
 
     const rules = await getBusinessRules();
@@ -1309,6 +1374,19 @@ export class FinancingService {
     });
 
     return result;
+  }
+
+  async disburseByLender(lenderUserId: string, financingRequestId: string) {
+    const request = await prisma.financingRequest.findUnique({
+      where: { id: financingRequestId },
+      include: { feeDisclosure: true },
+    });
+
+    if (!request?.feeDisclosure || request.feeDisclosure.lenderUserId !== lenderUserId) {
+      throw new AppError("Financing offer not found or not yours", 404);
+    }
+
+    return this.completeFinancingDisbursement(financingRequestId);
   }
 
   async confirmDelivery(merchantUserId: string, financingRequestId: string) {
