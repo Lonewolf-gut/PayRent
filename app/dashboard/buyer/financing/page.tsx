@@ -105,19 +105,6 @@ export default function TenantFinancingPage() {
           </div>
         )}
       </section>
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Repayment schedule</h2>
-          <Button asChild variant="link" className="text-emerald-700">
-            <Link href="/dashboard/buyer/repayments">View full schedule</Link>
-          </Button>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Active repayment plans appear here after lender approval and merchant delivery
-          confirmation.
-        </p>
-      </section>
     </div>
   );
 }

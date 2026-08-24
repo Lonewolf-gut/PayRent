@@ -81,7 +81,7 @@ export function DashboardThemeProvider({
       <div
         className={cn(
           className,
-          theme === "dark" ? "dark min-h-screen bg-background" : "min-h-screen bg-background"
+          theme === "dark" ? "dark h-full min-h-0 bg-background" : "h-full min-h-0 bg-background"
         )}
       >
         {children}

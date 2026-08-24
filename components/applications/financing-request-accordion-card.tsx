@@ -261,20 +261,14 @@ export function FinancingRequestAccordionCard({
               <p className="text-sm text-muted-foreground">{application.property?.location}</p>
               <p className="mt-2 text-sm font-medium text-foreground">{waitingLabel}</p>
             </div>
-            <div className="flex flex-col items-start gap-2 sm:items-end">
-              {!financingPrimary ? (
-                <StatusBadge
-                  status={application.status}
-                  label={APPLICATION_STATUS_LABELS[application.status] ?? application.status}
-                />
-              ) : null}
-              {financing ? (
-                <StatusBadge
-                  status={financing.status}
-                  label={getFinancingStatusLabel(financing.status) ?? financing.status}
-                />
-              ) : null}
-            </div>
+            <StatusBadge
+              status={financingPrimary && financing ? financing.status : application.status}
+              label={
+                financingPrimary && financing
+                  ? getFinancingStatusLabel(financing.status) ?? financing.status
+                  : APPLICATION_STATUS_LABELS[application.status] ?? application.status
+              }
+            />
           </div>
         </AccordionTrigger>
         <AccordionContent className="px-4 pb-4">
@@ -458,12 +452,6 @@ export function FinancingRequestAccordionCard({
                     </Button>
                   </div>
                 </div>
-              ) : null}
-
-              {financing && financing.status !== "CREATED" ? (
-                <Button asChild size="sm" variant="outline" className="rounded-none">
-                  <Link href="/dashboard/buyer/financing">View financing details</Link>
-                </Button>
               ) : null}
             </div>
           )}

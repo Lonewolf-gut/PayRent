@@ -26,7 +26,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <DashboardThemeProvider className="flex min-h-screen">
+    <DashboardThemeProvider className="flex h-dvh min-h-0 overflow-hidden">
       {children}
     </DashboardThemeProvider>
   );
