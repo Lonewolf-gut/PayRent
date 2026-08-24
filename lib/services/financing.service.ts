@@ -737,31 +737,87 @@ export class FinancingService {
   }
 
   private async syncReadyForLenderQueue() {
-    const admin = await prisma.user.findFirst({
-      where: { role: "ADMIN" },
-      select: { id: true },
+    const queued = await prisma.financingRequest.findMany({
+      where: { status: "CREATED" },
+      select: { id: true, tenantId: true, propertyId: true },
     });
-    if (!admin) return;
+
+    for (const request of queued) {
+      const ready = await this.prerequisitesMet(request.id);
+      if (!ready) continue;
+      await this.tryActivatePendingRequests(request.tenantId, request.propertyId);
+    }
+  }
+
+  private async fetchPendingForLender(lenderUserId?: string) {
+    const requests = await prisma.financingRequest.findMany({
+      where: { status: { in: ["PENDING", "UNDER_REVIEW", "READY_FOR_LENDER_REVIEW"] } },
+      include: {
+        tenant: {
+          include: {
+            user: { select: { email: true, image: true } },
+          },
+        },
+        property: { include: { images: { take: 1 } } },
+        mandate: true,
+        application: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!lenderUserId) return requests;
+
+    const { getLenderFinancingAccess } = await import(
+      "@/lib/subscription/lender-access"
+    );
+    const access = await getLenderFinancingAccess(lenderUserId);
+    if (access.limit == null) return requests;
+
+    return requests.slice(0, access.limit);
+  }
+
+  async getLenderQueueInsight(lenderUserId: string) {
+    await this.syncReadyForLenderQueue();
+
+    const [pending, waitingOnMerchant, waitingOnAdminEligibility, createdApprovedApps] =
+      await Promise.all([
+        this.fetchPendingForLender(lenderUserId),
+        prisma.financingRequest.count({
+          where: {
+            status: "CREATED",
+            application: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] } },
+          },
+        }),
+        prisma.financingRequest.count({
+          where: { status: "ELIGIBILITY_PENDING" },
+        }),
+        prisma.financingRequest.findMany({
+          where: {
+            status: "CREATED",
+            application: { status: "APPROVED" },
+          },
+          select: { id: true },
+        }),
+      ]);
 
     const { financingRequestDocService } = await import(
       "@/lib/services/financing-request-doc.service"
     );
 
-    const candidates = await prisma.financingRequest.findMany({
-      where: {
-        status: { in: ["CREATED", "ELIGIBILITY_PENDING"] },
-        application: { status: "APPROVED" },
-      },
-      select: { id: true },
-    });
-
-    for (const candidate of candidates) {
-      const docsReady = await financingRequestDocService.areFinancingDocsApproved(
-        candidate.id
+    let waitingOnAdminDocs = 0;
+    for (const request of createdApprovedApps) {
+      const docsApproved = await financingRequestDocService.areFinancingDocsApproved(
+        request.id
       );
-      if (!docsReady) continue;
-      await this.advanceAfterAdminDocumentApproval(candidate.id, admin.id);
+      if (!docsApproved) waitingOnAdminDocs++;
     }
+
+    return {
+      pending,
+      waitingOnMerchant,
+      waitingOnAdminDocs,
+      waitingOnAdminEligibility,
+    };
   }
 
   async approveRequest(lenderId: string, input: ApproveFinancingInput) {
@@ -1451,31 +1507,7 @@ export class FinancingService {
 
   async getPendingForLender(lenderUserId?: string) {
     await this.syncReadyForLenderQueue();
-
-    const requests = await prisma.financingRequest.findMany({
-      where: { status: { in: ["PENDING", "UNDER_REVIEW", "READY_FOR_LENDER_REVIEW"] } },
-      include: {
-        tenant: {
-          include: {
-            user: { select: { email: true, image: true } },
-          },
-        },
-        property: { include: { images: { take: 1 } } },
-        mandate: true,
-        application: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (!lenderUserId) return requests;
-
-    const { getLenderFinancingAccess } = await import(
-      "@/lib/subscription/lender-access"
-    );
-    const access = await getLenderFinancingAccess(lenderUserId);
-    if (access.limit == null) return requests;
-
-    return requests.slice(0, access.limit);
+    return this.fetchPendingForLender(lenderUserId);
   }
 
   async getPendingAdminReview() {

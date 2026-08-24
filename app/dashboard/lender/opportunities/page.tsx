@@ -61,14 +61,21 @@ export default function LenderOpportunitiesPage() {
 
   const maxInterestRate = financingRules?.maxInterestRatePercent ?? 30;
 
-  const { data: requests = [], isLoading } = useQuery({
+  const { data: queueInsight, isLoading } = useQuery({
     queryKey: ["financing-pending"],
     queryFn: async () => {
-      const res = await fetch("/api/financing");
+      const res = await fetch("/api/financing?scope=insight");
       const json = await res.json();
-      return (json.data ?? []) as FinancingRequest[];
+      return json.data as {
+        pending: FinancingRequest[];
+        waitingOnMerchant: number;
+        waitingOnAdminDocs: number;
+        waitingOnAdminEligibility: number;
+      };
     },
   });
+
+  const requests = queueInsight?.pending ?? [];
 
   const getOfferForm = (requestId: string): OfferFormState =>
     offerForms[requestId] ?? { interestRate: "8", planType: "MONTHLY" };
@@ -153,6 +160,31 @@ export default function LenderOpportunitiesPage() {
           <p className="mt-2 text-sm">
             Requests appear here after the merchant and admin have approved them.
           </p>
+          {(queueInsight?.waitingOnMerchant ?? 0) > 0 ||
+          (queueInsight?.waitingOnAdminDocs ?? 0) > 0 ||
+          (queueInsight?.waitingOnAdminEligibility ?? 0) > 0 ? (
+            <ul className="mx-auto mt-4 max-w-md space-y-1 text-left text-sm">
+              {(queueInsight?.waitingOnMerchant ?? 0) > 0 ? (
+                <li>
+                  • {queueInsight?.waitingOnMerchant} waiting on{" "}
+                  <span className="font-medium text-foreground">merchant approval</span>
+                </li>
+              ) : null}
+              {(queueInsight?.waitingOnAdminDocs ?? 0) > 0 ? (
+                <li>
+                  • {queueInsight?.waitingOnAdminDocs} waiting on{" "}
+                  <span className="font-medium text-foreground">admin document review</span>
+                </li>
+              ) : null}
+              {(queueInsight?.waitingOnAdminEligibility ?? 0) > 0 ? (
+                <li>
+                  • {queueInsight?.waitingOnAdminEligibility} waiting on{" "}
+                  <span className="font-medium text-foreground">admin eligibility review</span>
+                  — approve them in Admin → Financing before they reach you
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
         </div>
       ) : (
         <Accordion

@@ -20,7 +20,6 @@ export function DashboardShell({
 }) {
   return (
     <SubscriptionUpgradeProvider>
-      <div className="flex h-full min-h-0 flex-1">
       <DashboardSidebar items={items} title={title} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <DashboardHeader navItems={items} sidebarTitle={title} />
@@ -28,7 +27,6 @@ export function DashboardShell({
         <VerificationPromptDialog />
         <div className="flex-1 overflow-auto p-4 sm:p-6">{children}</div>
         <MessagesWidget />
-      </div>
       </div>
       <SubscriptionUpgradeDialog />
     </SubscriptionUpgradeProvider>

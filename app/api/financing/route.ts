@@ -20,6 +20,11 @@ export const GET = withAuth(
         return apiResponse(portfolio);
       }
 
+      if (scope === "insight") {
+        const insight = await financingService.getLenderQueueInsight(session.user.id);
+        return apiResponse(insight);
+      }
+
       const requests = await financingService.getPendingForLender(session.user.id);
       return apiResponse(requests);
     }

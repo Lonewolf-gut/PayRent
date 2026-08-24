@@ -160,7 +160,7 @@ export function DashboardSidebar({
   title: string;
 }) {
   return (
-    <aside className="hidden h-full w-64 shrink-0 flex-col overflow-hidden border-r bg-card lg:flex">
+    <aside className="hidden w-64 shrink-0 flex-col border-r bg-card lg:flex">
       <SidebarNavContent items={items} title={title} showLogo />
     </aside>
   );
