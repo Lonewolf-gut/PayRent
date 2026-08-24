@@ -334,7 +334,11 @@ export class FinancingService {
       const ready = await this.prerequisitesMet(request.id);
       if (!ready) continue;
 
-      await this.activateQueuedRequest(request.id);
+      try {
+        await this.activateQueuedRequest(request.id);
+      } catch {
+        // Skip requests that cannot be activated yet (e.g. failed affordability check).
+      }
     }
   }
 
@@ -373,10 +377,40 @@ export class FinancingService {
     });
 
     if (assessment.riskCategory === "INELIGIBLE") {
-      throw new AppError(
-        "You do not meet the initial affordability requirements for this financing amount. Try a lower amount or longer repayment period.",
-        400
+      const updated = await prisma.financingRequest.update({
+        where: { id: request.id },
+        data: {
+          status: "ELIGIBILITY_PENDING",
+          riskCategory: assessment.riskCategory,
+          eligibilityScore: assessment.score,
+          affordabilitySnapshot: assessment.affordability as object,
+        },
+        include: {
+          property: {
+            include: {
+              assignedAgent: { include: { user: { select: { id: true } } } },
+            },
+          },
+          tenant: { include: { user: true } },
+          application: true,
+        },
+      });
+
+      await prisma.adminReviewRecord.create({
+        data: {
+          reviewType: "FINANCING_REQUEST",
+          relatedEntityType: "FinancingRequest",
+          relatedEntityId: updated.id,
+          status: "PENDING",
+        },
+      });
+
+      await notifyAllAdminsInAppAndEmail(
+        "Financing request pending eligibility review",
+        `Customer ${updated.tenant.user.email} requested GHS ${Number(updated.requestedAmount).toLocaleString()} financing for "${updated.property.name}" (${assessment.riskCategory} risk).`
       );
+
+      return updated;
     }
 
     const initialStatus = assessment.autoApproved ? "READY_FOR_LENDER_REVIEW" : "ELIGIBILITY_PENDING";
@@ -745,7 +779,11 @@ export class FinancingService {
     for (const request of queued) {
       const ready = await this.prerequisitesMet(request.id);
       if (!ready) continue;
-      await this.tryActivatePendingRequests(request.tenantId, request.propertyId);
+      try {
+        await this.tryActivatePendingRequests(request.tenantId, request.propertyId);
+      } catch {
+        // Continue reconciling other queued requests.
+      }
     }
   }
 

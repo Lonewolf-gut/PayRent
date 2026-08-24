@@ -20,6 +20,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { toast } from "sonner";
+import { normalizeLenderQueueResponse } from "@/lib/utils/lender-queue-response";
 
 type FinancingRequest = {
   id: string;
@@ -64,18 +65,16 @@ export default function LenderOpportunitiesPage() {
   const { data: queueInsight, isLoading } = useQuery({
     queryKey: ["financing-pending"],
     queryFn: async () => {
-      const res = await fetch("/api/financing?scope=insight");
+      const res = await fetch("/api/financing");
       const json = await res.json();
-      return json.data as {
-        pending: FinancingRequest[];
-        waitingOnMerchant: number;
-        waitingOnAdminDocs: number;
-        waitingOnAdminEligibility: number;
-      };
+      if (!json.success) {
+        throw new Error(json.message ?? "Could not load financing queue");
+      }
+      return normalizeLenderQueueResponse(json.data);
     },
   });
 
-  const requests = queueInsight?.pending ?? [];
+  const requests = (queueInsight?.pending ?? []) as FinancingRequest[];
 
   const getOfferForm = (requestId: string): OfferFormState =>
     offerForms[requestId] ?? { interestRate: "8", planType: "MONTHLY" };

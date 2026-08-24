@@ -6,13 +6,21 @@ import { apiResponse, withAuth } from "@/lib/api/handler";
 import { getReferralAgentProfileId } from "@/lib/utils/agent-referral-request";
 import { consentService } from "@/lib/services/consent.service";
 import { getBusinessRules } from "@/lib/services/business-rules.service";
+
+const EMPTY_LENDER_INSIGHT = {
+  pending: [],
+  waitingOnMerchant: 0,
+  waitingOnAdminDocs: 0,
+  waitingOnAdminEligibility: 0,
+};
+
 export const GET = withAuth(
   async (req: NextRequest, _ctx, session) => {
     if (session.user.role === "LENDER") {
       const lender = await prisma.lender.findUnique({
         where: { userId: session.user.id },
       });
-      if (!lender) return apiResponse([]);
+      if (!lender) return apiResponse(EMPTY_LENDER_INSIGHT);
 
       const scope = req.nextUrl.searchParams.get("scope");
       if (scope === "portfolio") {
@@ -20,13 +28,8 @@ export const GET = withAuth(
         return apiResponse(portfolio);
       }
 
-      if (scope === "insight") {
-        const insight = await financingService.getLenderQueueInsight(session.user.id);
-        return apiResponse(insight);
-      }
-
-      const requests = await financingService.getPendingForLender(session.user.id);
-      return apiResponse(requests);
+      const insight = await financingService.getLenderQueueInsight(session.user.id);
+      return apiResponse(insight);
     }
 
     const tenant = await prisma.tenant.findUnique({
