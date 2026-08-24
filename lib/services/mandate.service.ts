@@ -470,7 +470,7 @@ export class MandateService {
     return prisma.mandate.findMany({
       where: { status: { in: ["ADMIN_REVIEW", "PENDING_MANUAL_RESOLUTION"] } },
       include: {
-        tenant: { include: { user: { select: { email: true } } } },
+        tenant: { include: { user: { select: { id: true, email: true } } } },
         bankAccount: true,
         financingRequest: { include: { property: true } },
       },
@@ -484,7 +484,9 @@ export class MandateService {
         tenant: {
           select: {
             fullName: true,
-            user: { select: { email: true } },
+            nationalId: true,
+            userId: true,
+            user: { select: { id: true, email: true } },
           },
         },
         bankAccount: true,

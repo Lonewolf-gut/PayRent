@@ -28,6 +28,8 @@ export type MandatePreviewData = {
   previewStatus: MandatePreviewStatus;
   buyerAcceptedAt?: string | null;
   ratePricingVisible: boolean;
+  buyerIdentityDocumentLabel?: string | null;
+  buyerIdentityDocumentNumber?: string | null;
 };
 
 type FinancingLike = {
@@ -69,6 +71,8 @@ type FinancingLike = {
   repaymentPreference?: {
     bankAccountId?: string;
   } | null;
+  buyerIdentityDocumentLabel?: string | null;
+  buyerIdentityDocumentNumber?: string | null;
 };
 
 function toNumber(value: unknown): number | null {
@@ -151,5 +155,7 @@ export function buildMandatePreview(financing: FinancingLike): MandatePreviewDat
       ? new Date(financing.buyerAcceptedAt).toISOString()
       : null,
     ratePricingVisible,
+    buyerIdentityDocumentLabel: financing.buyerIdentityDocumentLabel ?? null,
+    buyerIdentityDocumentNumber: financing.buyerIdentityDocumentNumber ?? null,
   };
 }

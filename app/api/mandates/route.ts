@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createMandateSchema, submitMandateSchema } from "@/lib/validations/mandate";
 import { mandateService } from "@/lib/services/mandate.service";
+import { resolveBuyerIdentityDocuments } from "@/lib/services/mandate-preview.service";
 import { prisma } from "@/lib/db/prisma";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 
@@ -21,7 +22,26 @@ export const GET = withAuth(
         scope === "pending"
           ? await mandateService.listPendingReview()
           : await mandateService.listAllForAdmin();
-      return apiResponse(mandates, 200, "Mandates retrieved.");
+
+      const identityByUser = await resolveBuyerIdentityDocuments(
+        mandates
+          .map((mandate) => mandate.tenant?.user?.id)
+          .filter((userId): userId is string => Boolean(userId))
+      );
+
+      return apiResponse(
+        mandates.map((mandate) => {
+          const userId = mandate.tenant?.user?.id;
+          const identity = userId ? identityByUser.get(userId) : undefined;
+          return {
+            ...mandate,
+            buyerIdentityDocumentLabel: identity?.label ?? null,
+            buyerIdentityDocumentNumber: identity?.number ?? null,
+          };
+        }),
+        200,
+        "Mandates retrieved."
+      );
     }
 
     return apiResponse([]);

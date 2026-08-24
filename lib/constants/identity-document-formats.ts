@@ -11,6 +11,13 @@ type DocumentFormatRule = {
   placeholder: string;
 };
 
+export const IDENTITY_DOCUMENT_LABELS: Record<IdentityDocumentType, string> = {
+  GHANA_CARD: "Ghana Card",
+  VOTER_ID: "Voter ID",
+  PASSPORT: "Passport",
+  DRIVERS_LICENSE: "Driver's licence",
+};
+
 export const ID_DOCUMENT_FORMATS: Record<IdentityDocumentType, DocumentFormatRule> = {
   GHANA_CARD: {
     exactLength: 15,

@@ -8,6 +8,15 @@ function cleanPropertyName(name: string) {
   return name.replace(/^\[Demo\]\s*/i, "");
 }
 
+function formatDocumentDate(value?: string | null) {
+  if (!value) return "Pending acceptance";
+  return new Date(value).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 function mandateFilename(preview: MandatePreviewData) {
   const id = preview.mandateId ?? preview.financingRequestId;
   const slug = cleanPropertyName(preview.propertyName)
@@ -67,7 +76,7 @@ export async function downloadMandatePdf(preview: MandatePreviewData) {
   y += 8;
 
   const rows: Array<[string, string]> = [
-    ["Borrower", preview.borrowerName],
+    ["Buyer", preview.borrowerName],
     ["Financed amount", `GHS ${preview.principalAmount.toLocaleString()}`],
     ["Repayment period", `${preview.durationMonths} months`],
   ];
@@ -85,6 +94,9 @@ export async function downloadMandatePdf(preview: MandatePreviewData) {
     }
     if (preview.monthlyPayment != null) {
       rows.push(["Estimated monthly debit", `GHS ${preview.monthlyPayment.toLocaleString()}`]);
+    }
+    if (preview.buyerAcceptedAt) {
+      rows.push(["Rate accepted on", formatDocumentDate(preview.buyerAcceptedAt)]);
     }
   } else {
     rows.push(["Repayment totals", "Pending lender rate acceptance"]);
@@ -137,10 +149,34 @@ export async function downloadMandatePdf(preview: MandatePreviewData) {
   doc.line(margin, y, margin + 60, y);
   doc.line(pageWidth - margin - 60, y, pageWidth - margin, y);
   y += 5;
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...MUTED);
-  doc.text("Borrower signature", margin, y);
-  doc.text("Date", pageWidth - margin - 60, y);
+  doc.text("Buyer's signature", margin, y);
+  doc.text(formatDocumentDate(preview.buyerAcceptedAt), pageWidth - margin - 60, y);
+  y += 6;
+
+  if (preview.buyerAcceptedAt) {
+    doc.setFont("times", "bolditalic");
+    doc.setFontSize(14);
+    doc.setTextColor(15, 23, 42);
+    doc.text(preview.borrowerName, margin, y);
+    y += 6;
+
+    const identityLine =
+      preview.buyerIdentityDocumentLabel && preview.buyerIdentityDocumentNumber
+        ? `${preview.buyerIdentityDocumentLabel}: ${preview.buyerIdentityDocumentNumber}`
+        : preview.buyerIdentityDocumentNumber
+          ? preview.buyerIdentityDocumentNumber
+          : null;
+
+    if (identityLine) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...MUTED);
+      doc.text(identityLine, margin, y);
+    }
+  }
 
   const footerY = doc.internal.pageSize.getHeight() - 12;
   doc.setDrawColor(226, 232, 240);
@@ -175,7 +211,13 @@ type AdminMandateForPdf = {
   status: string;
   mandateSource: string;
   documentUrl?: string | null;
-  tenant?: { fullName?: string; user?: { email?: string } };
+  buyerIdentityDocumentLabel?: string | null;
+  buyerIdentityDocumentNumber?: string | null;
+  tenant?: {
+    fullName?: string;
+    nationalId?: string | null;
+    user?: { email?: string; id?: string };
+  };
   bankAccount?: {
     bankName?: string;
     accountNumberMasked?: string;
@@ -212,6 +254,9 @@ export function adminMandateToPreview(mandate: AdminMandateForPdf): MandatePrevi
     property: financing?.property ?? null,
     tenant: mandate.tenant ?? null,
     feeDisclosure: financing?.feeDisclosure ?? null,
+    buyerIdentityDocumentLabel: mandate.buyerIdentityDocumentLabel ?? null,
+    buyerIdentityDocumentNumber:
+      mandate.buyerIdentityDocumentNumber ?? mandate.tenant?.nationalId ?? null,
     mandate: {
       id: mandate.id,
       status: mandate.status,

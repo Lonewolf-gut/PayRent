@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/db/prisma";
 import { financingService } from "@/lib/services/financing.service";
 import { buildMandatePreview } from "@/lib/utils/mandate-preview";
+import {
+  IDENTITY_DOCUMENT_LABELS,
+  type IdentityDocumentType,
+} from "@/lib/constants/identity-document-formats";
+import type { IdentityDocumentType as KycIdentityDocumentType } from "@/lib/integrations/kyc/types";
 
 export type {
   MandatePreviewData,
@@ -16,6 +21,71 @@ type RepaymentPreference = {
 const ACTIVE_FINANCING_STATUSES = {
   notIn: ["REJECTED", "WITHDRAWN", "CLOSED", "COMPLETED"] as const,
 };
+
+type VerificationIdentityData = {
+  documentType?: KycIdentityDocumentType | string;
+  idNumber?: string;
+};
+
+function formatIdentityDocumentLabel(documentType?: string | null) {
+  if (!documentType) return "ID document";
+  if (documentType in IDENTITY_DOCUMENT_LABELS) {
+    return IDENTITY_DOCUMENT_LABELS[documentType as IdentityDocumentType];
+  }
+  return documentType.replace(/_/g, " ");
+}
+
+export async function resolveBuyerIdentityDocuments(userIds: string[]) {
+  const uniqueUserIds = [...new Set(userIds.filter(Boolean))];
+  if (!uniqueUserIds.length) {
+    return new Map<string, { label: string; number: string }>();
+  }
+
+  const [tenants, verifications] = await Promise.all([
+    prisma.tenant.findMany({
+      where: { userId: { in: uniqueUserIds } },
+      select: { userId: true, nationalId: true },
+    }),
+    prisma.verification.findMany({
+      where: {
+        userId: { in: uniqueUserIds },
+        type: "IDENTITY",
+      },
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+      select: { userId: true, status: true, data: true },
+    }),
+  ]);
+
+  const verificationByUser = new Map<string, (typeof verifications)[number]>();
+  for (const verification of verifications) {
+    const existing = verificationByUser.get(verification.userId);
+    if (!existing) {
+      verificationByUser.set(verification.userId, verification);
+      continue;
+    }
+    if (existing.status !== "APPROVED" && verification.status === "APPROVED") {
+      verificationByUser.set(verification.userId, verification);
+    }
+  }
+
+  const tenantByUser = new Map(tenants.map((tenant) => [tenant.userId, tenant]));
+  const identityByUser = new Map<string, { label: string; number: string }>();
+
+  for (const userId of uniqueUserIds) {
+    const tenant = tenantByUser.get(userId);
+    const verification = verificationByUser.get(userId);
+    const verificationData = verification?.data as VerificationIdentityData | null;
+    const number = tenant?.nationalId ?? verificationData?.idNumber ?? null;
+    if (!number) continue;
+
+    identityByUser.set(userId, {
+      label: formatIdentityDocumentLabel(verificationData?.documentType),
+      number,
+    });
+  }
+
+  return identityByUser;
+}
 
 export async function loadMandatePreviewsForTenant(
   tenantId: string,
@@ -46,7 +116,9 @@ export async function loadMandatePreviewsForTenant(
         },
       },
       tenant: {
-        include: { user: { select: { email: true } } },
+        include: {
+          user: { select: { id: true, email: true } },
+        },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -69,10 +141,14 @@ export async function loadMandatePreviewsForTenant(
     : [];
 
   const bankById = new Map(bankAccounts.map((account) => [account.id, account]));
+  const identityByUser = await resolveBuyerIdentityDocuments(
+    requests.map((request) => request.tenant.user.id)
+  );
 
   return requests.map((request) => {
     const bankAccountId = (request.repaymentPreference as RepaymentPreference | null)?.bankAccountId;
     const repaymentBankAccount = bankAccountId ? bankById.get(bankAccountId) ?? null : null;
+    const identity = identityByUser.get(request.tenant.user.id);
 
     return buildMandatePreview({
       ...request,
@@ -91,6 +167,8 @@ export async function loadMandatePreviewsForTenant(
         : null,
       repaymentBankAccount,
       repaymentPreference: request.repaymentPreference as RepaymentPreference | null,
+      buyerIdentityDocumentLabel: identity?.label ?? null,
+      buyerIdentityDocumentNumber: identity?.number ?? null,
     });
   });
 }
