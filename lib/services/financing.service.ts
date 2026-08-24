@@ -743,10 +743,6 @@ export class FinancingService {
     });
     if (!admin) return;
 
-    if (isDemoMode()) {
-      await this.syncDemoReadyForLenderQueue(admin.id);
-    }
-
     const { financingRequestDocService } = await import(
       "@/lib/services/financing-request-doc.service"
     );
@@ -765,51 +761,6 @@ export class FinancingService {
       );
       if (!docsReady) continue;
       await this.advanceAfterAdminDocumentApproval(candidate.id, admin.id);
-    }
-  }
-
-  private async syncDemoReadyForLenderQueue(adminUserId: string) {
-    const pending = await prisma.financingRequest.findMany({
-      where: {
-        status: { in: ["CREATED", "ELIGIBILITY_PENDING"] },
-      },
-      include: {
-        application: true,
-        documents: true,
-      },
-    });
-
-    for (const request of pending) {
-      if (
-        request.application &&
-        ["SUBMITTED", "UNDER_REVIEW"].includes(request.application.status)
-      ) {
-        await prisma.propertyApplication.update({
-          where: { id: request.application.id },
-          data: {
-            status: "APPROVED",
-            reviewedAt: new Date(),
-            decisionReason: "Auto-approved in demo mode for lender review",
-          },
-        });
-      }
-
-      if (request.documents.some((doc) => doc.status === "PENDING")) {
-        await prisma.financingRequestDocument.updateMany({
-          where: {
-            financingRequestId: request.id,
-            status: "PENDING",
-          },
-          data: {
-            status: "APPROVED",
-            reviewedAt: new Date(),
-            reviewedBy: adminUserId,
-            reviewNotes: "Auto-approved in demo mode",
-          },
-        });
-      }
-
-      await this.advanceAfterAdminDocumentApproval(request.id, adminUserId);
     }
   }
 
