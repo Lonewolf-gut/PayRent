@@ -145,22 +145,22 @@ export async function downloadMandatePdf(preview: MandatePreviewData) {
   }
 
   y += 10;
-  doc.setDrawColor(...BRAND_GREEN);
-  doc.line(margin, y, margin + 60, y);
-  doc.line(pageWidth - margin - 60, y, pageWidth - margin, y);
-  y += 5;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...MUTED);
   doc.text("Buyer's signature", margin, y);
-  doc.text(formatDocumentDate(preview.buyerAcceptedAt), pageWidth - margin - 60, y);
-  y += 6;
+  doc.text("Date", pageWidth - margin - 60, y);
+  y += 5;
 
   if (preview.buyerAcceptedAt) {
     doc.setFont("times", "bolditalic");
     doc.setFontSize(14);
     doc.setTextColor(15, 23, 42);
     doc.text(preview.borrowerName, margin, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(15, 23, 42);
+    doc.text(formatDocumentDate(preview.buyerAcceptedAt), pageWidth - margin - 60, y);
     y += 6;
 
     const identityLine =
@@ -175,8 +175,20 @@ export async function downloadMandatePdf(preview: MandatePreviewData) {
       doc.setFontSize(8);
       doc.setTextColor(...MUTED);
       doc.text(identityLine, margin, y);
+      y += 5;
     }
+  } else {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...MUTED);
+    doc.text("Pending acceptance", pageWidth - margin - 60, y);
+    y += 8;
   }
+
+  y += 2;
+  doc.setDrawColor(...BRAND_GREEN);
+  doc.line(margin, y, margin + 60, y);
+  doc.line(pageWidth - margin - 60, y, pageWidth - margin, y);
 
   const footerY = doc.internal.pageSize.getHeight() - 12;
   doc.setDrawColor(226, 232, 240);
