@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PropertyListingImage } from "@/components/properties/property-listing-image";
 import { MapPin } from "lucide-react";
 import {
   countUnviewedSavedProperties,
@@ -60,7 +61,7 @@ export default function TenantSavedPropertiesPage() {
               name: string;
               location: string;
               monthlyRent: number;
-              images?: { url: string }[];
+              images?: { id?: string; url: string; displayUrl?: string | null; src?: string | null }[];
             };
           }) => {
             const propertyId = item.propertyId ?? item.property.id;
@@ -72,14 +73,13 @@ export default function TenantSavedPropertiesPage() {
                 {itemUnviewed ? (
                   <Badge className="absolute left-2 top-2 z-10 bg-emerald-600">New</Badge>
                 ) : null}
-                {item.property.images?.[0]?.url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={item.property.images[0].url}
+                {item.property.images?.[0] ? (
+                  <PropertyListingImage
+                    image={item.property.images[0]}
                     alt={item.property.name}
                     className="h-full w-full object-cover"
                   />
-                )}
+                ) : null}
               </div>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">{item.property.name}</CardTitle>

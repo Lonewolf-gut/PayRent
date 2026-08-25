@@ -68,6 +68,17 @@ export function SubscriptionCheckoutPage() {
     enabled: !!session?.user,
   });
 
+  const { data: paymentConfig } = useQuery({
+    queryKey: ["payment-config"],
+    queryFn: async () => {
+      const res = await fetch("/api/payments/config");
+      const json = await res.json();
+      return json.data as { isDemo?: boolean; demoProviderLabel?: string; settlementNote?: string };
+    },
+  });
+
+  const usesDemoCheckout = Boolean(paymentConfig?.isDemo);
+
   const verifiedMomoAccounts = bankAccounts.filter(
     (account) => account.isVerified && account.accountType === "MOMO"
   );
@@ -130,6 +141,13 @@ export function SubscriptionCheckoutPage() {
       };
     },
     onSuccess: (data) => {
+      if (data?.checkout?.checkoutUrl) {
+        toast.success(data.message ?? "Continue to checkout to activate your subscription.");
+        queryClient.invalidateQueries({ queryKey: ["subscription"] });
+        router.push(data.checkout.checkoutUrl);
+        return;
+      }
+
       toast.success(
         data?.message ??
           "MoMo payment initiated — approve the prompt on your phone to activate your subscription."
@@ -306,7 +324,17 @@ export function SubscriptionCheckoutPage() {
 
               <div className="mt-6">
                 <p className="text-sm text-emerald-900/70">Payment method</p>
-                {!verifiedMomoAccounts.length ? (
+                {usesDemoCheckout ? (
+                  <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-4 text-sm text-emerald-950">
+                    <p className="font-medium">
+                      {paymentConfig?.demoProviderLabel ?? "PayForMe Checkout (Demo)"}
+                    </p>
+                    <p className="mt-2 text-emerald-900/75">
+                      {paymentConfig?.settlementNote ??
+                        "Subscription payment settles to the platform admin collection account (simulated)."}
+                    </p>
+                  </div>
+                ) : !verifiedMomoAccounts.length ? (
                   <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                     Add a verified MoMo account in Settings before subscribing.
                     <div className="mt-3">
@@ -372,8 +400,7 @@ export function SubscriptionCheckoutPage() {
                 disabled={
                   checkoutMutation.isPending ||
                   isCurrentPaidPlan ||
-                  !bankAccountId ||
-                  !verifiedMomoAccounts.length ||
+                  (!usesDemoCheckout && (!bankAccountId || !verifiedMomoAccounts.length)) ||
                   sessionStatus === "loading"
                 }
                 onClick={() => checkoutMutation.mutate()}

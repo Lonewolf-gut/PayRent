@@ -94,6 +94,22 @@ export class TwoFactorService {
       pendingSetup: Boolean(user?.twoFactorSecret && !user?.twoFactorEnabled),
     };
   }
+
+  async resumeSetup(userId: string, email: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.twoFactorSecret) {
+      throw new AppError("2FA setup has not been started yet. Click Enable 2FA first.");
+    }
+    if (user.twoFactorEnabled) {
+      throw new AppError("Two-factor authentication is already enabled.");
+    }
+
+    const totp = this.buildTotp(user.twoFactorSecret);
+    return {
+      otpauthUrl: totp.toString(),
+      secret: decrypt(user.twoFactorSecret),
+    };
+  }
 }
 
 export const twoFactorService = new TwoFactorService();

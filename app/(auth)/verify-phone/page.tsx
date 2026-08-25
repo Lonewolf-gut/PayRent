@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RentVestLogo } from "@/components/rentvest/logo";
@@ -11,6 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getPostAuthRoute } from "@/lib/auth/post-auth-route";
+import {
+  clearPersistedAuthReturnUrl,
+  persistAuthReturnUrl,
+  resolveAuthReturnUrl,
+} from "@/lib/utils/auth-callback-url";
 import type { UserRole } from "@prisma/client";
 
 type PhoneVerificationDelivery = {
@@ -22,6 +27,7 @@ type PhoneVerificationDelivery = {
 
 export default function VerifyPhonePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { data: session, update } = useSession();
   const [phone, setPhone] = useState("");
@@ -31,6 +37,10 @@ export default function VerifyPhonePage() {
   const [bootstrapping, setBootstrapping] = useState(true);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [smsConfigured, setSmsConfigured] = useState(false);
+
+  useEffect(() => {
+    persistAuthReturnUrl(searchParams.get("callbackUrl"));
+  }, [searchParams]);
 
   const applyDelivery = useCallback((data: PhoneVerificationDelivery | null | undefined) => {
     if (!data) return;
@@ -129,6 +139,7 @@ export default function VerifyPhonePage() {
       await queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
       toast.success("Mobile number verified successfully");
 
+      const returnUrl = resolveAuthReturnUrl(searchParams.get("callbackUrl"));
       const role = session?.user?.role as UserRole | undefined;
       if (session?.user?.id) {
         sessionStorage.removeItem(`verification-prompt-dismissed:${session.user.id}`);
@@ -140,8 +151,12 @@ export default function VerifyPhonePage() {
             role,
             emailVerified: true,
             phoneVerified: true,
+            returnUrl,
           })
         : "/";
+      if (returnUrl && destination === returnUrl) {
+        clearPersistedAuthReturnUrl();
+      }
       router.push(destination);
       router.refresh();
     } catch {
@@ -233,17 +248,21 @@ export default function VerifyPhonePage() {
             type="button"
             className="text-muted-foreground hover:text-foreground"
             onClick={() => {
+              const returnUrl = resolveAuthReturnUrl(searchParams.get("callbackUrl"));
               const role = session?.user?.role as UserRole | undefined;
               sessionStorage.setItem("fresh-dashboard-login", "1");
-              router.push(
-                role
-                  ? getPostAuthRoute({
-                      role,
-                      emailVerified: true,
-                      phoneVerified: true,
-                    })
-                  : "/"
-              );
+              const destination = role
+                ? getPostAuthRoute({
+                    role,
+                    emailVerified: true,
+                    phoneVerified: true,
+                    returnUrl,
+                  })
+                : "/";
+              if (returnUrl && destination === returnUrl) {
+                clearPersistedAuthReturnUrl();
+              }
+              router.push(destination);
             }}
           >
             Skip for now

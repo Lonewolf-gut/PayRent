@@ -1,5 +1,6 @@
 import { PrismaClient, type UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDemoCategoryListings } from "./demo-listings";
 
 const prisma = new PrismaClient();
 
@@ -93,13 +94,22 @@ async function main() {
 
   const tenant = await prisma.tenant.upsert({
     where: { userId: tenantUser.id },
-    update: { fullName: "Demo Buyer" },
+    update: {
+      fullName: "Demo Buyer",
+      kycVerified: true,
+      addressVerified: true,
+      employmentVerified: true,
+      profileStatus: "KYC_VERIFIED",
+    },
     create: {
       userId: tenantUser.id,
       fullName: "Demo Buyer",
       employmentStatus: "EMPLOYED",
       monthlyIncome: 5000,
       kycVerified: true,
+      addressVerified: true,
+      employmentVerified: true,
+      profileStatus: "KYC_VERIFIED",
     },
   });
 
@@ -112,6 +122,28 @@ async function main() {
       plan: "FREE",
       status: "ACTIVE",
       billingCycle: "MONTHLY",
+    },
+  });
+
+  await prisma.bankAccount.upsert({
+    where: { id: "demo-tenant-bank" },
+    update: {
+      userId: tenantUser.id,
+      isVerified: true,
+      validationStatus: "VERIFIED",
+      isDefault: true,
+    },
+    create: {
+      id: "demo-tenant-bank",
+      userId: tenantUser.id,
+      bankName: "Demo Bank Ghana",
+      bankCode: "DEMO",
+      accountNumber: "0123456789",
+      accountNumberMasked: "****6789",
+      accountName: "Demo Buyer",
+      isVerified: true,
+      validationStatus: "VERIFIED",
+      isDefault: true,
     },
   });
 
@@ -241,6 +273,87 @@ async function main() {
     });
   }
 
+  const demoListingResults = await seedDemoCategoryListings(prisma, landlord.id);
+
+  const demoFinancingProperties = await prisma.property.findMany({
+    where: {
+      landlordId: landlord.id,
+      OR: [
+        { name: "Modern 2BR Apartment - East Legon" },
+        { name: { startsWith: "[Demo]" } },
+      ],
+    },
+    select: { id: true, name: true },
+    take: 3,
+  });
+
+  for (const property of demoFinancingProperties) {
+    const existingApp = await prisma.propertyApplication.findFirst({
+      where: {
+        tenantId: tenant.id,
+        propertyId: property.id,
+        status: { in: ["SUBMITTED", "UNDER_REVIEW", "APPROVED"] },
+      },
+    });
+
+    let application = existingApp;
+    if (!application) {
+      application = await prisma.propertyApplication.create({
+        data: {
+          tenantId: tenant.id,
+          propertyId: property.id,
+          status: "SUBMITTED",
+          notes: "Demo application — merchant review required",
+        },
+      });
+    }
+
+    const existingRequest = await prisma.financingRequest.findFirst({
+      where: { tenantId: tenant.id, propertyId: property.id, status: "CREATED" },
+    });
+
+    const financingRequest =
+      existingRequest ??
+      (await prisma.financingRequest.create({
+        data: {
+          tenantId: tenant.id,
+          propertyId: property.id,
+          applicationId: application.id,
+          requestedAmount: 5000,
+          durationMonths: 12,
+          status: "CREATED",
+          repaymentPreference: {
+            preferredChannel: "BANK_MANDATE",
+            mandateDebitConsent: true,
+          },
+        },
+      }));
+
+    for (const docType of ["PAYSLIP", "BANK_STATEMENT"] as const) {
+      await prisma.financingRequestDocument.upsert({
+        where: {
+          financingRequestId_documentType: {
+            financingRequestId: financingRequest.id,
+            documentType: docType,
+          },
+        },
+        update: {
+          status: "PENDING",
+          reviewedAt: null,
+          reviewedBy: null,
+          reviewNotes: null,
+        },
+        create: {
+          financingRequestId: financingRequest.id,
+          documentType: docType,
+          fileName: `demo-${docType.toLowerCase()}.pdf`,
+          fileUrl: `/uploads/demo/${docType.toLowerCase()}.pdf`,
+          status: "PENDING",
+        },
+      });
+    }
+  }
+
   console.log("Seed completed:", {
     admin: admin.email,
     buyer: tenantUser.email,
@@ -249,6 +362,12 @@ async function main() {
     lender: lenderUser.email,
     compliance: complianceUser.email,
   });
+  console.log(
+    `Demo category listings: ${demoListingResults.length} (5 cars + 5 appliances, prefixed [Demo])`
+  );
+  console.log(
+    `Demo financing listings seeded for ${tenantUser.email} — applications and documents require merchant/admin review`
+  );
   console.log("Demo password for all: Password123!");
 }
 

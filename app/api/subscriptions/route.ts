@@ -5,6 +5,7 @@ import { getSubscriptionAccess } from "@/lib/subscription/access";
 import { roleRequiresSubscription } from "@/lib/subscription/roles";
 import { AppError } from "@/lib/errors";
 import { apiResponse, withAuth } from "@/lib/api/handler";
+import { getPaymentProvider } from "@/lib/services/payment/provider";
 import type { SubscriptionPlan, BillingCycle } from "@prisma/client";
 
 export const GET = withAuth(async (_req, _ctx, session) => {
@@ -46,6 +47,22 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
 
   const plan = (parsed.data.plan ?? "PRO") as SubscriptionPlan;
   const billingCycle = (parsed.data.billingCycle ?? "MONTHLY") as BillingCycle;
+  const provider = getPaymentProvider();
+
+  if (provider === "demo") {
+    const checkout = await subscriptionService.upgradeWithDemo(
+      session.user.id,
+      session.user.role,
+      plan,
+      billingCycle
+    );
+
+    return apiResponse(
+      { checkout },
+      202,
+      checkout.message ?? "Continue to demo checkout to activate your subscription."
+    );
+  }
 
   if (!parsed.data.bankAccountId) {
     throw new AppError(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
@@ -24,7 +24,7 @@ const SETTINGS_PATH: Partial<Record<UserRole, string>> = {
   ADMIN: "/admin/settings",
 };
 
-export default function PaystackPaymentReturnPage() {
+function PaystackPaymentReturnPageInner() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const reference = searchParams.get("reference");
@@ -82,5 +82,13 @@ export default function PaystackPaymentReturnPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function PaystackPaymentReturnPage() {
+  return (
+    <Suspense fallback={<p className="py-16 text-center text-sm text-muted-foreground">Loading…</p>}>
+      <PaystackPaymentReturnPageInner />
+    </Suspense>
   );
 }
