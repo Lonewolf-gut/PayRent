@@ -51,6 +51,22 @@ function PropertyVerifiedBadge({ verified }: { verified?: boolean }) {
   );
 }
 
+function cleanPropertyName(name?: string) {
+  return name?.replace(/^\[Demo\]\s*/i, "") ?? "Listing";
+}
+
+function mergeAcceptedOffers(
+  readyToFinance: FinancingRequest[],
+  awaitingMandate: FinancingRequest[]
+) {
+  const seen = new Set<string>();
+  return [...readyToFinance, ...awaitingMandate].filter((request) => {
+    if (seen.has(request.id)) return false;
+    seen.add(request.id);
+    return true;
+  });
+}
+
 export default function LenderOpportunitiesPage() {
   const queryClient = useQueryClient();
   const [offerForms, setOfferForms] = useState<Record<string, OfferFormState>>({});
@@ -82,6 +98,10 @@ export default function LenderOpportunitiesPage() {
   const awaitingBuyer = (queueInsight?.awaitingBuyerAcceptance ?? []) as FinancingRequest[];
   const awaitingMandate = (queueInsight?.awaitingMandate ?? []) as FinancingRequest[];
   const readyToFinance = (queueInsight?.readyToFinance ?? []) as FinancingRequest[];
+  const acceptedOffers = useMemo(
+    () => mergeAcceptedOffers(readyToFinance, awaitingMandate),
+    [readyToFinance, awaitingMandate]
+  );
 
   const getOfferForm = (requestId: string): OfferFormState =>
     offerForms[requestId] ?? { interestRate: "8", planType: "MONTHLY" };
@@ -92,8 +112,6 @@ export default function LenderOpportunitiesPage() {
       [requestId]: { ...getOfferForm(requestId), ...patch },
     }));
   };
-
-  const defaultExpanded = useMemo(() => requests[0]?.id, [requests]);
 
   const invalidateQueue = () => {
     queryClient.invalidateQueries({ queryKey: ["financing-pending"] });
@@ -173,16 +191,16 @@ export default function LenderOpportunitiesPage() {
   const hasAnyQueueItems =
     requests.length > 0 ||
     awaitingBuyer.length > 0 ||
-    awaitingMandate.length > 0 ||
-    readyToFinance.length > 0;
+    acceptedOffers.length > 0;
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Listings awaiting financing</h1>
         <p className="text-muted-foreground">
-          Send a financing offer first. After the customer accepts and the mandate is active, finance
-          the listing from your wallet.
+          Send a financing offer first. After the customer accepts, click{" "}
+          <span className="font-medium text-foreground">Finance listing</span> to disburse funds
+          from your wallet to the merchant.
         </p>
       </div>
 
@@ -190,65 +208,49 @@ export default function LenderOpportunitiesPage() {
         <p className="text-muted-foreground">Loading...</p>
       ) : (
         <>
-          {readyToFinance.length > 0 ? (
+          {acceptedOffers.length > 0 ? (
             <QueueSection
-              title="Ready to finance"
-              description="The customer accepted your offer and the repayment mandate is active. Top up your wallet if needed, then disburse funds."
+              title="Customer accepted — ready to finance"
+              description="The customer accepted your offer. Top up your lender wallet if needed, expand a listing, then click Finance listing to pay the merchant."
             >
-              {readyToFinance.map((req) => (
-                <OfferSummaryCard
-                  key={req.id}
-                  req={req}
-                  badge={
+              <FinancingQueueAccordion
+                items={acceptedOffers}
+                renderBadge={(req) =>
+                  req.mandate?.status === "ACTIVE" ? (
                     <Badge className="bg-emerald-700 hover:bg-emerald-700">
-                      Mandate active · ready to finance
+                      Mandate active
                     </Badge>
-                  }
-                  actions={
-                    <Button
-                      className="bg-emerald-600 hover:bg-emerald-700"
-                      disabled={disburseMutation.isPending}
-                      onClick={() => disburseMutation.mutate(req.id)}
-                    >
-                      Finance listing
-                    </Button>
-                  }
-                />
-              ))}
-            </QueueSection>
-          ) : null}
-
-          {awaitingMandate.length > 0 ? (
-            <QueueSection
-              title="Awaiting mandate activation"
-              description="The customer accepted your offer. Funds can be disbursed once the bank activates the repayment mandate."
-            >
-              {awaitingMandate.map((req) => (
-                <OfferSummaryCard
-                  key={req.id}
-                  req={req}
-                  badge={
+                  ) : (
                     <Badge variant="secondary">
-                      Customer accepted · mandate {req.mandate?.status?.toLowerCase() ?? "pending"}
+                      Customer accepted · mandate{" "}
+                      {req.mandate?.status?.toLowerCase().replace(/_/g, " ") ?? "pending"}
                     </Badge>
-                  }
-                />
-              ))}
+                  )
+                }
+                renderActions={(req) => (
+                  <Button
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    disabled={disburseMutation.isPending}
+                    onClick={() => disburseMutation.mutate(req.id)}
+                  >
+                    Finance listing
+                  </Button>
+                )}
+              />
             </QueueSection>
           ) : null}
 
           {awaitingBuyer.length > 0 ? (
             <QueueSection
               title="Awaiting customer acceptance"
-              description="You sent these offers. The customer must review and accept before the mandate is created."
+              description="You sent these offers. The customer must review and accept before you can finance."
             >
-              {awaitingBuyer.map((req) => (
-                <OfferSummaryCard
-                  key={req.id}
-                  req={req}
-                  badge={<Badge variant="secondary">Offer sent · awaiting customer</Badge>}
-                />
-              ))}
+              <FinancingQueueAccordion
+                items={awaitingBuyer}
+                renderBadge={() => (
+                  <Badge variant="secondary">Offer sent · awaiting customer</Badge>
+                )}
+              />
             </QueueSection>
           ) : null}
 
@@ -260,32 +262,16 @@ export default function LenderOpportunitiesPage() {
               <Accordion
                 type="single"
                 collapsible
-                defaultValue={defaultExpanded}
                 className="divide-y divide-border rounded-xl border border-border bg-card"
               >
                 {requests.map((req) => {
                   const offer = getOfferForm(req.id);
-                  const propertyName =
-                    req.property?.name?.replace(/^\[Demo\]\s*/i, "") ?? "Listing";
+                  const propertyName = cleanPropertyName(req.property?.name);
 
                   return (
                     <AccordionItem key={req.id} value={req.id} className="border-0 px-4">
                       <AccordionTrigger className="py-4 hover:no-underline">
-                        <div className="flex flex-1 flex-col gap-3 pr-2 text-left lg:flex-row lg:items-center lg:justify-between">
-                          <div className="min-w-0">
-                            <p className="truncate text-base font-semibold text-foreground">
-                              {propertyName}
-                            </p>
-                            <p className="truncate text-sm text-muted-foreground">
-                              {req.property?.location}
-                            </p>
-                            <p className="mt-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                              GHS {Number(req.requestedAmount).toLocaleString()} ·{" "}
-                              {req.durationMonths} months
-                            </p>
-                          </div>
-                          <PropertyVerifiedBadge verified={req.property?.status === "ACTIVE"} />
-                        </div>
+                        <ListingAccordionSummary req={req} propertyName={propertyName} />
                       </AccordionTrigger>
 
                       <AccordionContent className="pb-4">
@@ -418,66 +404,118 @@ function QueueSection({
         <h2 className="text-lg font-semibold">{title}</h2>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
-      <div className="space-y-3">{children}</div>
+      {children}
     </section>
   );
 }
 
-function OfferSummaryCard({
+function FinancingQueueAccordion({
+  items,
+  renderBadge,
+  renderActions,
+}: {
+  items: FinancingRequest[];
+  renderBadge: (req: FinancingRequest) => React.ReactNode;
+  renderActions?: (req: FinancingRequest) => React.ReactNode;
+}) {
+  return (
+    <Accordion type="single" collapsible className="divide-y divide-border rounded-xl border border-border bg-card">
+      {items.map((req) => {
+        const propertyName = cleanPropertyName(req.property?.name);
+        const amount = Number(req.approvedAmount ?? req.requestedAmount);
+        const rate = req.offeredInterestRate != null ? Number(req.offeredInterestRate) : null;
+
+        return (
+          <AccordionItem key={req.id} value={req.id} className="border-0">
+            <div className="flex items-start gap-2 px-4">
+              <AccordionTrigger className="flex-1 py-4 hover:no-underline">
+                <div className="flex flex-1 flex-col gap-3 pr-2 text-left lg:flex-row lg:items-center lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-base font-semibold text-foreground">
+                        {propertyName}
+                      </p>
+                      {renderBadge(req)}
+                    </div>
+                    <p className="truncate text-sm text-muted-foreground">{req.property?.location}</p>
+                    <p className="mt-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                      GHS {amount.toLocaleString()}
+                      {rate != null ? ` · ${rate}%` : ""} · {req.durationMonths} months
+                    </p>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              {renderActions ? (
+                <div className="shrink-0 py-4" onClick={(event) => event.stopPropagation()}>
+                  {renderActions(req)}
+                </div>
+              ) : null}
+            </div>
+
+            <AccordionContent className="px-4 pb-4">
+              <div className="space-y-4">
+                <RequestDetails req={req} />
+                {renderActions ? (
+                  <div className="flex flex-wrap gap-2 sm:hidden">{renderActions(req)}</div>
+                ) : null}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        );
+      })}
+    </Accordion>
+  );
+}
+
+function ListingAccordionSummary({
   req,
-  badge,
-  actions,
+  propertyName,
 }: {
   req: FinancingRequest;
-  badge: React.ReactNode;
-  actions?: React.ReactNode;
+  propertyName: string;
 }) {
-  const propertyName = req.property?.name?.replace(/^\[Demo\]\s*/i, "") ?? "Listing";
-  const amount = Number(req.approvedAmount ?? req.requestedAmount);
-  const rate = req.offeredInterestRate != null ? Number(req.offeredInterestRate) : null;
-
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-base font-semibold text-foreground">{propertyName}</p>
-            {badge}
-          </div>
-          <p className="text-sm text-muted-foreground">{req.property?.location}</p>
-          <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-            GHS {amount.toLocaleString()}
-            {rate != null ? ` · ${rate}%` : ""} · {req.durationMonths} months
-          </p>
-          <RequestDetails req={req} compact />
-        </div>
-        {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
+    <div className="flex flex-1 flex-col gap-3 pr-2 text-left lg:flex-row lg:items-center lg:justify-between">
+      <div className="min-w-0">
+        <p className="truncate text-base font-semibold text-foreground">{propertyName}</p>
+        <p className="truncate text-sm text-muted-foreground">{req.property?.location}</p>
+        <p className="mt-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+          GHS {Number(req.requestedAmount).toLocaleString()} · {req.durationMonths} months
+        </p>
       </div>
+      <PropertyVerifiedBadge verified={req.property?.status === "ACTIVE"} />
     </div>
   );
 }
 
-function RequestDetails({ req, compact = false }: { req: FinancingRequest; compact?: boolean }) {
+function RequestDetails({ req }: { req: FinancingRequest }) {
   return (
-    <dl
-      className={`grid gap-3 text-sm ${compact ? "sm:grid-cols-2" : "rounded-xl border border-border bg-muted/10 p-4 sm:grid-cols-2"}`}
-    >
+    <dl className="grid gap-3 rounded-xl border border-border bg-muted/10 p-4 text-sm sm:grid-cols-2">
+      <Detail label="Buyer" value={req.tenant?.fullName ?? req.tenant?.user?.email ?? "—"} />
       <Detail
-        label="Buyer"
-        value={req.tenant?.fullName ?? req.tenant?.user?.email ?? "—"}
+        label="Income"
+        value={`GHS ${Number(req.tenant?.monthlyIncome ?? 0).toLocaleString()}`}
       />
-      {!compact ? (
-        <Detail
-          label="Income"
-          value={`GHS ${Number(req.tenant?.monthlyIncome ?? 0).toLocaleString()}`}
-        />
-      ) : null}
       <Detail label="Requested" value={`GHS ${Number(req.requestedAmount).toLocaleString()}`} />
       <Detail label="Duration" value={`${req.durationMonths} months`} />
-      {!compact ? (
+      <Detail
+        label="Rent"
+        value={`GHS ${Number(req.property?.monthlyRent ?? 0).toLocaleString()}/mo`}
+      />
+      {req.buyerAcceptedAt ? (
         <Detail
-          label="Rent"
-          value={`GHS ${Number(req.property?.monthlyRent ?? 0).toLocaleString()}/mo`}
+          label="Accepted on"
+          value={new Date(req.buyerAcceptedAt).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}
+        />
+      ) : null}
+      {req.mandate?.status ? (
+        <Detail
+          label="Mandate status"
+          value={req.mandate.status.replace(/_/g, " ").toLowerCase()}
         />
       ) : null}
     </dl>

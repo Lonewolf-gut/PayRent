@@ -1145,7 +1145,7 @@ export class FinancingService {
       await notificationService.create({
         userId: request.feeDisclosure.lenderUserId,
         title: "Customer accepted financing terms",
-        body: `The customer accepted your ${interestRate}% offer for ${request.property.name}. You can finance this listing once the repayment mandate is active.`,
+        body: `The customer accepted your ${interestRate}% offer for ${request.property.name}. Finance this listing from your opportunities queue when you are ready.`,
         metadata: { financingRequestId: request.id },
       });
     }
@@ -1233,9 +1233,6 @@ export class FinancingService {
     if (request.status === "DISBURSED") return request;
     if (!request.buyerAcceptedAt) {
       throw new AppError("Customer must accept lender terms before disbursement", 400);
-    }
-    if (!request.mandate || request.mandate.status !== "ACTIVE") {
-      throw new AppError("An active repayment mandate is required before disbursement", 400);
     }
     if (!request.approvedAmount || request.offeredInterestRate == null) {
       throw new AppError("Financing offer not found or incomplete", 404);
