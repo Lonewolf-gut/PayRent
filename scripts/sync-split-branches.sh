@@ -36,9 +36,7 @@ sync_branch() {
   git init -b "${branch}"
   git add .
   git commit -m "Sync ${name} from monorepo ($(date -u +%Y-%m-%d))"
-
-  cd "${ROOT}"
-  git push origin "HEAD:${branch}" --force
+  git push "${ROOT}/.git" "HEAD:${branch}" --force
 
   echo "Synced: ${branch}"
   rm -rf "${tmp_dir}"
