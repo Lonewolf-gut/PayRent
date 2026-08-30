@@ -12,8 +12,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "mandate:read",
     "kyc:manage",
     "wallet:read",
-    "wallet:deposit",
-    "wallet:withdraw",
     "wallet:pay",
     "message:send",
     "complaint:submit",

@@ -1603,6 +1603,17 @@ export class KycService {
       return requiresManualReview(data);
     });
   }
+
+  async countPendingKycReviews() {
+    return prisma.verification.count({
+      where: {
+        status: "PENDING",
+        type: {
+          in: ["KYC", "IDENTITY", "KYB", "BANK", "EMPLOYMENT", "ADDRESS"],
+        },
+      },
+    });
+  }
 }
 
 export const kycService = new KycService();

@@ -238,6 +238,17 @@ export class WalletService {
     return this.getHistoryForWallet(wallet.id, page, limit);
   }
 
+  async getWalletSummary(userId: string, type: WalletType, page = 1, limit = 20) {
+    const wallet = await this.getOrCreateWallet(userId, type);
+    const history = await this.getHistoryForWallet(wallet.id, page, limit);
+    return {
+      balance: wallet.balance,
+      currency: wallet.currency,
+      walletId: wallet.id,
+      ...history,
+    };
+  }
+
   async getPlatformHistory(page = 1, limit = 20) {
     const wallet = await this.getOrCreatePlatformWallet();
     return this.getHistoryForWallet(wallet.id, page, limit);

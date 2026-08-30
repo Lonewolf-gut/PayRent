@@ -14,7 +14,7 @@ export const GET = withAuth(
       feeDisclosureCount,
       suspicious,
     ] = await Promise.all([
-      kycService.getPendingKycReviews().then((rows) => rows.length),
+      kycService.countPendingKycReviews(),
       countAllFailedLogins(),
       prisma.auditLog.count(),
       prisma.dataConsent.count(),

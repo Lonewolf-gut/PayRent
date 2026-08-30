@@ -133,8 +133,6 @@ async function syncFailedLoginLogsFromUsers(since?: Date) {
 }
 
 export async function countAllFailedLogins() {
-  await syncFailedLoginLogsFromUsers();
-
   const fromLogs = await prisma.loginLog.count({
     where: { success: false },
   });
@@ -143,21 +141,16 @@ export async function countAllFailedLogins() {
     return fromLogs;
   }
 
-  const usersWithFailures = await prisma.user.findMany({
+  const aggregate = await prisma.user.aggregate({
+    _sum: { failedLoginCount: true },
     where: { failedLoginCount: { gt: 0 } },
-    select: { failedLoginCount: true },
   });
 
-  return usersWithFailures.reduce(
-    (total, user) => total + user.failedLoginCount,
-    0
-  );
+  return aggregate._sum.failedLoginCount ?? 0;
 }
 
 export async function countFailedLoginsLast24h() {
   const since = failedLoginWindowStart();
-
-  await syncFailedLoginLogsFromUsers(since);
 
   const fromLogs = await prisma.loginLog.count({
     where: { success: false, createdAt: { gte: since } },
@@ -167,16 +160,13 @@ export async function countFailedLoginsLast24h() {
     return fromLogs;
   }
 
-  const usersWithRecentFailures = await prisma.user.findMany({
+  const aggregate = await prisma.user.aggregate({
+    _sum: { failedLoginCount: true },
     where: {
       failedLoginCount: { gt: 0 },
       updatedAt: { gte: since },
     },
-    select: { failedLoginCount: true },
   });
 
-  return usersWithRecentFailures.reduce(
-    (total, user) => total + user.failedLoginCount,
-    0
-  );
+  return aggregate._sum.failedLoginCount ?? 0;
 }

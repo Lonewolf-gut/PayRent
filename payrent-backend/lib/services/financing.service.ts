@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma, runTransaction } from "@/lib/db/prisma";
 import { walletService } from "@/lib/services/wallet.service";
+import { treasuryService } from "@/lib/services/treasury.service";
 import { notificationService } from "@/lib/services/notification.service";
 import { settlementService } from "@/lib/services/settlement.service";
 import { AppError } from "@/lib/errors";
@@ -424,6 +425,7 @@ export class FinancingService {
     }
 
     const amount = Number(request.approvedAmount);
+    const interestRate = Number(request.offeredInterestRate);
 
     const lenderUserId = request.feeDisclosure?.lenderUserId;
     if (!lenderUserId) {
@@ -448,25 +450,18 @@ export class FinancingService {
     const landlordNet = amount - agentCommission;
     const reference = `FIN-${financingRequestId.slice(0, 8).toUpperCase()}`;
 
-    await walletService.transfer(
+    await treasuryService.disburseFinancing({
+      financingRequestId: request.id,
+      reference,
       lenderUserId,
-      "LENDER",
-      landlordUserId,
-      "MERCHANT",
-      landlordNet,
-      `Financing disbursement for ${request.property.name}`
-    );
-
-    if (commissionAgent && agentCommission > 0) {
-      await walletService.transfer(
-        landlordUserId,
-        "MERCHANT",
-        commissionAgent.user.id,
-        "MARKETER",
-        agentCommission,
-        `Agent commission for financing: ${request.property.name}`
-      );
-    }
+      merchantUserId: landlordUserId,
+      buyerUserId: tenantUserId,
+      propertyName: request.property.name,
+      principalAmount: amount,
+      merchantNet: landlordNet,
+      agentUserId: commissionAgent?.user.id ?? null,
+      agentCommission,
+    });
 
     const result = await runTransaction(async (db) => {
       await db.investment.create({
@@ -780,14 +775,31 @@ export class FinancingService {
         property: true,
         mandate: true,
         investment: true,
-        repaymentPlan: { include: { installments: true } },
+        repaymentPlan: {
+          include: {
+            installments: {
+              where: { status: { in: ["PENDING", "OVERDUE", "PARTIAL"] } },
+              orderBy: { dueDate: "asc" },
+              take: 6,
+            },
+          },
+        },
       },
       orderBy: { updatedAt: "desc" },
     });
   }
 
   async getPendingForLender(lenderUserId?: string) {
-    const requests = await prisma.financingRequest.findMany({
+    let take: number | undefined;
+    if (lenderUserId) {
+      const { getLenderFinancingAccess } = await import(
+        "@/lib/subscription/lender-access"
+      );
+      const access = await getLenderFinancingAccess(lenderUserId);
+      if (access.limit != null) take = access.limit;
+    }
+
+    return prisma.financingRequest.findMany({
       where: { status: { in: ["PENDING", "UNDER_REVIEW", "READY_FOR_LENDER_REVIEW"] } },
       include: {
         tenant: {
@@ -800,17 +812,8 @@ export class FinancingService {
         application: true,
       },
       orderBy: { createdAt: "desc" },
+      ...(take != null ? { take } : {}),
     });
-
-    if (!lenderUserId) return requests;
-
-    const { getLenderFinancingAccess } = await import(
-      "@/lib/subscription/lender-access"
-    );
-    const access = await getLenderFinancingAccess(lenderUserId);
-    if (access.limit == null) return requests;
-
-    return requests.slice(0, access.limit);
   }
 
   async getPendingAdminReview() {
