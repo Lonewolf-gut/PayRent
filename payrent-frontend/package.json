@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000 --webpack",
+    "dev": "node scripts/ensure-dev-middleware.js && next dev --port 3000 --webpack",
     "setup:env": "node -e \"const fs=require('fs'); if(fs.existsSync('.env')){console.log('.env already exists — skipped');}else{fs.copyFileSync('.env.example','.env'); console.log('Created .env from .env.example');}\"",
     "dev:turbo": "next dev --port 3000",
     "clean": "node scripts/clean-cache.js",

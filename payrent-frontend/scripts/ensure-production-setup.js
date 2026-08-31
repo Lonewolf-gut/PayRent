@@ -1,54 +1,28 @@
 /**
- * Guards split-repo production builds. Safe to run on every build.
+ * Production builds must NOT include middleware.ts — it breaks npm start on
+ * Next.js 16.2 + Windows (manifests singleton error). Auth is handled in layouts.
  */
 const fs = require("node:fs");
 const path = require("node:path");
 
 const projectRoot = path.join(__dirname, "..");
 
-function fail(message) {
-  console.error(`\n[production setup] ${message}\n`);
-  process.exit(1);
-}
-
 function warn(message) {
   console.warn(`[production setup] WARNING: ${message}`);
 }
 
-// proxy.ts breaks npm start on Next.js 16 — must use middleware.ts
-const proxyPath = path.join(projectRoot, "proxy.ts");
-const middlewarePath = path.join(projectRoot, "middleware.ts");
-
-if (fs.existsSync(proxyPath)) {
-  if (fs.existsSync(middlewarePath)) {
-    fs.rmSync(proxyPath, { force: true });
-    console.log("[production setup] Removed legacy proxy.ts (middleware.ts is used instead).");
-  } else {
-    fs.renameSync(proxyPath, middlewarePath);
-    let contents = fs.readFileSync(middlewarePath, "utf8");
-    contents = contents.replace(
-      /export\s+async\s+function\s+proxy\s*\(/,
-      "export async function middleware("
-    );
-    fs.writeFileSync(middlewarePath, contents, "utf8");
-    console.log("[production setup] Renamed proxy.ts → middleware.ts for production compatibility.");
+for (const legacy of ["proxy.ts", "middleware.ts"]) {
+  const filePath = path.join(projectRoot, legacy);
+  if (fs.existsSync(filePath)) {
+    fs.rmSync(filePath, { force: true });
+    console.log(`[production setup] Removed ${legacy} (not used in production builds).`);
   }
 }
 
-if (!fs.existsSync(middlewarePath)) {
-  fail(
-    "middleware.ts is missing. Production requires middleware.ts at the project root.\n" +
-      "Do not use proxy.ts — it causes 'manifests singleton' errors on npm start."
-  );
-}
-
-// Detect leftover monorepo layout inside a split-repo folder
-const monorepoMarkers = ["payrent-frontend", "payrent-backend"];
-for (const marker of monorepoMarkers) {
+for (const marker of ["payrent-frontend", "payrent-backend"]) {
   if (fs.existsSync(path.join(projectRoot, marker))) {
     warn(
-      `Found nested "${marker}/" folder. You may have pulled the monorepo branch by mistake.\n` +
-        "Use sync/payrent-frontend-5e51 only. Delete nested payrent-* folders."
+      `Found nested "${marker}/" folder. Pull sync/payrent-frontend-5e51 into a clean folder.`
     );
   }
 }
@@ -57,11 +31,12 @@ const pkgPath = path.join(projectRoot, "package.json");
 if (fs.existsSync(pkgPath)) {
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
   if (Array.isArray(pkg.workspaces) && pkg.workspaces.length > 0) {
-    warn(
-      "package.json has workspaces — this is a monorepo root, not PayRent-Frontend.\n" +
-        "Pull sync/payrent-frontend-5e51 into a clean folder."
-    );
+    warn("package.json has workspaces — this folder looks like a monorepo root, not PayRent-Frontend.");
   }
 }
 
-console.log("[production setup] OK");
+if (!fs.existsSync(path.join(projectRoot, "middleware.dev.ts"))) {
+  console.warn("[production setup] middleware.dev.ts missing — dev auth middleware unavailable.");
+}
+
+console.log("[production setup] OK (production build without edge middleware).");

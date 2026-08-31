@@ -5,6 +5,8 @@
 /.next/
 /.next-dev/
 /out/
+/middleware.ts
+/proxy.ts
 
 # production
 /build

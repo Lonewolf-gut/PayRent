@@ -17,29 +17,35 @@ const required = [
   "routes-manifest.json",
   "build-manifest.json",
   path.join("server", "app-paths-manifest.json"),
-  path.join("server", "middleware-manifest.json"),
 ];
 
 const missing = required.filter((rel) => !fs.existsSync(path.join(buildDir, rel)));
 if (missing.length > 0) {
   fail(
     "Production build is incomplete. Run:\n" +
-      "  npm run clean\n" +
-      "  npm run build\n\n" +
+      "  npm run prod\n\n" +
       `Missing: ${missing.join(", ")}`
   );
 }
 
-const middlewareManifest = JSON.parse(
-  fs.readFileSync(path.join(buildDir, "server", "middleware-manifest.json"), "utf8")
-);
+// middleware must NOT be present in production — it causes manifests singleton errors
+const middlewareManifestPath = path.join(buildDir, "server", "middleware-manifest.json");
+if (fs.existsSync(middlewareManifestPath)) {
+  const middlewareManifest = JSON.parse(fs.readFileSync(middlewareManifestPath, "utf8"));
+  if (middlewareManifest.middleware && Object.keys(middlewareManifest.middleware).length > 0) {
+    fail(
+      "Production build includes edge middleware, which breaks npm start on Windows.\n" +
+        "Run: npm run clean && npm run build\n" +
+        "Ensure middleware.ts is removed before build (prebuild script should do this)."
+    );
+  }
+}
 
-if (!middlewareManifest.middleware || Object.keys(middlewareManifest.middleware).length === 0) {
+if (fs.existsSync(path.join(projectRoot, "middleware.ts")) || fs.existsSync(path.join(projectRoot, "proxy.ts"))) {
   fail(
-    "middleware-manifest.json is empty — npm start will fail with 'manifests singleton'.\n" +
-      "Cause: proxy.ts was used instead of middleware.ts.\n" +
-      "Fix: ensure middleware.ts exists at project root, then npm run clean && npm run build"
+    "middleware.ts or proxy.ts must not exist during production build.\n" +
+      "Run npm run clean && npm run build again."
   );
 }
 
-console.log("[verify build] Production build OK (middleware registered).");
+console.log("[verify build] Production build OK.");
