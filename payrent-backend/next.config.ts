@@ -1,13 +1,14 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
-const lifecycle = process.env.npm_lifecycle_event ?? "";
-const isDevServer = lifecycle === "dev" || lifecycle === "dev:turbo";
+const distDir = process.env.NEXT_DIST_DIR ?? ".next";
 const useStandaloneOutput = process.env.STANDALONE_BUILD === "1";
 const frontendOrigin =
   process.env.FRONTEND_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
 
 const nextConfig: NextConfig = {
-  distDir: isDevServer ? ".next-dev" : ".next",
+  distDir,
+  outputFileTracingRoot: path.join(__dirname),
   ...(useStandaloneOutput ? { output: "standalone" as const } : {}),
   typescript: {
     ignoreBuildErrors: true,

@@ -1,14 +1,15 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
-const lifecycle = process.env.npm_lifecycle_event ?? "";
-const isDevServer = lifecycle === "dev" || lifecycle === "dev:turbo";
+const distDir = process.env.NEXT_DIST_DIR ?? ".next";
 const useStandaloneOutput = process.env.STANDALONE_BUILD === "1";
-const isWindowsDev = process.platform === "win32" && isDevServer;
+const isWindowsDev = process.env.NEXT_DIST_DIR === ".next-dev";
 const turboFsCacheEnabled = process.env.TURBOPACK_FS_CACHE === "1";
 const apiOrigin = (process.env.API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
-  distDir: isDevServer ? ".next-dev" : ".next",
+  distDir,
+  outputFileTracingRoot: path.join(__dirname),
   ...(useStandaloneOutput ? { output: "standalone" as const } : {}),
   typescript: {
     ignoreBuildErrors: true,

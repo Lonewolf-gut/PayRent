@@ -6,7 +6,7 @@ const { loadEnvConfig } = require("@next/env");
 const projectRoot = path.join(__dirname, "..");
 loadEnvConfig(projectRoot);
 
-const port = String(process.env.PORT || "3001").replace(/"/g, "");
+const port = String(process.env.PORT || "3000").replace(/"/g, "");
 const buildDir = path.join(projectRoot, ".next");
 
 function resolveNextCli() {
