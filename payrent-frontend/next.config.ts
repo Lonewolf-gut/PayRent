@@ -1,14 +1,12 @@
 import type { NextConfig } from "next";
 import path from "node:path";
 
-const distDir = process.env.NEXT_DIST_DIR ?? ".next";
 const useStandaloneOutput = process.env.STANDALONE_BUILD === "1";
-const isWindowsDev = process.env.NEXT_DIST_DIR === ".next-dev";
+const isWindows = process.platform === "win32";
 const turboFsCacheEnabled = process.env.TURBOPACK_FS_CACHE === "1";
 const apiOrigin = (process.env.API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
-  distDir,
   outputFileTracingRoot: path.join(__dirname),
   ...(useStandaloneOutput ? { output: "standalone" as const } : {}),
   typescript: {
@@ -67,7 +65,7 @@ const nextConfig: NextConfig = {
       "recharts",
       "@radix-ui/react-tooltip",
     ],
-    ...(isWindowsDev && !turboFsCacheEnabled
+    ...(isWindows && !turboFsCacheEnabled && process.env.npm_lifecycle_event?.startsWith("dev")
       ? { turbopackFileSystemCacheForDev: false }
       : {}),
   },

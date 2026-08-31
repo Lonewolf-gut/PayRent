@@ -45,7 +45,7 @@ function hasAuthCookie(req: NextRequest) {
   return authCookieNames.some((name) => !!req.cookies.get(name)?.value);
 }
 
-export async function proxy(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { nextUrl } = req;
   const isLoggedIn = hasAuthCookie(req);
   const pathname = nextUrl.pathname;

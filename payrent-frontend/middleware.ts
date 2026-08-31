@@ -46,7 +46,7 @@ function clearAuthCookies(response: NextResponse) {
   return response;
 }
 
-export async function proxy(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const authSecret = process.env.AUTH_SECRET?.trim();
   if (!authSecret) {
     console.error(

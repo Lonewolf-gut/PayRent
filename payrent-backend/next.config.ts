@@ -1,13 +1,11 @@
 import type { NextConfig } from "next";
 import path from "node:path";
 
-const distDir = process.env.NEXT_DIST_DIR ?? ".next";
 const useStandaloneOutput = process.env.STANDALONE_BUILD === "1";
 const frontendOrigin =
   process.env.FRONTEND_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
 
 const nextConfig: NextConfig = {
-  distDir,
   outputFileTracingRoot: path.join(__dirname),
   ...(useStandaloneOutput ? { output: "standalone" as const } : {}),
   typescript: {

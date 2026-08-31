@@ -61,7 +61,6 @@ const child = spawn(startCommand, startArgs, {
     ...process.env,
     NODE_ENV: "production",
     PORT: port,
-    NEXT_DIST_DIR: ".next",
   },
   cwd: projectRoot,
 });
