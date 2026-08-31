@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
-const lifecycle = process.env.npm_lifecycle_event;
-const isProductionDist = lifecycle === "build" || lifecycle === "start";
-const isWindowsDev = process.platform === "win32" && !isProductionDist;
+const lifecycle = process.env.npm_lifecycle_event ?? "";
+const isDevServer = lifecycle === "dev" || lifecycle === "dev:turbo";
+const isWindowsDev = process.platform === "win32" && isDevServer;
 const turboFsCacheEnabled = process.env.TURBOPACK_FS_CACHE === "1";
 const apiOrigin = (process.env.API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 
