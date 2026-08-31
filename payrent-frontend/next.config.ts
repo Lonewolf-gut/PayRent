@@ -7,8 +7,8 @@ const turboFsCacheEnabled = process.env.TURBOPACK_FS_CACHE === "1";
 const apiOrigin = (process.env.API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
-  distDir: isProductionDist ? ".next" : ".next-dev",
-  ...(isProductionDist ? { output: "standalone" as const } : {}),
+  distDir: isDevServer ? ".next-dev" : ".next",
+  ...(isDevServer ? {} : { output: "standalone" as const }),
   typescript: {
     ignoreBuildErrors: true,
   },
