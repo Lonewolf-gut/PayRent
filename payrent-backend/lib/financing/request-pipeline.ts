@@ -87,28 +87,25 @@ export function buildRequestPipeline(input: {
         ["READY_FOR_LENDER_REVIEW", "PENDING", "UNDER_REVIEW"],
         appApproved
       ),
-      description: "A lender reviews the listing and sends a financing offer with an interest rate.",
-    },
-    {
-      id: "buyer-offer",
-      label: "Review lender offer",
-      approver: "You (Customer)",
-      status: getFinancingStepStatus(finStatus, "APPROVED", appApproved),
-      description: "Review the lender's amount, interest rate, and estimated payment before accepting.",
+      description: "A lender reviews the listing and approves financing at the platform category rate.",
     },
     {
       id: "mandate",
       label: "Repayment mandate",
       approver: "You + Bank",
-      status: getFinancingStepStatus(finStatus, "MANDATE_PENDING", appApproved),
-      description: "After you accept, your repayment mandate is sent to the bank for activation.",
+      status: getFinancingStepStatus(
+        finStatus,
+        ["APPROVED", "MANDATE_PENDING"],
+        appApproved
+      ),
+      description: "After lender approval, your repayment mandate is sent to the bank for activation.",
     },
     {
       id: "disbursement",
       label: "Disbursement & delivery",
       approver: "Merchant",
       status: getFinancingStepStatus(finStatus, ["DISBURSED", "REPAYMENT_ACTIVE"], appApproved),
-      description: "Funds go to merchant after you accept; merchant confirms delivery.",
+      description: "Funds go to the merchant after mandate activation; merchant confirms delivery.",
     },
     {
       id: "repayments",
@@ -166,10 +163,10 @@ export function getCurrentApproverLabel(steps: RequestPipelineStep[]) {
     return "Waiting for next step";
   }
   if (current.id === "lender") {
-    return "Waiting for financing";
+    return "Waiting for lender approval";
   }
-  if (current.id === "buyer-offer") {
-    return "Review lender offer — check the interest rate before accepting";
+  if (current.id === "mandate") {
+    return "Repayment mandate — sent to bank for activation";
   }
   return `Waiting on: ${current.approver} — ${current.label}`;
 }

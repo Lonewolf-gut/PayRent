@@ -141,9 +141,9 @@ export function FinancingRequestAccordionCard({
   );
   const monthlyPayment = Number(financing?.feeDisclosure?.monthlyPayment ?? 0);
   const totalRepayable = Number(financing?.feeDisclosure?.totalRepayable ?? 0);
-  const canAcceptOffer = financing?.status === "APPROVED" && !financing?.buyerAcceptedAt;
+  const canActivateMandate = financing?.status === "APPROVED" && !financing?.buyerAcceptedAt;
 
-  const acceptOfferMutation = useMutation({
+  const activateMandateMutation = useMutation({
     mutationFn: async () => {
       if (!financingRequestId) throw new Error("Financing request not found.");
       const res = await fetch("/api/financing/accept", {
@@ -152,30 +152,10 @@ export function FinancingRequestAccordionCard({
         body: JSON.stringify({ financingRequestId }),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.message ?? json.error?.message ?? "Could not accept offer");
+      if (!json.success) throw new Error(json.message ?? json.error?.message ?? "Could not activate mandate");
     },
     onSuccess: () => {
-      toast.success("Offer accepted — repayment mandate sent to bank");
-      queryClient.invalidateQueries({ queryKey: ["applications"] });
-      queryClient.invalidateQueries({ queryKey: ["financing"] });
-      queryClient.invalidateQueries({ queryKey: ["mandate-overview"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const declineOfferMutation = useMutation({
-    mutationFn: async () => {
-      if (!financingRequestId) throw new Error("Financing request not found.");
-      const res = await fetch("/api/financing/decline", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ financingRequestId }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.message ?? json.error?.message ?? "Could not decline offer");
-    },
-    onSuccess: () => {
-      toast.success("Offer declined — mandate cancelled");
+      toast.success("Repayment mandate sent to bank");
       queryClient.invalidateQueries({ queryKey: ["applications"] });
       queryClient.invalidateQueries({ queryKey: ["financing"] });
       queryClient.invalidateQueries({ queryKey: ["mandate-overview"] });
@@ -401,19 +381,19 @@ export function FinancingRequestAccordionCard({
                 </p>
               )}
 
-              {canAcceptOffer ? (
+              {canActivateMandate ? (
                 <div className="space-y-3 rounded-none border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900 dark:bg-emerald-950/20">
-                  <p className="text-sm font-medium text-foreground">Lender Pay-for-Me offer</p>
+                  <p className="text-sm font-medium text-foreground">Financing approved</p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-lg border border-border bg-background/80 p-3">
-                      <p className="text-xs text-muted-foreground">Original amount to finance</p>
+                      <p className="text-xs text-muted-foreground">Amount to finance</p>
                       <p className="mt-1 text-lg font-semibold">
                         GHS {offerAmount.toLocaleString()}
                       </p>
                     </div>
                     <div className="rounded-lg border border-emerald-500/30 bg-emerald-600/10 p-3">
                       <p className="text-xs text-muted-foreground">
-                        Total repayable ({financing?.durationMonths} months @ {offerRate}%)
+                        Total repayable ({financing?.durationMonths} months @ {offerRate}% category rate)
                       </p>
                       <p className="mt-1 text-lg font-semibold text-emerald-800 dark:text-emerald-300">
                         GHS {totalRepayable.toLocaleString()}
@@ -426,26 +406,16 @@ export function FinancingRequestAccordionCard({
                     </p>
                   ) : null}
                   <p className="text-sm text-muted-foreground">
-                    Accepting generates your repayment mandate and sends it to the bank for auto-debit
-                    setup. Declining cancels the mandate.
+                    Activate your repayment mandate to send it to the bank for auto-debit setup.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       size="sm"
                       className="rounded-none bg-emerald-600 hover:bg-emerald-700"
-                      disabled={acceptOfferMutation.isPending}
-                      onClick={() => acceptOfferMutation.mutate()}
+                      disabled={activateMandateMutation.isPending}
+                      onClick={() => activateMandateMutation.mutate()}
                     >
-                      {acceptOfferMutation.isPending ? "Accepting…" : "Accept offer & send mandate"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="rounded-none"
-                      disabled={declineOfferMutation.isPending}
-                      onClick={() => declineOfferMutation.mutate()}
-                    >
-                      {declineOfferMutation.isPending ? "Declining…" : "Decline offer"}
+                      {activateMandateMutation.isPending ? "Sending…" : "Send mandate to bank"}
                     </Button>
                     <Button asChild size="sm" variant="ghost" className="rounded-none">
                       <Link href="/dashboard/buyer/mandates">View mandates</Link>

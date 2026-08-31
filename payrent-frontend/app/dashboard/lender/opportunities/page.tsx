@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -36,7 +35,6 @@ type FinancingRequest = {
 };
 
 type OfferFormState = {
-  interestRate: string;
   planType: "MONTHLY" | "DEFERRED" | "CUSTOM";
 };
 
@@ -71,17 +69,6 @@ export default function LenderOpportunitiesPage() {
   const queryClient = useQueryClient();
   const [offerForms, setOfferForms] = useState<Record<string, OfferFormState>>({});
 
-  const { data: financingRules } = useQuery({
-    queryKey: ["financing-rules"],
-    queryFn: async () => {
-      const res = await fetch("/api/financing/rules");
-      const json = await res.json();
-      return json.data as { maxInterestRatePercent: number };
-    },
-  });
-
-  const maxInterestRate = financingRules?.maxInterestRatePercent ?? 30;
-
   const { data: queueInsight, isLoading } = useQuery({
     queryKey: ["financing-pending"],
     queryFn: async () => {
@@ -104,7 +91,7 @@ export default function LenderOpportunitiesPage() {
   );
 
   const getOfferForm = (requestId: string): OfferFormState =>
-    offerForms[requestId] ?? { interestRate: "8", planType: "MONTHLY" };
+    offerForms[requestId] ?? { planType: "MONTHLY" };
 
   const updateOfferForm = (requestId: string, patch: Partial<OfferFormState>) => {
     setOfferForms((current) => ({
@@ -120,19 +107,11 @@ export default function LenderOpportunitiesPage() {
   const approveMutation = useMutation({
     mutationFn: async ({
       financingRequestId,
-      interestRate,
       planType,
     }: {
       financingRequestId: string;
-      interestRate: string;
       planType: OfferFormState["planType"];
     }) => {
-      const rate = parseFloat(interestRate);
-      if (rate > maxInterestRate) {
-        throw new Error(
-          `Interest rate cannot exceed the platform maximum of ${maxInterestRate}%. Contact admin if you need a higher cap.`
-        );
-      }
       const req = requests.find((request) => request.id === financingRequestId);
       const res = await fetch("/api/financing/approve", {
         method: "POST",
@@ -140,7 +119,6 @@ export default function LenderOpportunitiesPage() {
         body: JSON.stringify({
           financingRequestId,
           amount: Number(req?.requestedAmount),
-          interestRate: rate,
           planType,
         }),
       });
@@ -148,7 +126,7 @@ export default function LenderOpportunitiesPage() {
       if (!json.success) throw new Error(json.message ?? json.error?.message);
     },
     onSuccess: () => {
-      toast.success("Financing offer sent — awaiting customer acceptance");
+      toast.success("Financing approved — mandate processing started");
       invalidateQueue();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -198,7 +176,7 @@ export default function LenderOpportunitiesPage() {
       <div>
         <h1 className="text-2xl font-bold">Listings awaiting financing</h1>
         <p className="text-muted-foreground">
-          Send a financing offer first. After the customer accepts, click{" "}
+          Approve financing at the platform category interest rate. After mandate activation, click{" "}
           <span className="font-medium text-foreground">Finance listing</span> to disburse funds
           from your wallet to the merchant.
         </p>
@@ -210,8 +188,8 @@ export default function LenderOpportunitiesPage() {
         <>
           {acceptedOffers.length > 0 ? (
             <QueueSection
-              title="Customer accepted — ready to finance"
-              description="The customer accepted your offer. Top up your lender wallet if needed, expand a listing, then click Finance listing to pay the merchant."
+              title="Ready to finance"
+              description="Mandate is in progress or active. Top up your lender wallet if needed, then click Finance listing to pay the merchant."
             >
               <FinancingQueueAccordion
                 items={acceptedOffers}
@@ -222,7 +200,7 @@ export default function LenderOpportunitiesPage() {
                     </Badge>
                   ) : (
                     <Badge variant="secondary">
-                      Customer accepted · mandate{" "}
+                      Mandate{" "}
                       {req.mandate?.status?.toLowerCase().replace(/_/g, " ") ?? "pending"}
                     </Badge>
                   )
@@ -242,13 +220,13 @@ export default function LenderOpportunitiesPage() {
 
           {awaitingBuyer.length > 0 ? (
             <QueueSection
-              title="Awaiting customer acceptance"
-              description="You sent these offers. The customer must review and accept before you can finance."
+              title="Awaiting mandate setup"
+              description="You approved these requests. The customer must complete repayment mandate setup before you can finance."
             >
               <FinancingQueueAccordion
                 items={awaitingBuyer}
                 renderBadge={() => (
-                  <Badge variant="secondary">Offer sent · awaiting customer</Badge>
+                  <Badge variant="secondary">Approved · awaiting mandate</Badge>
                 )}
               />
             </QueueSection>
@@ -257,7 +235,7 @@ export default function LenderOpportunitiesPage() {
           {requests.length > 0 ? (
             <QueueSection
               title="New financing requests"
-              description="Review verified listings and send a financing offer with your interest rate."
+              description="Review verified listings and approve financing at the platform category interest rate."
             >
               <Accordion
                 type="single"
@@ -282,18 +260,10 @@ export default function LenderOpportunitiesPage() {
                             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                               <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-1.5">
-                                  <Label htmlFor={`rate-${req.id}`}>Interest rate (%)</Label>
-                                  <Input
-                                    id={`rate-${req.id}`}
-                                    type="number"
-                                    min={0}
-                                    max={maxInterestRate}
-                                    value={offer.interestRate}
-                                    onChange={(e) =>
-                                      updateOfferForm(req.id, { interestRate: e.target.value })
-                                    }
-                                    className="w-full sm:w-28"
-                                  />
+                                  <Label>Category interest rate</Label>
+                                  <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                                    Platform fixed rate (set by admin)
+                                  </p>
                                 </div>
                                 <div className="space-y-1.5">
                                   <Label htmlFor={`plan-${req.id}`}>Repayment plan</Label>
@@ -324,12 +294,11 @@ export default function LenderOpportunitiesPage() {
                                   onClick={() =>
                                     approveMutation.mutate({
                                       financingRequestId: req.id,
-                                      interestRate: offer.interestRate,
                                       planType: offer.planType,
                                     })
                                   }
                                 >
-                                  Send financing offer
+                                  Approve financing
                                 </Button>
                                 <Button
                                   variant="outline"

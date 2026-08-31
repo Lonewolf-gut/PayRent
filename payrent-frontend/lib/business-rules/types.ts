@@ -1,3 +1,7 @@
+import type { PropertyCategory } from "@/lib/subscription-limits";
+
+export type CategoryInterestRates = Record<PropertyCategory, number>;
+
 export type BusinessRules = {
   agentCommissionPercent: number;
   platformFinancingFeePercent: number;
@@ -8,9 +12,16 @@ export type BusinessRules = {
   maxRepaymentMonths: number;
   maxInterestRatePercent: number;
   maxDebtToIncomePercent: number;
+  categoryInterestRates: CategoryInterestRates;
   autoApproveLowRiskFinancing: boolean;
   lenderFreeFinancingLimit: number;
   merchantListingRequiresPaidPlan: boolean;
+};
+
+export const DEFAULT_CATEGORY_INTEREST_RATES: CategoryInterestRates = {
+  residential: 12,
+  car: 15,
+  appliance: 18,
 };
 
 export const DEFAULT_BUSINESS_RULES: BusinessRules = {
@@ -23,6 +34,7 @@ export const DEFAULT_BUSINESS_RULES: BusinessRules = {
   maxRepaymentMonths: 60,
   maxInterestRatePercent: 30,
   maxDebtToIncomePercent: 45,
+  categoryInterestRates: { ...DEFAULT_CATEGORY_INTEREST_RATES },
   autoApproveLowRiskFinancing: true,
   lenderFreeFinancingLimit: 100,
   merchantListingRequiresPaidPlan: true,

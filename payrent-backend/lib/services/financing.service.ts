@@ -10,6 +10,7 @@ import { agentCommissionService } from "@/lib/services/agent-commission.service"
 import { calculateAgentCommission } from "@/lib/constants/agent-commission";
 import { auditService } from "@/lib/services/audit.service";
 import { getBusinessRules } from "@/lib/services/business-rules.service";
+import { getInterestRateForPropertyType } from "@/lib/business-rules/category-interest-rates";
 import { assertLenderCanFinanceMore } from "@/lib/subscription/lender-access";
 import {
   notifyAllAdminsInAppAndEmail,
@@ -927,12 +928,6 @@ export class FinancingService {
     })).userId);
 
     const rules = await getBusinessRules();
-    if (input.interestRate > rules.maxInterestRatePercent) {
-      throw new AppError(
-        `Interest rate cannot exceed ${rules.maxInterestRatePercent}%`,
-        400
-      );
-    }
 
     const request = await prisma.financingRequest.findUnique({
       where: { id: input.financingRequestId },
@@ -954,6 +949,14 @@ export class FinancingService {
       throw new AppError("Financing request not found or already processed");
     }
 
+    const interestRate = getInterestRateForPropertyType(rules, request.property.propertyType);
+    if (interestRate > rules.maxInterestRatePercent) {
+      throw new AppError(
+        `Category interest rate (${interestRate}%) exceeds the platform maximum of ${rules.maxInterestRatePercent}%. Ask admin to adjust category rates.`,
+        400
+      );
+    }
+
     if (
       request.durationMonths < rules.minRepaymentMonths ||
       request.durationMonths > rules.maxRepaymentMonths
@@ -970,7 +973,7 @@ export class FinancingService {
     });
     if (!lender?.user) throw new AppError("Lender not found");
 
-    const totalWithInterest = input.amount * (1 + input.interestRate / 100);
+    const totalWithInterest = input.amount * (1 + interestRate / 100);
     const monthlyPayment = totalWithInterest / request.durationMonths;
     const platformFee = input.amount * (rules.platformFinancingFeePercent / 100);
 
@@ -988,7 +991,7 @@ export class FinancingService {
         status: "APPROVED",
         approvedAmount: new Prisma.Decimal(input.amount),
         approvedAt: new Date(),
-        offeredInterestRate: new Prisma.Decimal(input.interestRate),
+        offeredInterestRate: new Prisma.Decimal(interestRate),
         offeredPlanType: input.planType,
       },
     });
@@ -999,7 +1002,7 @@ export class FinancingService {
         tenantUserId: request.tenant.userId,
         lenderUserId: lender.user.id,
         principalAmount: new Prisma.Decimal(input.amount),
-        interestRate: new Prisma.Decimal(input.interestRate),
+        interestRate: new Prisma.Decimal(interestRate),
         totalRepayable: new Prisma.Decimal(totalWithInterest),
         platformFee: new Prisma.Decimal(platformFee),
         agentCommission: new Prisma.Decimal(agentCommission),
@@ -1010,8 +1013,8 @@ export class FinancingService {
           planType: input.planType,
           propertyId: request.propertyId,
           propertyName: request.property.name,
+          categoryInterestRate: true,
           customSchedule: input.customSchedule,
-          awaitingBuyerAcceptance: true,
         },
       },
     });
@@ -1023,7 +1026,7 @@ export class FinancingService {
       entityId: request.id,
       metadata: {
         amount: input.amount,
-        interestRate: input.interestRate,
+        interestRate,
         durationMonths: request.durationMonths,
         tenantUserId: request.tenant.userId,
       },
@@ -1031,27 +1034,52 @@ export class FinancingService {
 
     await notifyComplianceEvent(
       "Fee disclosure recorded",
-      `Financing approved for ${request.tenant.user.email} on "${request.property.name}" — GHS ${input.amount.toLocaleString()} at ${input.interestRate}% for ${request.durationMonths} months.`,
+      `Financing approved for ${request.tenant.user.email} on "${request.property.name}" — GHS ${input.amount.toLocaleString()} at ${interestRate}% (category rate) for ${request.durationMonths} months.`,
       { financingRequestId: request.id, lenderUserId: lender.user.id }
     );
 
-    await notificationService.create({
-      userId: request.tenant.userId,
-      title: "Financing terms offered",
-      body: `A lender offered GHS ${input.amount.toLocaleString()} at ${input.interestRate}% for ${request.durationMonths} months on ${request.property.name}. Review the rate and accept to send your repayment mandate to the bank.`,
-      metadata: { financingRequestId: request.id },
-    });
+    const advanced = await this.advanceApprovedRequestToMandate(
+      request.tenant.userId,
+      request.id
+    );
 
-    await notificationService.create({
-      userId: lender.user.id,
-      title: "Financing offer sent",
-      body: `Your financing offer for ${request.property.name} is awaiting customer acceptance.`,
-    });
+    if (advanced.mandateSubmitted) {
+      await notificationService.create({
+        userId: request.tenant.userId,
+        title: "Financing approved — mandate sent to bank",
+        body: `A lender approved GHS ${input.amount.toLocaleString()} at ${interestRate}% for ${request.durationMonths} months on ${request.property.name}. Your repayment mandate has been sent to the bank.`,
+        metadata: { financingRequestId: request.id },
+      });
 
-    return updated;
+      await notificationService.create({
+        userId: lender.user.id,
+        title: "Financing approved",
+        body: `You approved financing for ${request.property.name} at the platform category rate (${interestRate}%). Awaiting mandate activation before disbursement.`,
+        metadata: { financingRequestId: request.id },
+      });
+    } else {
+      await notificationService.create({
+        userId: request.tenant.userId,
+        title: "Financing approved",
+        body: `A lender approved GHS ${input.amount.toLocaleString()} at ${interestRate}% on ${request.property.name}. Complete your repayment mandate setup to continue.`,
+        metadata: { financingRequestId: request.id },
+      });
+
+      await notificationService.create({
+        userId: lender.user.id,
+        title: "Financing approved",
+        body: `You approved financing for ${request.property.name} at ${interestRate}%. The customer must complete mandate setup before you can disburse.`,
+        metadata: { financingRequestId: request.id },
+      });
+    }
+
+    return advanced.request ?? updated;
   }
 
-  async acceptBuyerTerms(tenantUserId: string, financingRequestId: string) {
+  private async advanceApprovedRequestToMandate(
+    tenantUserId: string,
+    financingRequestId: string
+  ): Promise<{ request: Awaited<ReturnType<typeof prisma.financingRequest.findUnique>>; mandateSubmitted: boolean }> {
     const tenant = await prisma.tenant.findUnique({ where: { userId: tenantUserId } });
     if (!tenant) throw new AppError("Customer profile required", 403);
 
@@ -1070,20 +1098,20 @@ export class FinancingService {
     }
 
     if (request.buyerAcceptedAt) {
-      throw new AppError("You have already accepted this financing offer", 400);
+      return { request, mandateSubmitted: Boolean(request.mandate) };
     }
 
     const repaymentPreference = request.repaymentPreference as RepaymentPreference | null;
     const bankAccountId = repaymentPreference?.bankAccountId;
     if (!bankAccountId) {
-      throw new AppError("Select a verified bank account before accepting the offer", 400);
+      return { request, mandateSubmitted: false };
     }
 
     const bankAccount = await prisma.bankAccount.findFirst({
       where: { id: bankAccountId, userId: tenantUserId, isVerified: true },
     });
     if (!bankAccount) {
-      throw new AppError("Add and verify a bank account before accepting the offer", 400);
+      return { request, mandateSubmitted: false };
     }
 
     const interestRate = Number(request.offeredInterestRate);
@@ -1101,7 +1129,7 @@ export class FinancingService {
           metadata: {
             ...(request.feeDisclosure.metadata as object),
             buyerAcceptedAt: new Date().toISOString(),
-            awaitingBuyerAcceptance: false,
+            categoryInterestRate: true,
           },
         },
       });
@@ -1127,42 +1155,60 @@ export class FinancingService {
 
     const refreshed = await prisma.financingRequest.findUnique({
       where: { id: request.id },
-      include: { mandate: true },
+      include: { mandate: true, property: true, feeDisclosure: true },
     });
-
-    const usedScannedMandate = request.mandate?.mandateSource === "SCANNED_UPLOAD";
-
-    await notificationService.create({
-      userId: tenantUserId,
-      title: usedScannedMandate ? "Financing terms accepted" : "Repayment mandate sent to bank",
-      body: usedScannedMandate
-        ? `You accepted the lender offer at ${interestRate}% on ${request.property.name}. Submit your scanned mandate for review to complete financing.`
-        : `You accepted the lender offer at ${interestRate}% on ${request.property.name}. Your repayment mandate has been sent to the bank — funds are disbursed after it is active.`,
-      metadata: { financingRequestId: request.id },
-    });
-
-    if (request.feeDisclosure?.lenderUserId) {
-      await notificationService.create({
-        userId: request.feeDisclosure.lenderUserId,
-        title: "Customer accepted financing terms",
-        body: `The customer accepted your ${interestRate}% offer for ${request.property.name}. Finance this listing from your opportunities queue when you are ready.`,
-        metadata: { financingRequestId: request.id },
-      });
-    }
 
     await auditService.log({
       userId: tenantUserId,
       action: "FINANCING_TERMS_ACCEPTED",
       entity: "FinancingRequest",
       entityId: request.id,
-      metadata: { interestRate, amount },
+      metadata: { interestRate, amount, autoAdvanced: true },
     });
 
-    if (refreshed?.status === "DISBURSED") {
-      return refreshed;
+    return { request: refreshed ?? request, mandateSubmitted: true };
+  }
+
+  async acceptBuyerTerms(tenantUserId: string, financingRequestId: string) {
+    const result = await this.advanceApprovedRequestToMandate(tenantUserId, financingRequestId);
+    const request = result.request;
+    if (!request?.approvedAmount || request.offeredInterestRate == null) {
+      throw new AppError("Financing offer not found or incomplete", 404);
     }
 
-    return refreshed ?? request;
+    if (!result.mandateSubmitted) {
+      throw new AppError(
+        "Add and verify a bank account on your financing request before activating the mandate",
+        400
+      );
+    }
+
+    const interestRate = Number(request.offeredInterestRate);
+    const usedScannedMandate = request.mandate?.mandateSource === "SCANNED_UPLOAD";
+
+    await notificationService.create({
+      userId: tenantUserId,
+      title: usedScannedMandate ? "Repayment mandate pending review" : "Repayment mandate sent to bank",
+      body: usedScannedMandate
+        ? `Your financing at ${interestRate}% on ${request.property?.name ?? "this listing"} is approved. Submit your scanned mandate for review to complete financing.`
+        : `Your financing at ${interestRate}% on ${request.property?.name ?? "this listing"} is approved. Your repayment mandate has been sent to the bank.`,
+      metadata: { financingRequestId: request.id },
+    });
+
+    if (request.feeDisclosure?.lenderUserId) {
+      await notificationService.create({
+        userId: request.feeDisclosure.lenderUserId,
+        title: "Mandate in progress",
+        body: `The customer mandate for ${request.property?.name ?? "this listing"} is in progress. Finance from your opportunities queue once the mandate is active.`,
+        metadata: { financingRequestId: request.id },
+      });
+    }
+
+    if (request.status === "DISBURSED") {
+      return request;
+    }
+
+    return request;
   }
 
   async declineBuyerOffer(tenantUserId: string, financingRequestId: string) {
@@ -1187,7 +1233,7 @@ export class FinancingService {
       data: {
         status: "REJECTED",
         rejectedAt: new Date(),
-        decisionReason: "Buyer declined the lender financing offer.",
+        decisionReason: "Buyer cancelled financing before mandate activation.",
         offeredInterestRate: null,
         offeredPlanType: null,
         approvedAmount: null,
@@ -1197,8 +1243,8 @@ export class FinancingService {
     if (request.feeDisclosure?.lenderUserId) {
       await notificationService.create({
         userId: request.feeDisclosure.lenderUserId,
-        title: "Financing offer declined",
-        body: `The customer declined your offer for ${request.property.name}. The repayment mandate was not created.`,
+        title: "Financing cancelled",
+        body: `The customer cancelled financing for ${request.property.name} before mandate activation.`,
         metadata: { financingRequestId: request.id },
       });
     }

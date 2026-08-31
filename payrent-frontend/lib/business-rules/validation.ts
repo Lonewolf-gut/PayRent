@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+const categoryInterestRatesSchema = z.object({
+  residential: z.number().min(0).max(100),
+  car: z.number().min(0).max(100),
+  appliance: z.number().min(0).max(100),
+});
+
 export const businessRulesPatchSchema = z.object({
   agentCommissionPercent: z.number().min(0).max(100).optional(),
   platformFinancingFeePercent: z.number().min(0).max(100).optional(),
@@ -10,6 +16,7 @@ export const businessRulesPatchSchema = z.object({
   maxRepaymentMonths: z.number().int().min(1).max(120).optional(),
   maxInterestRatePercent: z.number().min(0).max(100).optional(),
   maxDebtToIncomePercent: z.number().min(1).max(100).optional(),
+  categoryInterestRates: categoryInterestRatesSchema.optional(),
   autoApproveLowRiskFinancing: z.boolean().optional(),
   lenderFreeFinancingLimit: z.number().int().min(1).max(10000).optional(),
   merchantListingRequiresPaidPlan: z.boolean().optional(),

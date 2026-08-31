@@ -8,6 +8,7 @@ export const GET = withAuth(
       maxInterestRatePercent: rules.maxInterestRatePercent,
       minRepaymentMonths: rules.minRepaymentMonths,
       maxRepaymentMonths: rules.maxRepaymentMonths,
+      categoryInterestRates: rules.categoryInterestRates,
     });
   },
   { roles: ["BUYER", "LENDER", "MERCHANT", "ADMIN"] }

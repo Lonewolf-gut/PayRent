@@ -23,7 +23,6 @@ export const financingRequestSchema = z.object({
 export const approveFinancingSchema = z.object({
   financingRequestId: z.string().cuid(),
   amount: z.number().positive(),
-  interestRate: z.number().min(0).max(30),
   planType: z.enum(["MONTHLY", "DEFERRED", "CUSTOM"]),
   customSchedule: z
     .array(

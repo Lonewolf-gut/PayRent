@@ -3,7 +3,6 @@ import { AppError } from "@/lib/errors";
 import { isDemoMode } from "@/lib/config/demo";
 import { financingService } from "@/lib/services/financing.service";
 import { mandateService } from "@/lib/services/mandate.service";
-import { getBusinessRules } from "@/lib/services/business-rules.service";
 import { FINANCING_STATUS_LABELS } from "@/constants/platform";
 
 const DEMO_LENDER_EMAIL = "lender@payforme.com";
@@ -71,9 +70,9 @@ export class DemoFinancingService {
       case "READY_FOR_LENDER_REVIEW":
       case "PENDING":
       case "UNDER_REVIEW":
-        return "Demo lender sends financing offer with interest rate";
+        return "Demo lender approves financing at category rate";
       case "APPROVED":
-        return "Buyer reviews interest rate and accepts — mandate sent to bank";
+        return "Repayment mandate processing at bank";
       case "MANDATE_PENDING":
         return mandateStatus === "ACTIVE"
           ? "Demo lender finances listing from wallet"
@@ -131,7 +130,7 @@ export class DemoFinancingService {
       steps.push({
         from: "APPROVED",
         to: "MANDATE_PENDING",
-        action: "Buyer accepted lender offer — repayment mandate sent to bank",
+        action: "Repayment mandate sent to bank",
       });
       const afterAccept = await prisma.financingRequest.findUnique({
         where: { id: request.id },
@@ -331,21 +330,18 @@ export class DemoFinancingService {
 
     if (!request) throw new AppError("Financing request not found", 404);
 
-    const rules = await getBusinessRules();
     const amount = Number(request.requestedAmount);
-    const interestRate = Math.min(18, rules.maxInterestRatePercent);
 
     await financingService.approveRequest(lenderUser.lender.id, {
       financingRequestId,
       amount,
-      interestRate,
       planType: "MONTHLY",
     });
 
     steps.push({
       from: request.status,
       to: "APPROVED",
-      action: `Demo lender (${DEMO_LENDER_EMAIL}) sent financing offer`,
+      action: `Demo lender (${DEMO_LENDER_EMAIL}) approved financing at category rate`,
     });
   }
 }

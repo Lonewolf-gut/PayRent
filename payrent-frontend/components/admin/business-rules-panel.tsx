@@ -7,6 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import type { BusinessRules } from "@/lib/business-rules/types";
+import { CATEGORY_INTEREST_RATE_LABELS } from "@/lib/business-rules/category-interest-rates";
+import type { PropertyCategory } from "@/lib/subscription-limits";
+
+const CATEGORY_SLUGS: PropertyCategory[] = ["residential", "car", "appliance"];
 
 export function BusinessRulesPanel() {
   const queryClient = useQueryClient();
@@ -55,13 +59,43 @@ export function BusinessRulesPanel() {
       maxInterestRatePercent: Number(form.get("maxInterestRatePercent")),
       maxDebtToIncomePercent: Number(form.get("maxDebtToIncomePercent")),
       lenderFreeFinancingLimit: Number(form.get("lenderFreeFinancingLimit")),
+      categoryInterestRates: {
+        residential: Number(form.get("categoryRate_residential")),
+        car: Number(form.get("categoryRate_car")),
+        appliance: Number(form.get("categoryRate_appliance")),
+      },
       merchantListingRequiresPaidPlan: form.get("merchantListingRequiresPaidPlan") === "on",
       autoApproveLowRiskFinancing: form.get("autoApproveLowRiskFinancing") === "on",
     });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <Card className="rounded-none">
+        <CardHeader>
+          <CardTitle className="text-base">Category interest rates</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-3">
+          {CATEGORY_SLUGS.map((slug) => (
+            <div key={slug} className="space-y-2">
+              <Label htmlFor={`categoryRate_${slug}`}>
+                {CATEGORY_INTEREST_RATE_LABELS[slug]} ({slug})
+              </Label>
+              <Input
+                id={`categoryRate_${slug}`}
+                name={`categoryRate_${slug}`}
+                type="number"
+                step="0.1"
+                min={0}
+                max={rules.maxInterestRatePercent}
+                defaultValue={rules.categoryInterestRates[slug]}
+                className="rounded-none"
+              />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 sm:grid-cols-2">
         {[
           ["agentCommissionPercent", "Affiliate commission (%)"],
@@ -69,7 +103,7 @@ export function BusinessRulesPanel() {
           ["serviceFeePercent", "Service fee (%)"],
           ["commissionFeePercent", "Commission fee (%)"],
           ["processingFeePercent", "Processing fee (%)"],
-          ["maxInterestRatePercent", "Max lender interest rate (%)"],
+          ["maxInterestRatePercent", "Max interest rate cap (%)"],
           ["minRepaymentMonths", "Min repayment months"],
           ["maxRepaymentMonths", "Max repayment months"],
           ["maxDebtToIncomePercent", "Max debt-to-income (%)"],

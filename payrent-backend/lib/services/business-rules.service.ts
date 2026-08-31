@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import {
   DEFAULT_BUSINESS_RULES,
+  DEFAULT_CATEGORY_INTEREST_RATES,
   type BusinessRules,
 } from "@/lib/business-rules/types";
 
@@ -12,11 +13,27 @@ function mergeRules(partial?: Record<string, unknown> | null): BusinessRules {
     return { ...DEFAULT_BUSINESS_RULES };
   }
 
+  const categoryInterestRates =
+    partial.categoryInterestRates &&
+    typeof partial.categoryInterestRates === "object"
+      ? {
+          ...DEFAULT_CATEGORY_INTEREST_RATES,
+          ...Object.fromEntries(
+            Object.entries(partial.categoryInterestRates as Record<string, unknown>).filter(
+              ([, value]) => value !== undefined
+            )
+          ),
+        }
+      : DEFAULT_CATEGORY_INTEREST_RATES;
+
   return {
     ...DEFAULT_BUSINESS_RULES,
     ...Object.fromEntries(
-      Object.entries(partial).filter(([, value]) => value !== undefined)
+      Object.entries(partial).filter(
+        ([key, value]) => value !== undefined && key !== "categoryInterestRates"
+      )
     ),
+    categoryInterestRates,
   } as BusinessRules;
 }
 
@@ -42,6 +59,14 @@ export class BusinessRulesService {
 
     if (next.minRepaymentMonths > next.maxRepaymentMonths) {
       throw new Error("Minimum repayment period cannot exceed maximum.");
+    }
+
+    for (const rate of Object.values(next.categoryInterestRates)) {
+      if (rate > next.maxInterestRatePercent) {
+        throw new Error(
+          `Category interest rates cannot exceed the platform maximum of ${next.maxInterestRatePercent}%.`
+        );
+      }
     }
 
     await prisma.businessRuleConfig.upsert({
