@@ -12,6 +12,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "mandate:read",
     "kyc:manage",
     "wallet:read",
+    "wallet:deposit",
+    "wallet:withdraw",
     "wallet:pay",
     "message:send",
     "complaint:submit",
@@ -99,8 +101,8 @@ export function requireRole(
 export const DASHBOARD_ROUTES: Record<UserRole, string> = {
   BUYER: "/dashboard/buyer",
   MERCHANT: "/dashboard/merchant",
-  MARKETER: "/dashboard/marketer",
-  LENDER: "/dashboard/lender",
+  MARKETER: "/dashboard/marketer/listings",
+  LENDER: "/dashboard/lender/opportunities",
   ADMIN: "/admin",
   COMPLIANCE_OFFICER: "/compliance",
 };
@@ -129,7 +131,7 @@ export function getSubscriptionSettingsPath(role?: UserRole | null) {
 }
 
 export const POST_LOGIN_ROUTES: Record<UserRole, string> = {
-  BUYER: DASHBOARD_ROUTES.BUYER,
+  BUYER: "/properties",
   MERCHANT: DASHBOARD_ROUTES.MERCHANT,
   MARKETER: DASHBOARD_ROUTES.MARKETER,
   LENDER: DASHBOARD_ROUTES.LENDER,

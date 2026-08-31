@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
 import { createMandateSchema, submitMandateSchema } from "@/lib/validations/mandate";
 import { mandateService } from "@/lib/services/mandate.service";
+import { resolveBuyerIdentityDocuments } from "@/lib/services/mandate-preview.service";
 import { prisma } from "@/lib/db/prisma";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 
 export const GET = withAuth(
-  async (_req, _ctx, session) => {
+  async (req: NextRequest, _ctx, session) => {
     if (session.user.role === "BUYER") {
       const tenant = await prisma.tenant.findUnique({
         where: { userId: session.user.id },
@@ -16,8 +17,31 @@ export const GET = withAuth(
     }
 
     if (session.user.role === "ADMIN") {
-      const mandates = await mandateService.listPendingReview();
-      return apiResponse(mandates, 200, "Pending mandates retrieved.");
+      const scope = req.nextUrl.searchParams.get("scope");
+      const mandates =
+        scope === "pending"
+          ? await mandateService.listPendingReview()
+          : await mandateService.listAllForAdmin();
+
+      const identityByUser = await resolveBuyerIdentityDocuments(
+        mandates
+          .map((mandate) => mandate.tenant?.user?.id)
+          .filter((userId): userId is string => Boolean(userId))
+      );
+
+      return apiResponse(
+        mandates.map((mandate) => {
+          const userId = mandate.tenant?.user?.id;
+          const identity = userId ? identityByUser.get(userId) : undefined;
+          return {
+            ...mandate,
+            buyerIdentityDocumentLabel: identity?.label ?? null,
+            buyerIdentityDocumentNumber: identity?.number ?? null,
+          };
+        }),
+        200,
+        "Mandates retrieved."
+      );
     }
 
     return apiResponse([]);

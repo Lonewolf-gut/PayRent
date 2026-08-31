@@ -1,7 +1,6 @@
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
 const navItems = [
-  { href: "/dashboard/lender", label: "Overview", icon: "Home" as const },
   { href: "/dashboard/lender/opportunities", label: "Financing Queue", icon: "FileText" as const },
   { href: "/dashboard/lender/portfolio", label: "Portfolio", icon: "TrendingUp" as const },
   { href: "/dashboard/lender/repayments", label: "Repayments", icon: "CreditCard" as const },

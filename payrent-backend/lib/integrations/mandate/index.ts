@@ -43,53 +43,39 @@ const bankMandateProvider: MandateProvider = {
   name: "bank-api",
 
   async registerPlatformMandate({ mandateId, bankAccountId, tenantUserId }) {
-    const { buildMandateRegistrationPayload, postBankMandateRegistration } = await import(
-      "@/lib/integrations/mandate/bank-mandate.client"
-    );
-    const { prisma } = await import("@/lib/db/prisma");
+    const baseUrl = process.env.BANK_API_URL ?? "";
+    const response = await fetch(`${baseUrl}/mandates`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.BANK_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ mandateId, bankAccountId, tenantUserId }),
+    });
 
-    try {
-      const payload = await buildMandateRegistrationPayload(
-        mandateId,
-        bankAccountId,
-        tenantUserId
-      );
-      const data = await postBankMandateRegistration(payload);
-
-      await prisma.bankPartnerTransaction.create({
-        data: {
-          direction: "OUTBOUND",
-          type: "MANDATE",
-          platformReference: `MND-${mandateId.slice(0, 8).toUpperCase()}`,
-          partnerReference: data.reference ?? null,
-          status: data.status === "ACTIVE" ? "COMPLETED" : "PROCESSING",
-          mandateId,
-          userId: tenantUserId,
-          amount: payload.financing?.principalAmount ?? 0,
-          metadata: {
-            provider: "BANK_API",
-            financingRequestId: payload.financing?.financingRequestId ?? null,
-            customerNationalId: payload.customer.nationalId,
-          },
-        },
-      });
-
-      return {
-        providerReference: data.reference ?? `man_${mandateId}`,
-        status:
-          data.status === "ACTIVE"
-            ? "ACTIVE"
-            : data.status === "MANUAL"
-              ? "PENDING_MANUAL_RESOLUTION"
-              : "BANK_PROCESSING",
-        documentUrl: data.documentUrl,
-      };
-    } catch {
+    if (!response.ok) {
       return {
         providerReference: `pending_${mandateId}`,
         status: "PENDING_MANUAL_RESOLUTION",
       };
     }
+
+    const data = (await response.json()) as {
+      reference?: string;
+      status?: string;
+      documentUrl?: string;
+    };
+
+    return {
+      providerReference: data.reference ?? `man_${Date.now()}`,
+      status:
+        data.status === "ACTIVE"
+          ? "ACTIVE"
+          : data.status === "MANUAL"
+            ? "PENDING_MANUAL_RESOLUTION"
+            : "BANK_PROCESSING",
+      documentUrl: data.documentUrl,
+    };
   },
 
   async confirmMandateStatus(providerReference) {

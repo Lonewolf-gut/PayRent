@@ -10,8 +10,9 @@ export const GET = withAuth(async (_req, _ctx, session) => {
   const walletType = getWalletTypeForRole(session.user.role);
   if (!walletType) return apiResponse({ error: "Invalid role" }, 400);
 
-  const balance = await walletService.getWalletSummary(session.user.id, walletType);
-  return apiResponse(balance);
+  const balance = await walletService.getBalance(session.user.id, walletType);
+  const history = await walletService.getHistory(session.user.id, walletType);
+  return apiResponse({ ...balance, ...history });
 });
 
 export const POST = withAuth(async (req: NextRequest, _ctx, session) => {

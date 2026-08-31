@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Wallet, CreditCard, Building2, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getFinancingStatusLabel } from "@/lib/financing/request-pipeline";
 
 export default function TenantDashboardPage() {
   const { data: wallet } = useQuery({
@@ -56,11 +57,11 @@ export default function TenantDashboardPage() {
           description="View repayment schedule"
         />
       </div>
-      <Card>
-        <CardHeader>
+      <Card className="flex max-h-[320px] flex-col">
+        <CardHeader className="shrink-0">
           <CardTitle>Recent financing requests</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-h-0 flex-1 overflow-y-auto">
           {!financing?.length ? (
             <p className="text-sm text-muted-foreground">
               No financing requests yet. Browse properties to get started.
@@ -74,7 +75,8 @@ export default function TenantDashboardPage() {
                 >
                   <span className="font-medium">{req.property?.name ?? "Property"}</span>
                   <span className="text-sm text-muted-foreground">
-                    GHS {Number(req.requestedAmount).toLocaleString()} · {req.status}
+                    GHS {Number(req.requestedAmount).toLocaleString()} ·{" "}
+                    {getFinancingStatusLabel(req.status) ?? req.status}
                   </span>
                 </li>
               ))}

@@ -138,8 +138,10 @@ export async function saveMandateUpload(file: File, ownerId: string) {
 }
 
 export async function savePropertyImageUpload(file: File, ownerId: string) {
-  const stored = await storeUploadedFile({ file, category: "properties/images", ownerId, kind: "image" });
-  return getPublicFileUrl(stored.key) ?? stored.key;
+  const { savePropertyImageUpload: savePropertyImage } = await import(
+    "@/lib/storage/property-image-url"
+  );
+  return savePropertyImage(file, ownerId);
 }
 
 export async function savePropertyDocumentUpload(file: File, ownerId: string) {

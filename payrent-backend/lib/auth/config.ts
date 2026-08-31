@@ -1,9 +1,20 @@
 import type { NextAuthConfig, Session } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { prisma } from "@/lib/db/prisma";
+import bcrypt from "bcryptjs";
+import { prisma, ensureDbConnection } from "@/lib/db/prisma";
 import type { UserRole } from "@prisma/client";
-import { authenticateCredentials } from "@/lib/auth/credentials-login";
+import {
+  AccountLockedError,
+  AccountSuspendedError,
+  EmailNotFoundError,
+  InvalidPasswordError,
+  InvalidTwoFactorError,
+  MissingCredentialsError,
+  TwoFactorRequiredError,
+  DatabaseUnavailableError,
+} from "@/lib/auth/sign-in-errors";
+import { logLoginAttempt } from "@/lib/auth/login-log";
 
 declare module "next-auth" {
   interface Session {
@@ -57,21 +68,90 @@ export const authConfig: NextAuthConfig = {
         otp: { label: "OTP", type: "text" },
       },
       async authorize(credentials, request) {
-        const user = await authenticateCredentials(
-          String(credentials?.email ?? ""),
-          String(credentials?.password ?? ""),
-          credentials?.otp ? String(credentials.otp) : undefined,
-          request
-        );
+        if (!credentials?.email || !credentials?.password) {
+          throw new MissingCredentialsError();
+        }
+
+        const email = (credentials.email as string).trim().toLowerCase();
+        const password = credentials.password as string;
+
+        try {
+          await ensureDbConnection();
+        } catch {
+          throw new DatabaseUnavailableError();
+        }
+
+        let user;
+        try {
+          user = await prisma.user.findUnique({ where: { email } });
+        } catch {
+          throw new DatabaseUnavailableError();
+        }
+
+        if (!user) {
+          await logLoginAttempt(null, false, email, request);
+          throw new EmailNotFoundError();
+        }
+
+        if (!user.isActive) {
+          await logLoginAttempt(user.id, false, user.email, request);
+          throw new AccountSuspendedError();
+        }
+
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+          await logLoginAttempt(user.id, false, user.email, request);
+          throw new AccountLockedError();
+        }
+
+        const valid = await bcrypt.compare(password, user.passwordHash);
+        if (!valid) {
+          const failedCount = user.failedLoginCount + 1;
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              failedLoginCount: failedCount,
+              lockedUntil:
+                failedCount >= 5
+                  ? new Date(Date.now() + 30 * 60 * 1000)
+                  : undefined,
+            },
+          });
+          await logLoginAttempt(user.id, false, user.email, request);
+          if (failedCount >= 5) {
+            throw new AccountLockedError();
+          }
+          throw new InvalidPasswordError();
+        }
+
+        if (user.twoFactorEnabled) {
+          if (!credentials.otp) {
+            throw new TwoFactorRequiredError();
+          }
+
+          const { twoFactorService } = await import("@/lib/services/two-factor.service");
+          try {
+            await twoFactorService.validateToken(user.id, String(credentials.otp));
+          } catch {
+            await logLoginAttempt(user.id, false, user.email, request);
+            throw new InvalidTwoFactorError();
+          }
+        }
+
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
+        });
+
+        await logLoginAttempt(user.id, true, user.email, request);
 
         return {
           id: user.id,
           email: user.email,
-          role: user.role as UserRole,
+          role: user.role,
           image: user.image,
           twoFactorEnabled: user.twoFactorEnabled,
-          emailVerified: user.emailVerified,
-          phoneVerified: user.phoneVerified,
+          emailVerified: Boolean(user.emailVerified),
+          phoneVerified: Boolean(user.phoneVerified),
         };
       },
     }),

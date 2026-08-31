@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 import { auth } from "@/lib/auth";
 import { getPostAuthRoute } from "@/lib/auth/post-auth-route";
 import { getUserVerificationState } from "@/lib/auth/user-verification-state";

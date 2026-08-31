@@ -15,21 +15,17 @@ PayForMe exposes a **Partner Bank API** so banks can:
 2. **Debit user wallets** when the bank has paid out a withdrawal to the customer’s linked account
 3. **Charge linked bank accounts** for scheduled repayments (mandates / installments)
 4. **Report asynchronous status** (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`) so the platform UI and ledger stay in sync
-5. **Receive mandate registrations** from PayForMe when customers accept financing (see §8.3)
 
-All customer funds settle into the **platform primary merchant collection account** configured by the administrator (`PlatformSettlementAccount`). Role wallets (merchant, lender, affiliate) are ledger allocations against that treasury. See `docs/treasury-and-withdrawals.md`.
-
-This is the **inverse** of MoMo integration: **banks call PayForMe** for deposits, withdrawals, and charges. PayForMe calls the bank for **mandate registration** and **scheduled debits** when `BANK_API_URL` is configured (§8).
+This is the **inverse** of MoMo integration: **banks call PayForMe**, not the other way around (except mandate registration, which may still require bank-side endpoints — see §8).
 
 ### Integration goals
 
 | Goal | How it works |
 |------|----------------|
 | User adds bank account | User verifies account in app (Paystack resolve + allowlist). Bank receives `bankAccountId` only through PayForMe-initiated flows. |
-| User deposits | Customer transfers to **one platform collection account** with a unique reference → bank notifies PayForMe → role wallet credited |
-| Merchant / lender / affiliate withdraws | Role requests payout (OTP + 2FA) → PayForMe instructs bank to pay from collection account → bank confirms via `POST /withdrawals` |
-| Customer (buyer) | Pays via financing request and bank mandate — **no platform withdrawals** |
-| Repayment schedule | PayForMe registers mandate with bank → on due date PayForMe triggers debit → bank reports result via `POST /charges` |
+| User deposits | Customer transfers to **one platform collection account** with a unique reference → bank notifies PayForMe → wallet credited |
+| User withdraws | User confirms in app (OTP + 2FA) → PayForMe instructs bank OR bank debits wallet after payout |
+| Repayment schedule | PayForMe creates charge against mandate/installment → bank debits customer account → bank reports result |
 | UI status | Every transaction has a lifecycle; users see status in Wallet, Repayments, and Mandates screens |
 
 ---
@@ -529,72 +525,15 @@ Notify PayForMe when a direct-debit mandate is approved, rejected, or revoked.
 | `DeductionEvent` | Single debit attempt (`status`, `providerReference`, retries) |
 | `WalletTransaction` | Ledger entry for deposits/withdrawals |
 
-### 8.3 Outbound bank API (PayForMe → bank)
+### 8.3 Outbound bank API (PayForMe → bank) — optional
 
-When `BANK_API_URL` is configured, PayForMe calls your bank for mandate registration and scheduled debits.
+If your bank exposes REST endpoints, PayForMe can call:
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `POST` | `{BANK_API_URL}/mandates` | Register direct-debit mandate after customer accepts financing |
+| `POST` | `{BANK_API_URL}/mandates` | Register mandate |
 | `GET` | `{BANK_API_URL}/mandates/{ref}` | Poll mandate status |
-| `POST` | `{BANK_API_URL}/debit` | Execute direct debit on due date |
-
-**Mandate registration request (PayForMe → bank)**
-
-Sent when a customer accepts a lender offer and the platform-generated mandate is submitted.
-
-```json
-{
-  "mandateId": "clxmand555",
-  "bankAccountId": "clxbank123",
-  "tenantUserId": "clxuser789",
-  "customer": {
-    "fullName": "Elisha AGBI",
-    "email": "customer@example.com",
-    "phone": "+233501234567",
-    "nationalId": "GHA-727310311-1",
-    "identityDocumentType": "GHANA_CARD"
-  },
-  "bankAccount": {
-    "bankName": "GCB Bank",
-    "bankCode": "GCB",
-    "accountNumber": "1234567890",
-    "accountName": "ELISHA AGBI"
-  },
-  "financing": {
-    "financingRequestId": "clxfin456",
-    "propertyName": "Samsung 450L Double Door Fridge",
-    "propertyLocation": "Osu, Accra",
-    "principalAmount": 4200,
-    "interestRate": 8,
-    "totalRepayable": 4536,
-    "monthlyPayment": 378,
-    "durationMonths": 12,
-    "buyerAcceptedAt": "2026-08-24T18:25:37.000Z"
-  },
-  "mandateType": "DIRECT_DEBIT",
-  "mandateSource": "PLATFORM_GENERATED",
-  "callbackUrl": "https://api.payforme.com.gh/api/bank/v1/mandates/callback"
-}
-```
-
-**Mandate registration response (bank → PayForMe)**
-
-```json
-{
-  "reference": "BANK-MND-12345",
-  "status": "BANK_PROCESSING",
-  "documentUrl": "https://bank.example/mandates/BANK-MND-12345.pdf"
-}
-```
-
-| `status` | PayForMe mandate status |
-|----------|-------------------------|
-| `ACTIVE` | `ACTIVE` |
-| `BANK_PROCESSING` | `BANK_PROCESSING` |
-| `MANUAL` | `PENDING_MANUAL_RESOLUTION` |
-
-PayForMe records an outbound `BankPartnerTransaction` (`type: MANDATE`) for reconciliation. When the mandate is active, the bank **must** also call `POST /api/bank/v1/mandates/callback` (§7.9).
+| `POST` | `{BANK_API_URL}/debit` | Execute direct debit |
 
 **Debit request (PayForMe → bank)**
 

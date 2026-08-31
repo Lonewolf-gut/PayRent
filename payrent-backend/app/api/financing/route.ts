@@ -6,13 +6,24 @@ import { apiResponse, withAuth } from "@/lib/api/handler";
 import { getReferralAgentProfileId } from "@/lib/utils/agent-referral-request";
 import { consentService } from "@/lib/services/consent.service";
 import { getBusinessRules } from "@/lib/services/business-rules.service";
+
+const EMPTY_LENDER_INSIGHT = {
+  pending: [],
+  awaitingBuyerAcceptance: [],
+  awaitingMandate: [],
+  readyToFinance: [],
+  waitingOnMerchant: 0,
+  waitingOnAdminDocs: 0,
+  waitingOnAdminEligibility: 0,
+};
+
 export const GET = withAuth(
   async (req: NextRequest, _ctx, session) => {
     if (session.user.role === "LENDER") {
       const lender = await prisma.lender.findUnique({
         where: { userId: session.user.id },
       });
-      if (!lender) return apiResponse([]);
+      if (!lender) return apiResponse(EMPTY_LENDER_INSIGHT);
 
       const scope = req.nextUrl.searchParams.get("scope");
       if (scope === "portfolio") {
@@ -20,8 +31,8 @@ export const GET = withAuth(
         return apiResponse(portfolio);
       }
 
-      const requests = await financingService.getPendingForLender(session.user.id);
-      return apiResponse(requests);
+      const insight = await financingService.getLenderQueueInsight(session.user.id);
+      return apiResponse(insight);
     }
 
     const tenant = await prisma.tenant.findUnique({
@@ -31,7 +42,21 @@ export const GET = withAuth(
 
     const requests = await prisma.financingRequest.findMany({
       where: { tenantId: tenant.id },
-      include: { property: { include: { images: { take: 1 } } } },
+      include: {
+        property: { include: { images: { take: 1 } } },
+        feeDisclosure: true,
+        mandate: {
+          select: {
+            id: true,
+            status: true,
+            mandateSource: true,
+            documentUrl: true,
+          },
+        },
+        tenant: {
+          include: { user: { select: { email: true } } },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
     return apiResponse(requests);
@@ -67,17 +92,16 @@ export const POST = withAuth(
 
     const referredAgentProfileId = await getReferralAgentProfileId(req);
 
-    const request = await financingService.createRequest(
-      tenant.id,
-      parsed.data.propertyId,
-      parsed.data.requestedAmount,
-      parsed.data.durationMonths,
-      parsed.data.notes,
-      parsed.data.applicationId,
+    const { request, queued } = await financingService.submitRequest(tenant.id, session.user.id, {
+      propertyId: parsed.data.propertyId,
+      applicationId: parsed.data.applicationId,
+      requestedAmount: parsed.data.requestedAmount,
+      durationMonths: parsed.data.durationMonths,
+      notes: parsed.data.notes,
       referredAgentProfileId,
-      parsed.data.repaymentPreference,
-      parsed.data.monthlyIncome
-    );
+      repaymentPreference: parsed.data.repaymentPreference,
+      monthlyIncome: parsed.data.monthlyIncome,
+    });
 
     await consentService.recordFinancingConsent(session.user.id, request.id, {
       ipAddress:
@@ -88,10 +112,11 @@ export const POST = withAuth(
       metadata: {
         propertyId: parsed.data.propertyId,
         requestedAmount: parsed.data.requestedAmount,
+        queued,
       },
     });
 
-    return apiResponse(request, 201);
+    return apiResponse({ ...request, queued }, queued ? 202 : 201);
   },
   { roles: ["BUYER"], permission: "financing:create" }
 );

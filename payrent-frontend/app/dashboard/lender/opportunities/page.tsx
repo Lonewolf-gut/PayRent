@@ -1,8 +1,7 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -14,58 +13,143 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { toast } from "sonner";
+import { normalizeLenderQueueResponse } from "@/lib/utils/lender-queue-response";
+
+type FinancingRequest = {
+  id: string;
+  status: string;
+  requestedAmount: number;
+  approvedAmount?: number | null;
+  offeredInterestRate?: number | null;
+  durationMonths: number;
+  buyerAcceptedAt?: string | null;
+  property?: { name: string; location: string; monthlyRent: number; status?: string };
+  tenant?: { fullName: string; monthlyIncome: number; user?: { email: string } };
+  mandate?: { status: string } | null;
+};
+
+type OfferFormState = {
+  interestRate: string;
+  planType: "MONTHLY" | "DEFERRED" | "CUSTOM";
+};
+
+function PropertyVerifiedBadge({ verified }: { verified?: boolean }) {
+  if (!verified) {
+    return <Badge variant="secondary">Listing pending verification</Badge>;
+  }
+  return (
+    <Badge className="bg-emerald-700 hover:bg-emerald-700">
+      Property verified · safe to invest
+    </Badge>
+  );
+}
+
+function cleanPropertyName(name?: string) {
+  return name?.replace(/^\[Demo\]\s*/i, "") ?? "Listing";
+}
+
+function mergeAcceptedOffers(
+  readyToFinance: FinancingRequest[],
+  awaitingMandate: FinancingRequest[]
+) {
+  const seen = new Set<string>();
+  return [...readyToFinance, ...awaitingMandate].filter((request) => {
+    if (seen.has(request.id)) return false;
+    seen.add(request.id);
+    return true;
+  });
+}
 
 export default function LenderOpportunitiesPage() {
   const queryClient = useQueryClient();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [interestRate, setInterestRate] = useState("8");
-  const [planType, setPlanType] = useState<"MONTHLY" | "DEFERRED" | "CUSTOM">("MONTHLY");
+  const [offerForms, setOfferForms] = useState<Record<string, OfferFormState>>({});
 
-  const { data: financingAccess } = useQuery({
-    queryKey: ["lender-financing-access"],
+  const { data: financingRules } = useQuery({
+    queryKey: ["financing-rules"],
     queryFn: async () => {
-      const res = await fetch("/api/lender/financing-access");
+      const res = await fetch("/api/financing/rules");
       const json = await res.json();
-      return json.data as {
-        financedCount: number;
-        limit: number | null;
-        remaining: number | null;
-        isPaid: boolean;
-      };
+      return json.data as { maxInterestRatePercent: number };
     },
   });
 
-  const { data: requests, isLoading } = useQuery({
+  const maxInterestRate = financingRules?.maxInterestRatePercent ?? 30;
+
+  const { data: queueInsight, isLoading } = useQuery({
     queryKey: ["financing-pending"],
     queryFn: async () => {
       const res = await fetch("/api/financing");
       const json = await res.json();
-      return json.data ?? [];
+      if (!json.success) {
+        throw new Error(json.message ?? "Could not load financing queue");
+      }
+      return normalizeLenderQueueResponse(json.data);
     },
   });
 
+  const requests = (queueInsight?.pending ?? []) as FinancingRequest[];
+  const awaitingBuyer = (queueInsight?.awaitingBuyerAcceptance ?? []) as FinancingRequest[];
+  const awaitingMandate = (queueInsight?.awaitingMandate ?? []) as FinancingRequest[];
+  const readyToFinance = (queueInsight?.readyToFinance ?? []) as FinancingRequest[];
+  const acceptedOffers = useMemo(
+    () => mergeAcceptedOffers(readyToFinance, awaitingMandate),
+    [readyToFinance, awaitingMandate]
+  );
+
+  const getOfferForm = (requestId: string): OfferFormState =>
+    offerForms[requestId] ?? { interestRate: "8", planType: "MONTHLY" };
+
+  const updateOfferForm = (requestId: string, patch: Partial<OfferFormState>) => {
+    setOfferForms((current) => ({
+      ...current,
+      [requestId]: { ...getOfferForm(requestId), ...patch },
+    }));
+  };
+
+  const invalidateQueue = () => {
+    queryClient.invalidateQueries({ queryKey: ["financing-pending"] });
+  };
+
   const approveMutation = useMutation({
-    mutationFn: async (financingRequestId: string) => {
-      const req = requests.find((r: { id: string }) => r.id === financingRequestId);
+    mutationFn: async ({
+      financingRequestId,
+      interestRate,
+      planType,
+    }: {
+      financingRequestId: string;
+      interestRate: string;
+      planType: OfferFormState["planType"];
+    }) => {
+      const rate = parseFloat(interestRate);
+      if (rate > maxInterestRate) {
+        throw new Error(
+          `Interest rate cannot exceed the platform maximum of ${maxInterestRate}%. Contact admin if you need a higher cap.`
+        );
+      }
+      const req = requests.find((request) => request.id === financingRequestId);
       const res = await fetch("/api/financing/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           financingRequestId,
           amount: Number(req?.requestedAmount),
-          interestRate: parseFloat(interestRate),
+          interestRate: rate,
           planType,
         }),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error?.message);
+      if (!json.success) throw new Error(json.message ?? json.error?.message);
     },
     onSuccess: () => {
       toast.success("Financing offer sent — awaiting customer acceptance");
-      queryClient.invalidateQueries({ queryKey: ["financing-pending"] });
-      setSelectedId(null);
+      invalidateQueue();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -78,139 +162,371 @@ export default function LenderOpportunitiesPage() {
         body: JSON.stringify({ financingRequestId }),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error?.message);
+      if (!json.success) throw new Error(json.message ?? json.error?.message);
     },
     onSuccess: () => {
       toast.success("Request rejected");
-      queryClient.invalidateQueries({ queryKey: ["financing-pending"] });
+      invalidateQueue();
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
+  const disburseMutation = useMutation({
+    mutationFn: async (financingRequestId: string) => {
+      const res = await fetch("/api/financing/disburse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ financingRequestId }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message ?? json.error?.message);
+    },
+    onSuccess: () => {
+      toast.success("Financing disbursed to merchant");
+      invalidateQueue();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const hasAnyQueueItems =
+    requests.length > 0 ||
+    awaitingBuyer.length > 0 ||
+    acceptedOffers.length > 0;
+
   return (
-    <div className="space-y-6">
-      {financingAccess && !financingAccess.isPaid ? (
-        <div className="rounded-none border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          Free plan: {financingAccess.financedCount} of {financingAccess.limit ?? 100} properties financed.
-          {financingAccess.remaining === 0 ? (
-            <>
-              {" "}
-              Subscribe for unlimited financing access.{" "}
-              <Link href="/dashboard/lender/subscription" className="font-medium underline">
-                View plans
-              </Link>
-            </>
-          ) : (
-            <> {financingAccess.remaining} financing slots remaining.</>
-          )}
-        </div>
-      ) : null}
-      <h1 className="text-2xl font-bold">Funding Requests</h1>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold">Listings awaiting financing</h1>
+        <p className="text-muted-foreground">
+          Send a financing offer first. After the customer accepts, click{" "}
+          <span className="font-medium text-foreground">Finance listing</span> to disburse funds
+          from your wallet to the merchant.
+        </p>
+      </div>
+
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>
-      ) : !requests?.length ? (
-        <p className="text-muted-foreground">No pending requests.</p>
       ) : (
-        <div className="grid gap-4">
-          {requests.map((req: {
-            id: string;
-            status: string;
-            requestedAmount: number;
-            durationMonths: number;
-            property?: { name: string; location: string; monthlyRent: number };
-            tenant?: { fullName: string; monthlyIncome: number; user?: { email: string } };
-            mandate?: { status: string; mandateSource: string };
-          }) => (
-            <Card key={req.id}>
-              <CardHeader className="flex flex-row items-start justify-between">
-                <div>
-                  <CardTitle className="text-lg">{req.property?.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{req.property?.location}</p>
-                </div>
-                <Badge>{req.status}</Badge>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-2 text-sm sm:grid-cols-2">
-                  <p>Buyer: {req.tenant?.fullName ?? req.tenant?.user?.email}</p>
-                  <p>Income: GHS {Number(req.tenant?.monthlyIncome ?? 0).toLocaleString()}</p>
-                  <p>Requested: GHS {Number(req.requestedAmount).toLocaleString()}</p>
-                  <p>Duration: {req.durationMonths} months</p>
-                  <p>Rent: GHS {Number(req.property?.monthlyRent ?? 0).toLocaleString()}/mo</p>
-                  <p>
-                    Mandate:{" "}
-                    {req.mandate ? (
-                      <Badge variant={req.mandate.status === "ACTIVE" ? "default" : "secondary"}>
-                        {req.mandate.status.replace("_", " ")}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">Not set up</span>
-                    )}
-                  </p>
-                </div>
-                {req.mandate && req.mandate.status !== "ACTIVE" && (
-                  <p className="text-sm text-amber-700">
-                    Repayment mandate must be active before you can approve funding.
-                  </p>
+        <>
+          {acceptedOffers.length > 0 ? (
+            <QueueSection
+              title="Customer accepted — ready to finance"
+              description="The customer accepted your offer. Top up your lender wallet if needed, expand a listing, then click Finance listing to pay the merchant."
+            >
+              <FinancingQueueAccordion
+                items={acceptedOffers}
+                renderBadge={(req) =>
+                  req.mandate?.status === "ACTIVE" ? (
+                    <Badge className="bg-emerald-700 hover:bg-emerald-700">
+                      Mandate active
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">
+                      Customer accepted · mandate{" "}
+                      {req.mandate?.status?.toLowerCase().replace(/_/g, " ") ?? "pending"}
+                    </Badge>
+                  )
+                }
+                renderActions={(req) => (
+                  <Button
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    disabled={disburseMutation.isPending}
+                    onClick={() => disburseMutation.mutate(req.id)}
+                  >
+                    Finance listing
+                  </Button>
                 )}
-                {selectedId === req.id ? (
-                  <div className="flex flex-wrap gap-4 rounded-lg border p-4">
-                    <div>
-                      <Label>Interest rate (%)</Label>
-                      <Input
-                        type="number"
-                        value={interestRate}
-                        onChange={(e) => setInterestRate(e.target.value)}
-                        className="w-24"
-                      />
-                    </div>
-                    <div>
-                      <Label>Repayment plan</Label>
-                      <Select value={planType} onValueChange={(v) => setPlanType(v as typeof planType)}>
-                        <SelectTrigger className="w-40">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="MONTHLY">Monthly</SelectItem>
-                          <SelectItem value="DEFERRED">Deferred</SelectItem>
-                          <SelectItem value="CUSTOM">Custom</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex gap-2 items-end">
-                      <Button
-                        className="bg-emerald-600 hover:bg-emerald-700"
-                        onClick={() => approveMutation.mutate(req.id)}
-                        disabled={approveMutation.isPending}
-                      >
-                        Confirm approve
-                      </Button>
-                      <Button variant="ghost" onClick={() => setSelectedId(null)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button
-                      className="bg-emerald-600 hover:bg-emerald-700"
-                      onClick={() => setSelectedId(req.id)}
-                      disabled={!req.mandate || req.mandate.status !== "ACTIVE"}
-                    >
-                      Review & Approve
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => rejectMutation.mutate(req.id)}
-                      disabled={rejectMutation.isPending}
-                    >
-                      Reject
-                    </Button>
-                  </div>
+              />
+            </QueueSection>
+          ) : null}
+
+          {awaitingBuyer.length > 0 ? (
+            <QueueSection
+              title="Awaiting customer acceptance"
+              description="You sent these offers. The customer must review and accept before you can finance."
+            >
+              <FinancingQueueAccordion
+                items={awaitingBuyer}
+                renderBadge={() => (
+                  <Badge variant="secondary">Offer sent · awaiting customer</Badge>
                 )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              />
+            </QueueSection>
+          ) : null}
+
+          {requests.length > 0 ? (
+            <QueueSection
+              title="New financing requests"
+              description="Review verified listings and send a financing offer with your interest rate."
+            >
+              <Accordion
+                type="single"
+                collapsible
+                className="divide-y divide-border rounded-xl border border-border bg-card"
+              >
+                {requests.map((req) => {
+                  const offer = getOfferForm(req.id);
+                  const propertyName = cleanPropertyName(req.property?.name);
+
+                  return (
+                    <AccordionItem key={req.id} value={req.id} className="border-0 px-4">
+                      <AccordionTrigger className="py-4 hover:no-underline">
+                        <ListingAccordionSummary req={req} propertyName={propertyName} />
+                      </AccordionTrigger>
+
+                      <AccordionContent className="pb-4">
+                        <div className="space-y-4">
+                          <RequestDetails req={req} />
+
+                          <div className="rounded-xl border border-border p-4">
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                              <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="space-y-1.5">
+                                  <Label htmlFor={`rate-${req.id}`}>Interest rate (%)</Label>
+                                  <Input
+                                    id={`rate-${req.id}`}
+                                    type="number"
+                                    min={0}
+                                    max={maxInterestRate}
+                                    value={offer.interestRate}
+                                    onChange={(e) =>
+                                      updateOfferForm(req.id, { interestRate: e.target.value })
+                                    }
+                                    className="w-full sm:w-28"
+                                  />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label htmlFor={`plan-${req.id}`}>Repayment plan</Label>
+                                  <Select
+                                    value={offer.planType}
+                                    onValueChange={(value) =>
+                                      updateOfferForm(req.id, {
+                                        planType: value as OfferFormState["planType"],
+                                      })
+                                    }
+                                  >
+                                    <SelectTrigger id={`plan-${req.id}`} className="w-full sm:w-40">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="MONTHLY">Monthly</SelectItem>
+                                      <SelectItem value="DEFERRED">Deferred</SelectItem>
+                                      <SelectItem value="CUSTOM">Custom</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  className="bg-emerald-600 hover:bg-emerald-700"
+                                  disabled={approveMutation.isPending}
+                                  onClick={() =>
+                                    approveMutation.mutate({
+                                      financingRequestId: req.id,
+                                      interestRate: offer.interestRate,
+                                      planType: offer.planType,
+                                    })
+                                  }
+                                >
+                                  Send financing offer
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  disabled={rejectMutation.isPending}
+                                  onClick={() => rejectMutation.mutate(req.id)}
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
+            </QueueSection>
+          ) : null}
+
+          {!hasAnyQueueItems ? (
+            <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
+              <p>No listings awaiting financing right now.</p>
+              <p className="mt-2 text-sm">
+                Requests appear here after the merchant and admin have approved them.
+              </p>
+              {(queueInsight?.waitingOnMerchant ?? 0) > 0 ||
+              (queueInsight?.waitingOnAdminDocs ?? 0) > 0 ||
+              (queueInsight?.waitingOnAdminEligibility ?? 0) > 0 ? (
+                <ul className="mx-auto mt-4 max-w-md space-y-1 text-left text-sm">
+                  {(queueInsight?.waitingOnMerchant ?? 0) > 0 ? (
+                    <li>
+                      • {queueInsight?.waitingOnMerchant} waiting on{" "}
+                      <span className="font-medium text-foreground">merchant approval</span>
+                    </li>
+                  ) : null}
+                  {(queueInsight?.waitingOnAdminDocs ?? 0) > 0 ? (
+                    <li>
+                      • {queueInsight?.waitingOnAdminDocs} waiting on{" "}
+                      <span className="font-medium text-foreground">admin document review</span>
+                    </li>
+                  ) : null}
+                  {(queueInsight?.waitingOnAdminEligibility ?? 0) > 0 ? (
+                    <li>
+                      • {queueInsight?.waitingOnAdminEligibility} waiting on{" "}
+                      <span className="font-medium text-foreground">admin eligibility review</span>
+                      — approve them in Admin → Financing before they reach you
+                    </li>
+                  ) : null}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+        </>
       )}
+    </div>
+  );
+}
+
+function QueueSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function FinancingQueueAccordion({
+  items,
+  renderBadge,
+  renderActions,
+}: {
+  items: FinancingRequest[];
+  renderBadge: (req: FinancingRequest) => React.ReactNode;
+  renderActions?: (req: FinancingRequest) => React.ReactNode;
+}) {
+  return (
+    <Accordion type="single" collapsible className="divide-y divide-border rounded-xl border border-border bg-card">
+      {items.map((req) => {
+        const propertyName = cleanPropertyName(req.property?.name);
+        const amount = Number(req.approvedAmount ?? req.requestedAmount);
+        const rate = req.offeredInterestRate != null ? Number(req.offeredInterestRate) : null;
+
+        return (
+          <AccordionItem key={req.id} value={req.id} className="border-0">
+            <div className="flex items-start gap-2 px-4">
+              <AccordionTrigger className="flex-1 py-4 hover:no-underline">
+                <div className="flex flex-1 flex-col gap-3 pr-2 text-left lg:flex-row lg:items-center lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-base font-semibold text-foreground">
+                        {propertyName}
+                      </p>
+                      {renderBadge(req)}
+                    </div>
+                    <p className="truncate text-sm text-muted-foreground">{req.property?.location}</p>
+                    <p className="mt-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                      GHS {amount.toLocaleString()}
+                      {rate != null ? ` · ${rate}%` : ""} · {req.durationMonths} months
+                    </p>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              {renderActions ? (
+                <div className="shrink-0 py-4" onClick={(event) => event.stopPropagation()}>
+                  {renderActions(req)}
+                </div>
+              ) : null}
+            </div>
+
+            <AccordionContent className="px-4 pb-4">
+              <div className="space-y-4">
+                <RequestDetails req={req} />
+                {renderActions ? (
+                  <div className="flex flex-wrap gap-2 sm:hidden">{renderActions(req)}</div>
+                ) : null}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        );
+      })}
+    </Accordion>
+  );
+}
+
+function ListingAccordionSummary({
+  req,
+  propertyName,
+}: {
+  req: FinancingRequest;
+  propertyName: string;
+}) {
+  return (
+    <div className="flex flex-1 flex-col gap-3 pr-2 text-left lg:flex-row lg:items-center lg:justify-between">
+      <div className="min-w-0">
+        <p className="truncate text-base font-semibold text-foreground">{propertyName}</p>
+        <p className="truncate text-sm text-muted-foreground">{req.property?.location}</p>
+        <p className="mt-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+          GHS {Number(req.requestedAmount).toLocaleString()} · {req.durationMonths} months
+        </p>
+      </div>
+      <PropertyVerifiedBadge verified={req.property?.status === "ACTIVE"} />
+    </div>
+  );
+}
+
+function RequestDetails({ req }: { req: FinancingRequest }) {
+  return (
+    <dl className="grid gap-3 rounded-xl border border-border bg-muted/10 p-4 text-sm sm:grid-cols-2">
+      <Detail label="Buyer" value={req.tenant?.fullName ?? req.tenant?.user?.email ?? "—"} />
+      <Detail
+        label="Income"
+        value={`GHS ${Number(req.tenant?.monthlyIncome ?? 0).toLocaleString()}`}
+      />
+      <Detail label="Requested" value={`GHS ${Number(req.requestedAmount).toLocaleString()}`} />
+      <Detail label="Duration" value={`${req.durationMonths} months`} />
+      <Detail
+        label="Rent"
+        value={`GHS ${Number(req.property?.monthlyRent ?? 0).toLocaleString()}/mo`}
+      />
+      {req.buyerAcceptedAt ? (
+        <Detail
+          label="Accepted on"
+          value={new Date(req.buyerAcceptedAt).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}
+        />
+      ) : null}
+      {req.mandate?.status ? (
+        <Detail
+          label="Mandate status"
+          value={req.mandate.status.replace(/_/g, " ").toLowerCase()}
+        />
+      ) : null}
+    </dl>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 font-medium text-foreground">{value}</dd>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import {
   notifyUserInAppAndEmail,
 } from "@/lib/services/verification-notifications";
 import { auditService } from "@/lib/services/audit.service";
+import { notificationService } from "@/lib/services/notification.service";
 import { AppError } from "@/lib/errors";
 import { getMandateProvider } from "@/lib/integrations/mandate";
 import type {
@@ -19,7 +20,15 @@ export class MandateService {
   private async activateMandate(mandateId: string, adminUserId?: string) {
     const mandate = await prisma.mandate.findUnique({
       where: { id: mandateId },
-      include: { tenant: { include: { user: true } }, financingRequest: true },
+      include: {
+        tenant: { include: { user: true } },
+        financingRequest: {
+          include: {
+            property: { select: { name: true } },
+            feeDisclosure: { select: { lenderUserId: true } },
+          },
+        },
+      },
     });
     if (!mandate) throw new AppError("Mandate not found", 404);
 
@@ -28,13 +37,6 @@ export class MandateService {
         where: { id: mandateId },
         data: { status: "ACTIVE", activatedAt: new Date() },
       });
-
-      if (mandate.financingRequest) {
-        await db.financingRequest.update({
-          where: { id: mandate.financingRequest.id },
-          data: { status: "READY_FOR_LENDER_REVIEW" },
-        });
-      }
 
       await db.adminReviewRecord.updateMany({
         where: {
@@ -51,10 +53,28 @@ export class MandateService {
       });
     });
 
+    if (mandate.financingRequest?.buyerAcceptedAt) {
+      const lenderUserId = mandate.financingRequest.feeDisclosure?.lenderUserId;
+      const propertyName = mandate.financingRequest.property?.name ?? "the listing";
+
+      if (lenderUserId) {
+        await notificationService.create({
+          userId: lenderUserId,
+          title: "Repayment mandate active",
+          body: `The customer's mandate for ${propertyName} is active. You can now finance this listing from your opportunities queue.`,
+          metadata: { financingRequestId: mandate.financingRequest.id },
+        });
+      }
+    }
+
     await notifyUserInAppAndEmail(
       mandate.tenant.userId,
-      "Mandate activated",
-      "Your repayment mandate is active. Your financing request is ready for lender review."
+      mandate.financingRequest?.buyerAcceptedAt
+        ? "Mandate activated — awaiting lender financing"
+        : "Mandate activated",
+      mandate.financingRequest?.buyerAcceptedAt
+        ? "Your repayment mandate is active. The lender will disburse funds once they confirm financing."
+        : "Your repayment mandate is active."
     );
 
     if (adminUserId) {
@@ -67,6 +87,115 @@ export class MandateService {
     }
 
     return prisma.mandate.findUniqueOrThrow({ where: { id: mandateId } });
+  }
+
+  async createDraftForFinancing(
+    tenantId: string,
+    userId: string,
+    financingRequestId: string,
+    bankAccountId: string
+  ) {
+    const financing = await prisma.financingRequest.findFirst({
+      where: { id: financingRequestId, tenantId },
+    });
+    if (!financing || financing.mandateId) return null;
+
+    const bankAccount = await prisma.bankAccount.findFirst({
+      where: { id: bankAccountId, userId, isVerified: true },
+    });
+    if (!bankAccount) return null;
+
+    const provider = getMandateProvider();
+
+    return runTransaction(async (db) => {
+      const created = await db.mandate.create({
+        data: {
+          tenantId,
+          bankAccountId,
+          mandateType: "DIRECT_DEBIT",
+          mandateSource: "PLATFORM_GENERATED",
+          status: "DRAFT",
+          providerName: provider.name,
+        },
+      });
+
+      await db.financingRequest.update({
+        where: { id: financingRequestId },
+        data: { mandateId: created.id },
+      });
+
+      return created;
+    });
+  }
+
+  async submitDraftToBank(mandateId: string, tenantId: string, userId: string) {
+    const mandate = await prisma.mandate.findFirst({
+      where: { id: mandateId, tenantId },
+      include: { financingRequest: true },
+    });
+    if (!mandate) throw new AppError("Mandate not found", 404);
+    if (mandate.status !== "DRAFT") {
+      throw new AppError("Mandate has already been submitted to the bank", 400);
+    }
+    if (mandate.mandateSource !== "PLATFORM_GENERATED") {
+      throw new AppError("Only platform-generated mandates can be sent to the bank automatically", 400);
+    }
+
+    const provider = getMandateProvider();
+    const registration = await provider.registerPlatformMandate({
+      mandateId: mandate.id,
+      bankAccountId: mandate.bankAccountId,
+      tenantUserId: userId,
+    });
+
+    const updated = await prisma.mandate.update({
+      where: { id: mandate.id },
+      data: {
+        providerReference: registration.providerReference,
+        documentUrl: registration.documentUrl ?? mandate.documentUrl,
+        status: registration.status,
+        submittedAt: new Date(),
+      },
+    });
+
+    if (mandate.financingRequest) {
+      await prisma.financingRequest.update({
+        where: { id: mandate.financingRequest.id },
+        data: { status: "MANDATE_PENDING" },
+      });
+    }
+
+    if (registration.status === "ACTIVE") {
+      return this.activateMandate(mandate.id);
+    }
+
+    if (registration.status === "PENDING_MANUAL_RESOLUTION") {
+      await prisma.adminReviewRecord.create({
+        data: {
+          reviewType: "MANDATE",
+          relatedEntityType: "Mandate",
+          relatedEntityId: mandate.id,
+          status: "PENDING",
+        },
+      });
+      await notifyAllAdminsInAppAndEmail(
+        "Mandate pending review",
+        `Mandate ${mandate.id} requires administrator review.`
+      );
+    }
+
+    if (registration.status === "BANK_PROCESSING") {
+      return this.syncBankStatus(mandate.id);
+    }
+
+    await auditService.log({
+      userId,
+      action: "MANDATE_SUBMITTED_TO_BANK",
+      entity: "Mandate",
+      entityId: mandate.id,
+    });
+
+    return updated;
   }
 
   async create(tenantId: string, userId: string, input: CreateMandateInput) {
@@ -341,11 +470,41 @@ export class MandateService {
     return prisma.mandate.findMany({
       where: { status: { in: ["ADMIN_REVIEW", "PENDING_MANUAL_RESOLUTION"] } },
       include: {
-        tenant: { include: { user: { select: { email: true } } } },
+        tenant: { include: { user: { select: { id: true, email: true } } } },
         bankAccount: true,
         financingRequest: { include: { property: true } },
       },
       orderBy: { submittedAt: "desc" },
+    });
+  }
+
+  async listAllForAdmin() {
+    return prisma.mandate.findMany({
+      include: {
+        tenant: {
+          select: {
+            fullName: true,
+            nationalId: true,
+            userId: true,
+            user: { select: { id: true, email: true } },
+          },
+        },
+        bankAccount: true,
+        financingRequest: {
+          include: {
+            property: { select: { name: true } },
+            feeDisclosure: {
+              select: {
+                principalAmount: true,
+                interestRate: true,
+                totalRepayable: true,
+                monthlyPayment: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
     });
   }
 

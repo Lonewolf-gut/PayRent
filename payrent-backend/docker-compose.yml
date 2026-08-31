@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: payrent-postgres
+    container_name: rentvest-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: rentvest
@@ -19,7 +19,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: payrent-redis
+    container_name: rentvest-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -32,16 +32,19 @@ services:
       timeout: 5s
       retries: 5
 
-  api:
-    build: .
-    container_name: payrent-backend
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rentvest-app
     restart: unless-stopped
     ports:
-      - "3001:3001"
-    env_file:
-      - .env
+      - "3000:3000"
     environment:
-      FRONTEND_URL: http://localhost:3000
+      DATABASE_URL: postgresql://rentvest:rentvest@postgres:5432/rentvest?schema=public
+      REDIS_URL: redis://redis:6379
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_URL: http://localhost:3000
     depends_on:
       postgres:
         condition: service_healthy

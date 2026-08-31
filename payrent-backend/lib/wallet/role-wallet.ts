@@ -7,10 +7,15 @@ export const USER_WALLET_TYPE: Partial<Record<UserRole, WalletType>> = {
   MARKETER: "MARKETER",
 };
 
-export const DEPOSIT_ROLES: UserRole[] = ["MERCHANT", "LENDER", "MARKETER"];
+export const DEPOSIT_ROLES: UserRole[] = ["BUYER", "MERCHANT", "LENDER", "MARKETER"];
 
-/** Customers pay via financing requests and bank mandates — not platform withdrawals. */
-export const WITHDRAW_ROLES: UserRole[] = ["MERCHANT", "LENDER", "MARKETER", "ADMIN"];
+export const WITHDRAW_ROLES: UserRole[] = [
+  "BUYER",
+  "MERCHANT",
+  "LENDER",
+  "MARKETER",
+  "ADMIN",
+];
 
 export function getWalletTypeForRole(role: UserRole): WalletType | null {
   if (role === "ADMIN") return "PLATFORM";
