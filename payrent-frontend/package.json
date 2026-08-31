@@ -7,8 +7,12 @@
     "setup:env": "node -e \"const fs=require('fs'); if(fs.existsSync('.env')){console.log('.env already exists — skipped');}else{fs.copyFileSync('.env.example','.env'); console.log('Created .env from .env.example');}\"",
     "dev:turbo": "next dev --port 3000",
     "clean": "node scripts/clean-cache.js",
+    "prebuild": "node scripts/ensure-production-setup.js",
     "build": "npm run db:generate && next build --webpack",
+    "postbuild": "node scripts/verify-production-build.js",
     "postinstall": "npm run db:generate || echo Prisma generate skipped - run npm run db:generate manually",
+    "rebuild": "node scripts/build-prod.js",
+    "prod": "node scripts/build-prod.js && node scripts/start-prod.js",
     "start": "node scripts/start-prod.js",
     "lint": "eslint",
     "db:generate": "prisma generate --schema prisma/schema.prisma"
