@@ -1,13 +1,14 @@
 import type { NextConfig } from "next";
 
-const isProductionBuild = process.env.npm_lifecycle_event === "build";
-const isWindowsDev = process.platform === "win32" && !isProductionBuild;
+const lifecycle = process.env.npm_lifecycle_event;
+const isProductionDist = lifecycle === "build" || lifecycle === "start";
+const isWindowsDev = process.platform === "win32" && !isProductionDist;
 const turboFsCacheEnabled = process.env.TURBOPACK_FS_CACHE === "1";
 const apiOrigin = (process.env.API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
-  distDir: isProductionBuild ? ".next" : ".next-dev",
-  ...(isProductionBuild ? { output: "standalone" as const } : {}),
+  distDir: isProductionDist ? ".next" : ".next-dev",
+  ...(isProductionDist ? { output: "standalone" as const } : {}),
   typescript: {
     ignoreBuildErrors: true,
   },
