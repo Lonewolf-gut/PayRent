@@ -1,17 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Accordion,
   AccordionContent,
@@ -32,10 +24,6 @@ type FinancingRequest = {
   property?: { name: string; location: string; monthlyRent: number; status?: string };
   tenant?: { fullName: string; monthlyIncome: number; user?: { email: string } };
   mandate?: { status: string } | null;
-};
-
-type OfferFormState = {
-  planType: "MONTHLY" | "DEFERRED" | "CUSTOM";
 };
 
 function PropertyVerifiedBadge({ verified }: { verified?: boolean }) {
@@ -67,7 +55,6 @@ function mergeAcceptedOffers(
 
 export default function LenderOpportunitiesPage() {
   const queryClient = useQueryClient();
-  const [offerForms, setOfferForms] = useState<Record<string, OfferFormState>>({});
 
   const { data: queueInsight, isLoading } = useQuery({
     queryKey: ["financing-pending"],
@@ -90,28 +77,12 @@ export default function LenderOpportunitiesPage() {
     [readyToFinance, awaitingMandate]
   );
 
-  const getOfferForm = (requestId: string): OfferFormState =>
-    offerForms[requestId] ?? { planType: "MONTHLY" };
-
-  const updateOfferForm = (requestId: string, patch: Partial<OfferFormState>) => {
-    setOfferForms((current) => ({
-      ...current,
-      [requestId]: { ...getOfferForm(requestId), ...patch },
-    }));
-  };
-
   const invalidateQueue = () => {
     queryClient.invalidateQueries({ queryKey: ["financing-pending"] });
   };
 
-  const approveMutation = useMutation({
-    mutationFn: async ({
-      financingRequestId,
-      planType,
-    }: {
-      financingRequestId: string;
-      planType: OfferFormState["planType"];
-    }) => {
+  const financeMutation = useMutation({
+    mutationFn: async (financingRequestId: string) => {
       const req = requests.find((request) => request.id === financingRequestId);
       const res = await fetch("/api/financing/approve", {
         method: "POST",
@@ -119,7 +90,7 @@ export default function LenderOpportunitiesPage() {
         body: JSON.stringify({
           financingRequestId,
           amount: Number(req?.requestedAmount),
-          planType,
+          planType: "MONTHLY",
         }),
       });
       const json = await res.json();
@@ -176,9 +147,8 @@ export default function LenderOpportunitiesPage() {
       <div>
         <h1 className="text-2xl font-bold">Listings awaiting financing</h1>
         <p className="text-muted-foreground">
-          Approve financing at the platform category interest rate. After mandate activation, click{" "}
-          <span className="font-medium text-foreground">Finance listing</span> to disburse funds
-          from your wallet to the merchant.
+          Finance listings at the platform category rate, or reject requests that do not fit your
+          portfolio. After mandate activation, disburse funds from your wallet.
         </p>
       </div>
 
@@ -243,7 +213,6 @@ export default function LenderOpportunitiesPage() {
                 className="divide-y divide-border rounded-xl border border-border bg-card"
               >
                 {requests.map((req) => {
-                  const offer = getOfferForm(req.id);
                   const propertyName = cleanPropertyName(req.property?.name);
 
                   return (
@@ -256,59 +225,21 @@ export default function LenderOpportunitiesPage() {
                         <div className="space-y-4">
                           <RequestDetails req={req} />
 
-                          <div className="rounded-xl border border-border p-4">
-                            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                              <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="space-y-1.5">
-                                  <Label>Category interest rate</Label>
-                                  <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                                    Platform fixed rate (set by admin)
-                                  </p>
-                                </div>
-                                <div className="space-y-1.5">
-                                  <Label htmlFor={`plan-${req.id}`}>Repayment plan</Label>
-                                  <Select
-                                    value={offer.planType}
-                                    onValueChange={(value) =>
-                                      updateOfferForm(req.id, {
-                                        planType: value as OfferFormState["planType"],
-                                      })
-                                    }
-                                  >
-                                    <SelectTrigger id={`plan-${req.id}`} className="w-full sm:w-40">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="MONTHLY">Monthly</SelectItem>
-                                      <SelectItem value="DEFERRED">Deferred</SelectItem>
-                                      <SelectItem value="CUSTOM">Custom</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              </div>
-
-                              <div className="flex flex-wrap gap-2">
-                                <Button
-                                  className="bg-emerald-600 hover:bg-emerald-700"
-                                  disabled={approveMutation.isPending}
-                                  onClick={() =>
-                                    approveMutation.mutate({
-                                      financingRequestId: req.id,
-                                      planType: offer.planType,
-                                    })
-                                  }
-                                >
-                                  Approve financing
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  disabled={rejectMutation.isPending}
-                                  onClick={() => rejectMutation.mutate(req.id)}
-                                >
-                                  Reject
-                                </Button>
-                              </div>
-                            </div>
+                          <div className="flex flex-wrap justify-end gap-2 rounded-xl border border-border p-4">
+                            <Button
+                              className="bg-emerald-600 hover:bg-emerald-700"
+                              disabled={financeMutation.isPending}
+                              onClick={() => financeMutation.mutate(req.id)}
+                            >
+                              Finance
+                            </Button>
+                            <Button
+                              variant="outline"
+                              disabled={rejectMutation.isPending}
+                              onClick={() => rejectMutation.mutate(req.id)}
+                            >
+                              Reject
+                            </Button>
                           </div>
                         </div>
                       </AccordionContent>

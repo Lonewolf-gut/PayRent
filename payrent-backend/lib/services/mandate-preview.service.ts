@@ -145,10 +145,35 @@ export async function loadMandatePreviewsForTenant(
     requests.map((request) => request.tenant.user.id)
   );
 
+  const lenderUserIds = [
+    ...new Set(
+      requests
+        .map((request) => request.feeDisclosure?.lenderUserId)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+
+  const lenders = lenderUserIds.length
+    ? await prisma.lender.findMany({
+        where: { userId: { in: lenderUserIds } },
+        select: { userId: true, fullName: true, institutionName: true },
+      })
+    : [];
+
+  const lenderByUserId = new Map(lenders.map((lender) => [lender.userId, lender]));
+
   return requests.map((request) => {
     const bankAccountId = (request.repaymentPreference as RepaymentPreference | null)?.bankAccountId;
     const repaymentBankAccount = bankAccountId ? bankById.get(bankAccountId) ?? null : null;
     const identity = identityByUser.get(request.tenant.user.id);
+    const lender = request.feeDisclosure?.lenderUserId
+      ? lenderByUserId.get(request.feeDisclosure.lenderUserId)
+      : null;
+    const lenderName = lender
+      ? lender.institutionName
+        ? `${lender.fullName} (${lender.institutionName})`
+        : lender.fullName
+      : null;
 
     return buildMandatePreview({
       ...request,
@@ -157,12 +182,14 @@ export async function loadMandatePreviewsForTenant(
       offeredInterestRate: request.offeredInterestRate
         ? Number(request.offeredInterestRate)
         : null,
+      lenderName,
       feeDisclosure: request.feeDisclosure
         ? {
             principalAmount: Number(request.feeDisclosure.principalAmount),
             interestRate: Number(request.feeDisclosure.interestRate),
             totalRepayable: Number(request.feeDisclosure.totalRepayable),
             monthlyPayment: Number(request.feeDisclosure.monthlyPayment),
+            acceptedAt: request.feeDisclosure.acceptedAt,
           }
         : null,
       repaymentBankAccount,

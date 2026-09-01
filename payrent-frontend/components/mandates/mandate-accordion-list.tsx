@@ -16,8 +16,8 @@ import { downloadMandatePdf } from "@/lib/utils/mandate-pdf";
 import { toast } from "sonner";
 
 const STATUS_LABELS: Record<MandatePreviewData["previewStatus"], string> = {
-  awaiting_lender: "Awaiting lender rate",
-  awaiting_buyer: "Review lender offer",
+  awaiting_lender: "Awaiting financing",
+  awaiting_buyer: "Complete mandate setup",
   mandate_pending: "Mandate prepared",
   bank_processing: "Bank processing",
   active: "Active mandate",
@@ -112,7 +112,7 @@ export function MandateAccordionList({
 
                 {preview.previewStatus === "awaiting_buyer" ? (
                   <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-                    <Link href="/dashboard/buyer/financing">Review lender offer</Link>
+                    <Link href="/dashboard/buyer/financing">Complete mandate setup</Link>
                   </Button>
                 ) : null}
 
@@ -182,18 +182,13 @@ function MandatePreviewBody({ preview }: { preview: MandatePreviewData }) {
 
       <dl className="grid gap-3 rounded-xl border border-border bg-background/60 p-4 text-sm sm:grid-cols-2">
         <Detail label="Borrower" value={preview.borrowerName} />
+        {preview.lenderName ? <Detail label="Financing lender" value={preview.lenderName} /> : null}
         <Detail label="Repayment period" value={`${preview.durationMonths} months`} />
         {preview.bankName ? <Detail label="Bank" value={preview.bankName} /> : null}
         {preview.accountNumberMasked ? (
           <Detail label="Account" value={preview.accountNumberMasked} />
         ) : null}
         {preview.accountName ? <Detail label="Account name" value={preview.accountName} /> : null}
-        {showRatePricing && preview.monthlyPayment ? (
-          <Detail
-            label="Estimated monthly debit"
-            value={`GHS ${preview.monthlyPayment.toLocaleString()}`}
-          />
-        ) : null}
         {showRatePricing && preview.interestRate != null ? (
           <Detail label="Interest rate" value={`${preview.interestRate}% per annum`} />
         ) : null}
@@ -205,11 +200,37 @@ function MandatePreviewBody({ preview }: { preview: MandatePreviewData }) {
         {!showRatePricing ? (
           <Detail
             label="Rate and repayment totals"
-            value="Shown after you accept the lender's financing rate"
+            value="Shown once a lender approves financing"
             className="sm:col-span-2"
           />
         ) : null}
       </dl>
+
+      {(preview.buyerAcceptedAt || preview.lenderAcceptedAt || preview.lenderName) && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <SignatureTile
+            label="Buyer signature"
+            name={preview.borrowerName}
+            date={preview.buyerAcceptedAt}
+            pendingLabel="Pending buyer acceptance"
+          />
+          <SignatureTile
+            label="Lender signature"
+            name={preview.lenderName ?? "Financing lender"}
+            date={preview.lenderAcceptedAt}
+            pendingLabel="Pending lender financing"
+          />
+        </div>
+      )}
+
+      {showRatePricing && preview.monthlyPayment ? (
+        <div className="rounded-xl border border-emerald-500/40 bg-emerald-600/10 p-4">
+          <p className="text-xs text-muted-foreground">Monthly amount to be debited from buyer account</p>
+          <p className="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+            GHS {preview.monthlyPayment.toLocaleString()}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -247,7 +268,35 @@ function RatePlaceholderTile({ durationMonths }: { durationMonths: number }) {
   return (
     <div className="rounded-xl border border-dashed border-border bg-muted/10 p-4">
       <p className="text-xs text-muted-foreground">Total repayable ({durationMonths} months)</p>
-      <p className="mt-1 text-sm font-medium text-muted-foreground">Pending lender rate acceptance</p>
+      <p className="mt-1 text-sm font-medium text-muted-foreground">Pending lender financing approval</p>
+    </div>
+  );
+}
+
+function SignatureTile({
+  label,
+  name,
+  date,
+  pendingLabel,
+}: {
+  label: string;
+  name: string;
+  date?: string | null;
+  pendingLabel: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-background/60 p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-2 font-serif text-lg font-semibold italic text-foreground">{name}</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {date
+          ? new Date(date).toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })
+          : pendingLabel}
+      </p>
     </div>
   );
 }

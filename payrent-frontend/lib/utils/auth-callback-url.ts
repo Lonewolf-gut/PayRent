@@ -95,6 +95,11 @@ export function shouldHonorCallbackForRole(role: UserRole, returnPath: string): 
   if (role === "COMPLIANCE_OFFICER") {
     return returnPath.startsWith("/compliance") && returnPath !== "/compliance/login";
   }
+  if (role === "BUYER") {
+    const pathOnly = returnPath.split("?")[0];
+    return pathOnly === "/properties";
+  }
+  if (returnPath.startsWith("/properties/")) return false;
   if (returnPath.startsWith("/properties")) return true;
   if (returnPath.startsWith("/pricing")) return true;
   return false;

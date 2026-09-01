@@ -77,6 +77,7 @@ export async function downloadMandatePdf(preview: MandatePreviewData) {
 
   const rows: Array<[string, string]> = [
     ["Buyer", preview.borrowerName],
+    ...(preview.lenderName ? [["Financing lender", preview.lenderName] as [string, string]] : []),
     ["Financed amount", `GHS ${preview.principalAmount.toLocaleString()}`],
     ["Repayment period", `${preview.durationMonths} months`],
   ];
@@ -95,11 +96,14 @@ export async function downloadMandatePdf(preview: MandatePreviewData) {
     if (preview.monthlyPayment != null) {
       rows.push(["Estimated monthly debit", `GHS ${preview.monthlyPayment.toLocaleString()}`]);
     }
+    if (preview.lenderAcceptedAt) {
+      rows.push(["Financing agreed on", formatDocumentDate(preview.lenderAcceptedAt)]);
+    }
     if (preview.buyerAcceptedAt) {
-      rows.push(["Rate accepted on", formatDocumentDate(preview.buyerAcceptedAt)]);
+      rows.push(["Buyer accepted on", formatDocumentDate(preview.buyerAcceptedAt)]);
     }
   } else {
-    rows.push(["Repayment totals", "Pending lender rate acceptance"]);
+    rows.push(["Repayment totals", "Pending lender financing approval"]);
   }
 
   rows.push([
@@ -135,7 +139,7 @@ export async function downloadMandatePdf(preview: MandatePreviewData) {
     `for scheduled repayments relating to the Pay-for-Me financing of ${propertyName}.`,
     preview.ratePricingVisible
       ? `Total obligation: GHS ${(preview.totalRepayable ?? preview.principalAmount).toLocaleString()} over ${preview.durationMonths} months.`
-      : "Final repayment amounts will be confirmed after the lender rate is accepted.",
+      : "Final repayment amounts will be confirmed after a lender approves financing.",
     "This mandate remains subject to bank approval and applicable regulations.",
   ];
   for (const line of statement) {
@@ -144,24 +148,34 @@ export async function downloadMandatePdf(preview: MandatePreviewData) {
     y += wrapped.length * 4.5;
   }
 
+  const signatureColumnWidth = (contentWidth - 8) / 2;
+  const lenderColumnX = margin + signatureColumnWidth + 8;
+
   y += 10;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...MUTED);
   doc.text("Buyer's signature", margin, y);
-  doc.text("Date", pageWidth - margin - 60, y);
+  doc.text("Date", margin + signatureColumnWidth - 28, y);
+  doc.text("Lender's signature", lenderColumnX, y);
+  doc.text("Date", pageWidth - margin - 28, y);
   y += 5;
 
+  const buyerSignatureY = y;
   if (preview.buyerAcceptedAt) {
     doc.setFont("times", "bolditalic");
-    doc.setFontSize(14);
+    doc.setFontSize(13);
     doc.setTextColor(15, 23, 42);
-    doc.text(preview.borrowerName, margin, y);
+    const buyerNameLines = doc.splitTextToSize(preview.borrowerName, signatureColumnWidth - 4);
+    doc.text(buyerNameLines, margin, buyerSignatureY);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.setTextColor(15, 23, 42);
-    doc.text(formatDocumentDate(preview.buyerAcceptedAt), pageWidth - margin - 60, y);
-    y += 6;
+    doc.text(
+      formatDocumentDate(preview.buyerAcceptedAt),
+      margin + signatureColumnWidth - 28,
+      buyerSignatureY
+    );
+    y = buyerSignatureY + Math.max(buyerNameLines.length * 5, 6);
 
     const identityLine =
       preview.buyerIdentityDocumentLabel && preview.buyerIdentityDocumentNumber
@@ -181,14 +195,47 @@ export async function downloadMandatePdf(preview: MandatePreviewData) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(...MUTED);
-    doc.text("Pending acceptance", pageWidth - margin - 60, y);
-    y += 8;
+    doc.text("Pending acceptance", margin + signatureColumnWidth - 28, buyerSignatureY);
+    y = buyerSignatureY + 8;
   }
 
-  y += 2;
+  const lenderSignatureY = buyerSignatureY;
+  if (preview.lenderAcceptedAt && preview.lenderName) {
+    doc.setFont("times", "bolditalic");
+    doc.setFontSize(13);
+    doc.setTextColor(15, 23, 42);
+    const lenderNameLines = doc.splitTextToSize(preview.lenderName, signatureColumnWidth - 4);
+    doc.text(lenderNameLines, lenderColumnX, lenderSignatureY);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(formatDocumentDate(preview.lenderAcceptedAt), pageWidth - margin - 28, lenderSignatureY);
+    y = Math.max(y, lenderSignatureY + Math.max(lenderNameLines.length * 5, 6));
+  } else {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...MUTED);
+    doc.text("Pending financing", pageWidth - margin - 28, lenderSignatureY);
+    y = Math.max(y, lenderSignatureY + 8);
+  }
+
+  y += 4;
   doc.setDrawColor(...BRAND_GREEN);
-  doc.line(margin, y, margin + 60, y);
-  doc.line(pageWidth - margin - 60, y, pageWidth - margin, y);
+  doc.line(margin, y, margin + signatureColumnWidth - 4, y);
+  doc.line(lenderColumnX, y, pageWidth - margin, y);
+  y += 10;
+
+  if (preview.ratePricingVisible && preview.monthlyPayment != null) {
+    doc.setFillColor(236, 253, 245);
+    doc.rect(margin, y - 4, contentWidth, 16, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(5, 150, 105);
+    doc.text("Monthly amount to be debited from buyer account", margin + 3, y + 3);
+    doc.setFontSize(13);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`GHS ${preview.monthlyPayment.toLocaleString()}`, margin + 3, y + 10);
+    y += 18;
+  }
 
   const footerY = doc.internal.pageSize.getHeight() - 12;
   doc.setDrawColor(226, 232, 240);
@@ -207,8 +254,8 @@ export async function downloadMandatePdf(preview: MandatePreviewData) {
 
 function formatStatus(preview: MandatePreviewData) {
   const labels: Record<MandatePreviewData["previewStatus"], string> = {
-    awaiting_lender: "Awaiting lender rate",
-    awaiting_buyer: "Review lender offer",
+    awaiting_lender: "Awaiting financing",
+    awaiting_buyer: "Complete mandate setup",
     mandate_pending: "Mandate prepared",
     bank_processing: "Bank processing",
     active: "Active mandate",
@@ -242,6 +289,7 @@ type AdminMandateForPdf = {
     requestedAmount: number | string;
     approvedAmount?: number | string | null;
     offeredInterestRate?: number | string | null;
+    approvedAt?: Date | string | null;
     buyerAcceptedAt?: Date | string | null;
     property?: { name?: string | null };
     feeDisclosure?: {
@@ -249,9 +297,18 @@ type AdminMandateForPdf = {
       interestRate?: number | string | null;
       totalRepayable?: number | string | null;
       monthlyPayment?: number | string | null;
+      acceptedAt?: Date | string | null;
     } | null;
   } | null;
+  lender?: { fullName?: string; institutionName?: string | null } | null;
 };
+
+function formatLenderName(lender?: { fullName?: string; institutionName?: string | null } | null) {
+  if (!lender?.fullName) return null;
+  return lender.institutionName
+    ? `${lender.fullName} (${lender.institutionName})`
+    : lender.fullName;
+}
 
 export function adminMandateToPreview(mandate: AdminMandateForPdf): MandatePreviewData {
   const financing = mandate.financingRequest;
@@ -261,8 +318,10 @@ export function adminMandateToPreview(mandate: AdminMandateForPdf): MandatePrevi
     requestedAmount: financing?.requestedAmount ?? 0,
     approvedAmount: financing?.approvedAmount ?? null,
     offeredInterestRate: financing?.offeredInterestRate ?? null,
+    approvedAt: financing?.approvedAt ?? null,
     durationMonths: financing?.durationMonths ?? 0,
     buyerAcceptedAt: financing?.buyerAcceptedAt ?? null,
+    lenderName: formatLenderName(mandate.lender),
     property: financing?.property ?? null,
     tenant: mandate.tenant ?? null,
     feeDisclosure: financing?.feeDisclosure ?? null,

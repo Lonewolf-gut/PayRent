@@ -29,6 +29,24 @@ export function getPostAuthRoute(params: {
       : "/verify-phone";
   }
 
+  if (params.role === "BUYER") {
+    return "/properties";
+  }
+
+  if (params.role === "MARKETER") {
+    if (returnUrl?.startsWith("/dashboard/marketer")) {
+      return returnUrl;
+    }
+    return "/dashboard/marketer/promote";
+  }
+
+  if (params.role === "MERCHANT") {
+    if (returnUrl?.startsWith("/dashboard/merchant")) {
+      return returnUrl;
+    }
+    return "/dashboard/merchant/properties";
+  }
+
   if (returnUrl && shouldHonorCallbackForRole(params.role, returnUrl)) {
     return returnUrl;
   }
