@@ -134,31 +134,20 @@ export function PropertyActionPanel({
       ) : null}
 
       {existingFinancingRequest ? (
-        <Card className="rounded-none border-emerald-500/30 bg-emerald-600/5">
-          <CardHeader>
-            <CardTitle className="text-base">Pay-for-Me request in progress</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              You already submitted a Pay-for-Me request for this listing. Track your financing
-              status or open your repayment mandate instead of submitting again.
-            </p>
-            <div className="flex flex-col gap-2">
-              <Button
-                asChild
-                className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
-              >
-                <Link href="/dashboard/buyer/financing">View financing status</Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full rounded-none">
-                <Link href="/dashboard/buyer/mandates">
-                  <FileText className="mr-2 size-4" />
-                  View mandate
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-2">
+          <Button
+            asChild
+            className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
+          >
+            <Link href="/dashboard/buyer/financing">View financing status</Link>
+          </Button>
+          <Button asChild variant="outline" className="w-full rounded-none">
+            <Link href="/dashboard/buyer/mandates">
+              <FileText className="mr-2 size-4" />
+              View mandate
+            </Link>
+          </Button>
+        </div>
       ) : (
         <Button
           className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
