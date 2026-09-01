@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { getActiveFinancingForProperty } from "@/lib/financing/active-request";
 import { FINANCING_DOC_LABELS } from "@/lib/constants/financing-docs";
 import {
   DEFAULT_REPAYMENT_MONTHS,
@@ -130,10 +131,7 @@ export function FinancingRequestDialog({
     enabled: open,
   });
 
-  const existingFinancing = financingRequests.find(
-    (req: { propertyId: string; status: string }) =>
-      req.propertyId === propertyId && req.status !== "CREATED"
-  );
+  const existingFinancing = getActiveFinancingForProperty(financingRequests, propertyId);
 
   const isSale = property ? isSaleListing(property.propertyType as PropertyType) : false;
   const defaultAmount = property
@@ -328,7 +326,10 @@ export function FinancingRequestDialog({
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button asChild className="rounded-none bg-emerald-600 hover:bg-emerald-700">
-              <Link href="/dashboard/buyer/financing">View my requests</Link>
+              <Link href="/dashboard/buyer/financing">View financing status</Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-none">
+              <Link href="/dashboard/buyer/mandates">View mandate</Link>
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -348,7 +349,8 @@ export function FinancingRequestDialog({
             </DialogTitle>
             <DialogDescription>
               Confirm your identity details from KYC, upload supporting documents, and choose your
-              repayment bank account. Your mandate is generated after a lender sets your rate.
+              repayment bank account. Your mandate is generated at the platform category interest
+              rate and awaits lender financing.
             </DialogDescription>
           </DialogHeader>
 

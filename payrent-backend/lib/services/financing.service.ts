@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import type { PropertyType } from "@prisma/client";
 import { prisma, runTransaction } from "@/lib/db/prisma";
 import { walletService } from "@/lib/services/wallet.service";
 import { notificationService } from "@/lib/services/notification.service";
@@ -267,6 +268,7 @@ export class FinancingService {
     });
 
     await this.ensureDraftMandateForRequest(tenantId, userId, request.id);
+    await this.recordBuyerMandateTerms(request.id, property.propertyType, userId);
 
     return request;
   }
@@ -306,6 +308,80 @@ export class FinancingService {
     for (const request of requests) {
       await this.syncMandateDraftForRequest(tenantId, userId, request.id);
     }
+  }
+
+  async ensureBuyerMandateTermsForTenant(tenantId: string, userId: string) {
+    const requests = await prisma.financingRequest.findMany({
+      where: {
+        tenantId,
+        offeredInterestRate: null,
+        status: { notIn: ["REJECTED", "WITHDRAWN", "CLOSED", "COMPLETED"] },
+      },
+      include: {
+        property: { select: { propertyType: true } },
+      },
+    });
+
+    for (const request of requests) {
+      const repaymentPreference = request.repaymentPreference as RepaymentPreference | null;
+      if (!repaymentPreference?.mandateDebitConsent) continue;
+
+      await this.recordBuyerMandateTerms(
+        request.id,
+        request.property.propertyType,
+        userId
+      );
+    }
+  }
+
+  private async recordBuyerMandateTerms(
+    financingRequestId: string,
+    propertyType: PropertyType,
+    userId: string
+  ) {
+    const rules = await getBusinessRules();
+    const interestRate = getInterestRateForPropertyType(rules, propertyType);
+
+    const request = await prisma.financingRequest.findUnique({
+      where: { id: financingRequestId },
+    });
+    if (!request) return;
+
+    const amount = Number(request.requestedAmount);
+    const totalWithInterest = amount * (1 + interestRate / 100);
+    const monthlyPayment = totalWithInterest / request.durationMonths;
+    const acceptedAt = request.buyerAcceptedAt ?? new Date();
+    const previousSnapshot =
+      (request.affordabilitySnapshot as Record<string, unknown> | null) ?? {};
+
+    await prisma.financingRequest.update({
+      where: { id: financingRequestId },
+      data: {
+        offeredInterestRate: new Prisma.Decimal(interestRate),
+        offeredPlanType: "MONTHLY",
+        buyerAcceptedAt: acceptedAt,
+        affordabilitySnapshot: {
+          ...previousSnapshot,
+          categoryInterestRate: interestRate,
+          projectedTotalRepayable: totalWithInterest,
+          projectedMonthlyPayment: monthlyPayment,
+          buyerMandateAcceptedAt: acceptedAt.toISOString(),
+        },
+      },
+    });
+
+    await auditService.log({
+      userId,
+      action: "FINANCING_MANDATE_TERMS_ACCEPTED",
+      entity: "FinancingRequest",
+      entityId: financingRequestId,
+      metadata: {
+        interestRate,
+        amount,
+        monthlyPayment,
+        atSubmit: true,
+      },
+    });
   }
 
   private async ensureDraftMandateForRequest(
@@ -491,6 +567,12 @@ export class FinancingService {
       updated.id
     );
 
+    await this.recordBuyerMandateTerms(
+      updated.id,
+      updated.property.propertyType,
+      updated.tenant.userId
+    );
+
     return updated;
   }
 
@@ -624,6 +706,11 @@ export class FinancingService {
     });
 
     await this.ensureDraftMandateForRequest(tenantId, request.tenant.userId, request.id);
+    await this.recordBuyerMandateTerms(
+      request.id,
+      request.property.propertyType,
+      request.tenant.userId
+    );
 
     return request;
   }

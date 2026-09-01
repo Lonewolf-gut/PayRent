@@ -34,6 +34,7 @@ import { buildPropertySpecs } from "@/lib/utils/property-specs";
 import { isSaleListing } from "@/lib/subscription-limits";
 import type { PropertyType } from "@prisma/client";
 import { toast } from "sonner";
+import { getActiveFinancingForProperty } from "@/lib/financing/active-request";
 import {
   extractSavedPropertyIds,
   markSavedPropertyViewedAndSyncCount,
@@ -78,6 +79,18 @@ export default function PropertyDetailPage() {
     enabled: session?.user?.role === "BUYER",
   });
 
+  const { data: financingRequests = [] } = useQuery({
+    queryKey: ["financing"],
+    queryFn: async () => {
+      const res = await fetch("/api/financing");
+      const json = await res.json();
+      return json.data ?? [];
+    },
+    enabled: !!session?.user && session.user.role === "BUYER",
+  });
+
+  const existingFinancingRequest = getActiveFinancingForProperty(financingRequests, id);
+
   useEffect(() => {
     if (!id || session?.user?.role !== "BUYER") return;
     const propertyIds = extractSavedPropertyIds(savedItems);
@@ -120,6 +133,7 @@ export default function PropertyDetailPage() {
       propertyStatus={property.status}
       onDepositPrompt={() => setDepositPromptOpen(true)}
       onRequestFinancing={() => setFinancingOpen(true)}
+      existingFinancingRequest={existingFinancingRequest ?? null}
       onChat={(recipientUserId) => {
         router.push(`/dashboard/buyer/messages?recipient=${recipientUserId}`);
       }}

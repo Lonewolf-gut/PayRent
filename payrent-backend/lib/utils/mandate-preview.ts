@@ -46,6 +46,11 @@ type FinancingLike = {
   durationMonths: number;
   buyerAcceptedAt?: Date | string | null;
   lenderName?: string | null;
+  affordabilitySnapshot?: {
+    categoryInterestRate?: number | string | null;
+    projectedTotalRepayable?: number | string | null;
+    projectedMonthlyPayment?: number | string | null;
+  } | null;
   property?: { name?: string | null } | null;
   tenant?: {
     fullName?: string | null;
@@ -91,9 +96,11 @@ function toNumber(value: unknown): number | null {
 }
 
 function hasKnownFinancingRate(financing: FinancingLike) {
+  const snapshot = financing.affordabilitySnapshot;
   return (
     toNumber(financing.offeredInterestRate) != null ||
-    toNumber(financing.feeDisclosure?.interestRate) != null
+    toNumber(financing.feeDisclosure?.interestRate) != null ||
+    toNumber(snapshot?.categoryInterestRate) != null
   );
 }
 
@@ -127,23 +134,34 @@ export function buildMandatePreview(financing: FinancingLike): MandatePreviewDat
     toNumber(financing.requestedAmount) ??
     0;
   const interestRate =
-    toNumber(financing.offeredInterestRate) ?? toNumber(financing.feeDisclosure?.interestRate);
+    toNumber(financing.offeredInterestRate) ??
+    toNumber(financing.feeDisclosure?.interestRate) ??
+    toNumber(financing.affordabilitySnapshot?.categoryInterestRate);
   const ratePricingVisible = hasKnownFinancingRate(financing);
   const totalRepayable = ratePricingVisible
     ? toNumber(financing.feeDisclosure?.totalRepayable) ??
+      toNumber(financing.affordabilitySnapshot?.projectedTotalRepayable) ??
       (interestRate != null && principalAmount > 0
         ? principalAmount * (1 + interestRate / 100)
         : null)
     : null;
   const monthlyPayment = ratePricingVisible
     ? resolveMonthlyPayment({
-        monthlyPayment: toNumber(financing.feeDisclosure?.monthlyPayment),
+        monthlyPayment:
+          toNumber(financing.feeDisclosure?.monthlyPayment) ??
+          toNumber(financing.affordabilitySnapshot?.projectedMonthlyPayment),
         totalRepayable,
         principalAmount,
         interestRate,
         durationMonths: financing.durationMonths,
       })
     : null;
+
+  const awaitingLenderFinancing =
+    ratePricingVisible &&
+    Boolean(financing.buyerAcceptedAt) &&
+    !financing.feeDisclosure &&
+    !["APPROVED", "MANDATE_PENDING", "REJECTED", "WITHDRAWN"].includes(financing.status);
 
   let previewStatus: MandatePreviewStatus = "awaiting_lender";
   if (financing.status === "REJECTED" || financing.status === "WITHDRAWN") {
@@ -163,6 +181,8 @@ export function buildMandatePreview(financing: FinancingLike): MandatePreviewDat
     } else {
       previewStatus = "mandate_pending";
     }
+  } else if (awaitingLenderFinancing) {
+    previewStatus = "awaiting_lender";
   } else if (ratePricingVisible) {
     previewStatus = financing.buyerAcceptedAt ? "mandate_pending" : "awaiting_buyer";
   } else if (financing.buyerAcceptedAt) {

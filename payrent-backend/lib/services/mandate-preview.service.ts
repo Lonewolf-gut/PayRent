@@ -100,6 +100,7 @@ export async function loadMandatePreviewsForTenant(
 ) {
   if (options?.syncDrafts !== false) {
     await financingService.syncAllMandateDraftsForTenant(tenantId, userId);
+    await financingService.ensureBuyerMandateTermsForTenant(tenantId, userId);
   }
 
   const requests = await prisma.financingRequest.findMany({

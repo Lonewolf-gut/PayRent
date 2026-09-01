@@ -191,9 +191,6 @@ function MandatePreviewBody({ preview }: { preview: MandatePreviewData }) {
           <Detail label="Account" value={preview.accountNumberMasked} />
         ) : null}
         {preview.accountName ? <Detail label="Account name" value={preview.accountName} /> : null}
-        {showRatePricing && preview.interestRate != null ? (
-          <Detail label="Interest rate" value={`${preview.interestRate}% per annum`} />
-        ) : null}
         <Detail
           label="Auto-debit consent"
           value="Buyer authorized scheduled repayments from the selected account"
@@ -202,10 +199,16 @@ function MandatePreviewBody({ preview }: { preview: MandatePreviewData }) {
         {!showRatePricing ? (
           <Detail
             label="Rate and repayment totals"
-            value="Shown once a lender approves financing"
+            value="Shown once you submit your Pay-for-Me request"
             className="sm:col-span-2"
           />
-        ) : null}
+        ) : (
+          <Detail
+            label="Interest rate"
+            value={`${preview.interestRate}% per annum (platform category rate)`}
+            className="sm:col-span-2"
+          />
+        )}
       </dl>
 
       {(preview.buyerAcceptedAt ||
