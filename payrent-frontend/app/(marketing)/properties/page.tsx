@@ -16,6 +16,7 @@ import {
 import { useMemo, useState } from "react";
 import { Bed, Car, MapPin, Refrigerator, Search, SlidersHorizontal } from "lucide-react";
 import { PropertySaveButton } from "@/components/properties/property-save-button";
+import { PropertyListingImage } from "@/components/properties/property-listing-image";
 import {
   PROPERTY_CATEGORIES,
   PROPERTY_TYPE_LABELS,
@@ -100,28 +101,26 @@ export default function PropertiesPage() {
   return (
     <div className="min-h-screen bg-slate-50/60">
       <section className="border-b border-emerald-100 bg-gradient-to-b from-emerald-50 to-white">
-        <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-10">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-600 sm:text-xs">
-                Marketplace
-              </p>
-              <h1 className="mt-2 text-2xl font-bold tracking-tight text-emerald-950 sm:text-3xl">
-                Browse listings
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-                Find houses, rooms, cars, and home appliances — apply for rental financing
-              </p>
-            </div>
-            {isBuyer ? (
-              <Button
-                asChild
-                className="shrink-0 rounded-none bg-emerald-600 hover:bg-emerald-700"
-              >
-                <Link href="/dashboard/buyer/financing">My financing requests</Link>
-              </Button>
-            ) : null}
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-7 sm:flex-row sm:items-end sm:justify-between sm:px-6 sm:py-10">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-600 sm:text-xs">
+              Marketplace
+            </p>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-emerald-950 sm:text-3xl">
+              Browse listings
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+              Find houses, rooms, cars, and home appliances — apply for rental financing
+            </p>
           </div>
+          {isBuyer ? (
+            <Button
+              asChild
+              className="shrink-0 bg-emerald-600 hover:bg-emerald-700"
+            >
+              <Link href="/dashboard/buyer/applications">View request statuses</Link>
+            </Button>
+          ) : null}
         </div>
       </section>
 
@@ -299,10 +298,9 @@ export default function PropertiesPage() {
                   >
                     <div className="relative aspect-[4/3] bg-slate-100 sm:aspect-video">
                       <PropertySaveButton propertyId={property.id} />
-                      {property.images?.[0]?.url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={property.images[0].url}
+                      {property.images?.[0] ? (
+                        <PropertyListingImage
+                          image={property.images[0]}
                           alt={property.name}
                           className="h-full w-full object-cover"
                         />

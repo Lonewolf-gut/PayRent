@@ -33,5 +33,9 @@ export function getPostAuthRoute(params: {
     return returnUrl;
   }
 
+  if (params.role === "BUYER") {
+    return "/properties";
+  }
+
   return getPostLoginRoute(params.role);
 }

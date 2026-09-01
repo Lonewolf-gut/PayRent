@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import type { UserRole } from "@prisma/client";
+import { getPostLoginRoute } from "@/lib/auth/permissions";
 import {
   ADMIN_HOME_PATH,
   COMPLIANCE_HOME_PATH,
-  isCompliancePath,
   isMarketingPath,
-  isNonAdminDashboardPath,
   isPublicAuthPath,
+  isNonAdminDashboardPath,
+  isCompliancePath,
 } from "@/lib/auth/route-guards";
 
 const publicRoutes = [
@@ -147,7 +149,7 @@ export async function middleware(req: NextRequest) {
       ? ADMIN_HOME_PATH
       : isComplianceOfficer
         ? COMPLIANCE_HOME_PATH
-        : "/dashboard";
+        : getPostLoginRoute(role as UserRole);
     return NextResponse.redirect(new URL(destination, nextUrl));
   }
 
