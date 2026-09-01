@@ -12,6 +12,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import type { MandatePreviewData } from "@/lib/utils/mandate-preview";
+import { resolveMonthlyPayment } from "@/lib/utils/mandate-preview";
 import { downloadMandatePdf } from "@/lib/utils/mandate-pdf";
 import { toast } from "sonner";
 
@@ -156,6 +157,7 @@ function MandatePreviewBody({ preview }: { preview: MandatePreviewData }) {
     (preview.mandateId != null || preview.principalAmount > 0);
 
   const showRatePricing = preview.ratePricingVisible;
+  const monthlyDebit = resolveMonthlyPayment(preview);
   const showRatePlaceholder =
     !showRatePricing &&
     showMandateBody &&
@@ -206,7 +208,10 @@ function MandatePreviewBody({ preview }: { preview: MandatePreviewData }) {
         ) : null}
       </dl>
 
-      {(preview.buyerAcceptedAt || preview.lenderAcceptedAt || preview.lenderName) && (
+      {(preview.buyerAcceptedAt ||
+        preview.lenderAcceptedAt ||
+        preview.lenderName ||
+        showRatePricing) && (
         <div className="space-y-3">
           <SignatureTile
             label="Buyer signature"
@@ -228,11 +233,19 @@ function MandatePreviewBody({ preview }: { preview: MandatePreviewData }) {
         </div>
       )}
 
-      {showRatePricing && preview.monthlyPayment ? (
-        <div className="rounded-xl border border-emerald-500/40 bg-emerald-600/10 p-4">
-          <p className="text-xs text-muted-foreground">Monthly amount to be debited from buyer account</p>
-          <p className="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-            GHS {preview.monthlyPayment.toLocaleString()}
+      {monthlyDebit != null ? (
+        <div className="rounded-xl border-2 border-emerald-500/50 bg-emerald-600/10 p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+            Monthly amount to be debited from buyer account
+          </p>
+          <p className="mt-2 text-3xl font-bold text-emerald-700 dark:text-emerald-300">
+            GHS {monthlyDebit.toLocaleString()}
+          </p>
+        </div>
+      ) : showRatePricing ? (
+        <div className="rounded-xl border border-dashed border-border bg-muted/10 p-4">
+          <p className="text-sm text-muted-foreground">
+            Monthly debit amount will appear here once financing terms are confirmed.
           </p>
         </div>
       ) : null}

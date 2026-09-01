@@ -1,5 +1,5 @@
 import type { MandatePreviewData } from "@/lib/utils/mandate-preview";
-import { buildMandatePreview } from "@/lib/utils/mandate-preview";
+import { buildMandatePreview, resolveMonthlyPayment } from "@/lib/utils/mandate-preview";
 
 const BRAND_GREEN: [number, number, number] = [5, 150, 105];
 const MUTED: [number, number, number] = [100, 116, 139];
@@ -155,9 +155,6 @@ export async function downloadMandatePdf(preview: MandatePreviewData) {
     if (preview.totalRepayable != null) {
       rows.push(["Total repayable", `GHS ${preview.totalRepayable.toLocaleString()}`]);
     }
-    if (preview.monthlyPayment != null) {
-      rows.push(["Estimated monthly debit", `GHS ${preview.monthlyPayment.toLocaleString()}`]);
-    }
     if (preview.lenderAcceptedAt) {
       rows.push(["Financing agreed on", formatDocumentDate(preview.lenderAcceptedAt)]);
     }
@@ -241,20 +238,30 @@ export async function downloadMandatePdf(preview: MandatePreviewData) {
     contentWidth,
   });
 
-  if (preview.ratePricingVisible && preview.monthlyPayment != null) {
+  const monthlyDebit = resolveMonthlyPayment(preview);
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  if (monthlyDebit != null) {
+    if (y + 28 > pageHeight - 18) {
+      doc.addPage();
+      y = margin;
+    }
+
     doc.setFillColor(236, 253, 245);
-    doc.rect(margin, y - 4, contentWidth, 16, "F");
+    doc.rect(margin, y, contentWidth, 22, "F");
+    doc.setDrawColor(...BRAND_GREEN);
+    doc.rect(margin, y, contentWidth, 22, "S");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(5, 150, 105);
-    doc.text("Monthly amount to be debited from buyer account", margin + 3, y + 3);
-    doc.setFontSize(13);
+    doc.text("Monthly amount to be debited from buyer account", margin + 4, y + 8);
+    doc.setFontSize(16);
     doc.setTextColor(15, 23, 42);
-    doc.text(`GHS ${preview.monthlyPayment.toLocaleString()}`, margin + 3, y + 10);
-    y += 18;
+    doc.text(`GHS ${monthlyDebit.toLocaleString()}`, margin + 4, y + 17);
+    y += 30;
   }
 
-  const footerY = doc.internal.pageSize.getHeight() - 12;
+  const footerY = pageHeight - 12;
   doc.setDrawColor(226, 232, 240);
   doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4);
   doc.setFontSize(7);

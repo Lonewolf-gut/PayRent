@@ -97,6 +97,29 @@ function hasKnownFinancingRate(financing: FinancingLike) {
   );
 }
 
+export function resolveMonthlyPayment(
+  preview: Pick<
+    MandatePreviewData,
+    "monthlyPayment" | "totalRepayable" | "principalAmount" | "interestRate" | "durationMonths"
+  >
+): number | null {
+  if (preview.monthlyPayment != null && Number.isFinite(preview.monthlyPayment)) {
+    return preview.monthlyPayment;
+  }
+
+  const totalRepayable =
+    preview.totalRepayable ??
+    (preview.interestRate != null && preview.principalAmount > 0
+      ? preview.principalAmount * (1 + preview.interestRate / 100)
+      : null);
+
+  if (totalRepayable != null && preview.durationMonths > 0) {
+    return totalRepayable / preview.durationMonths;
+  }
+
+  return null;
+}
+
 export function buildMandatePreview(financing: FinancingLike): MandatePreviewData {
   const principalAmount =
     toNumber(financing.approvedAmount) ??
@@ -107,10 +130,19 @@ export function buildMandatePreview(financing: FinancingLike): MandatePreviewDat
     toNumber(financing.offeredInterestRate) ?? toNumber(financing.feeDisclosure?.interestRate);
   const ratePricingVisible = hasKnownFinancingRate(financing);
   const totalRepayable = ratePricingVisible
-    ? toNumber(financing.feeDisclosure?.totalRepayable)
+    ? toNumber(financing.feeDisclosure?.totalRepayable) ??
+      (interestRate != null && principalAmount > 0
+        ? principalAmount * (1 + interestRate / 100)
+        : null)
     : null;
   const monthlyPayment = ratePricingVisible
-    ? toNumber(financing.feeDisclosure?.monthlyPayment)
+    ? resolveMonthlyPayment({
+        monthlyPayment: toNumber(financing.feeDisclosure?.monthlyPayment),
+        totalRepayable,
+        principalAmount,
+        interestRate,
+        durationMonths: financing.durationMonths,
+      })
     : null;
 
   let previewStatus: MandatePreviewStatus = "awaiting_lender";
