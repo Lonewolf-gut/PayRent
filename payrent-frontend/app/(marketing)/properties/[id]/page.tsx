@@ -26,20 +26,22 @@ import { PropertySpecsGrid } from "@/components/properties/property-specs-grid";
 import { SimilarPropertiesSection } from "@/components/properties/similar-properties";
 import { PropertyActionPanel } from "@/components/properties/property-action-panel";
 import { AgentReferralTracker } from "@/components/properties/agent-referral-tracker";
+import { FinancingRequestDialog } from "@/components/applications/financing-request-dialog";
+import { useAuthReturnPath } from "@/hooks/use-auth-return-path";
+import { buildLoginUrl, buildRegisterUrl } from "@/lib/utils/auth-callback-url";
 import { buildPropertySpecs } from "@/lib/utils/property-specs";
 import { isSaleListing } from "@/lib/subscription-limits";
-import { isAccountFullyVerified } from "@/lib/utils/account-verification";
 import type { PropertyType } from "@prisma/client";
 import { toast } from "sonner";
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const returnPath = useAuthReturnPath();
   const router = useRouter();
   const { data: session } = useSession();
   const [locationOpen, setLocationOpen] = useState(false);
   const [depositPromptOpen, setDepositPromptOpen] = useState(false);
-  const [moveInDate, setMoveInDate] = useState("");
-  const [notes, setNotes] = useState("");
+  const [financingOpen, setFinancingOpen] = useState(false);
 
   const { data: property, isLoading } = useQuery({
     queryKey: ["property", id],
@@ -58,36 +60,6 @@ export default function PropertyDetailPage() {
       return json.data;
     },
     enabled: !!session?.user && session.user.role === "BUYER",
-  });
-
-  const { data: kycStatus } = useQuery({
-    queryKey: ["kyc-status"],
-    queryFn: async () => {
-      const res = await fetch("/api/kyc");
-      const json = await res.json();
-      return json.data;
-    },
-    enabled: session?.user?.role === "BUYER",
-  });
-
-  const { data: financingDocs } = useQuery({
-    queryKey: ["tenant-financing-docs"],
-    queryFn: async () => {
-      const res = await fetch("/api/buyer/financing-documents");
-      const json = await res.json();
-      return json.data;
-    },
-    enabled: session?.user?.role === "BUYER",
-  });
-
-  const { data: applications } = useQuery({
-    queryKey: ["applications"],
-    queryFn: async () => {
-      const res = await fetch("/api/applications");
-      const json = await res.json();
-      return json.data ?? [];
-    },
-    enabled: session?.user?.role === "BUYER",
   });
 
   const chatMutation = useMutation({
@@ -130,24 +102,32 @@ export default function PropertyDetailPage() {
     ? formatDistanceToNow(new Date(property.stats.listedAt), { addSuffix: true })
     : formatDistanceToNow(new Date(property.createdAt), { addSuffix: true });
 
-  const approvedApplication = applications?.find(
-    (app: { propertyId: string; status: string }) =>
-      app.propertyId === id && app.status === "APPROVED"
-  );
-
-  const fullyVerified = isAccountFullyVerified(
-    kycStatus,
-    Boolean(session?.user?.emailVerified ?? kycStatus?.emailVerified),
-    Boolean(session?.user?.phoneVerified ?? kycStatus?.phoneVerified)
-  );
-  const financingDocsPending = Boolean(
-    financingDocs?.documents?.some(
-      (doc: { status: string }) => doc.status === "PENDING"
-    ) && !financingDocs?.allApproved
-  );
-
   const displayAgent = property.contacts?.agent ?? property.agent;
   const displayLandlord = property.contacts?.landlord;
+  const isBuyer = session?.user?.role === "BUYER";
+
+  const buyerActionPanel = (
+    <PropertyActionPanel
+      propertyId={id}
+      isSale={isSale}
+      purchasePrice={purchasePrice}
+      walletBalance={walletBalance}
+      propertyStatus={property.status}
+      onDepositPrompt={() => setDepositPromptOpen(true)}
+      onRequestFinancing={() => setFinancingOpen(true)}
+      onChat={(recipientUserId, label) =>
+        chatMutation.mutate({ recipientUserId, label })
+      }
+      contacts={{
+        landlord: displayLandlord?.userId
+          ? { userId: displayLandlord.userId, name: displayLandlord.name }
+          : null,
+        agent: displayAgent?.userId
+          ? { userId: displayAgent.userId, name: displayAgent.name }
+          : null,
+      }}
+    />
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
@@ -304,48 +284,25 @@ export default function PropertyDetailPage() {
         </div>
 
         <div className="space-y-4">
-          <PropertySaveButton propertyId={id} variant="button" />
-          {session ? (
-            session.user.role === "BUYER" ? (
-              <PropertyActionPanel
-                propertyId={id}
-                propertyName={property.name}
-                isSale={isSale}
-                purchasePrice={purchasePrice}
-                walletBalance={walletBalance}
-                monthlyRent={listPrice}
-                propertyStatus={property.status}
-                fullyVerified={fullyVerified}
-                financingDocsApproved={Boolean(financingDocs?.allApproved)}
-                financingDocsPending={financingDocsPending}
-                approvedApplication={approvedApplication}
-                moveInDate={moveInDate}
-                setMoveInDate={setMoveInDate}
-                notes={notes}
-                setNotes={setNotes}
-                onDepositPrompt={() => setDepositPromptOpen(true)}
-                onChat={(recipientUserId, label) =>
-                  chatMutation.mutate({ recipientUserId, label })
-                }
-                contacts={{
-                  landlord: displayLandlord?.userId
-                    ? { userId: displayLandlord.userId, name: displayLandlord.name }
-                    : null,
-                  agent: displayAgent?.userId
-                    ? { userId: displayAgent.userId, name: displayAgent.name }
-                    : null,
-                }}
-              />
-            ) : null
-          ) : (
+          {isBuyer ? (
+            <>
+              <PropertySaveButton propertyId={id} variant="button" />
+              {buyerActionPanel}
+            </>
+          ) : session ? null : (
             <Card className="rounded-none">
               <CardContent className="pt-6">
                 <p className="mb-4 text-sm text-muted-foreground">
                   Sign in to buy with wallet, apply, or request financing for this listing.
                 </p>
-                <Button asChild className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700">
-                  <Link href="/login">Sign in</Link>
-                </Button>
+                <div className="flex flex-col gap-2">
+                  <Button asChild className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700">
+                    <Link href={buildLoginUrl(returnPath, "BUYER")}>Sign in</Link>
+                  </Button>
+                  <Button asChild variant="outline" className="w-full rounded-none">
+                    <Link href={buildRegisterUrl(returnPath)}>Create account</Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -379,6 +336,14 @@ export default function PropertyDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {isBuyer ? (
+        <FinancingRequestDialog
+          propertyId={id}
+          open={financingOpen}
+          onOpenChange={setFinancingOpen}
+        />
+      ) : null}
     </div>
   );
 }
