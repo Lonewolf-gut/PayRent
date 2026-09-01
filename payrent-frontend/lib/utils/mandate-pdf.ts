@@ -26,6 +26,68 @@ function mandateFilename(preview: MandatePreviewData) {
   return `payforme-mandate-${slug || id.slice(0, 8)}.pdf`;
 }
 
+function formatIdentityLine(
+  label?: string | null,
+  number?: string | null
+): string | null {
+  if (label && number) return `${label}: ${number}`;
+  return number ?? null;
+}
+
+function drawSignatureBlock(
+  doc: import("jspdf").jsPDF,
+  startY: number,
+  options: {
+    title: string;
+    name: string;
+    date?: string | null;
+    pendingDate: string;
+    identityLine?: string | null;
+    margin: number;
+    dateColumnX: number;
+    contentWidth: number;
+  }
+) {
+  const { title, name, date, pendingDate, identityLine, margin, dateColumnX, contentWidth } =
+    options;
+  let y = startY;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...MUTED);
+  doc.text(title, margin, y);
+  doc.text("Date", dateColumnX, y);
+  y += 5;
+
+  const signatureY = y;
+  doc.setFont("times", "bolditalic");
+  doc.setFontSize(13);
+  doc.setTextColor(15, 23, 42);
+  const nameLines = doc.splitTextToSize(name, contentWidth - 58);
+  doc.text(nameLines, margin, signatureY);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(date ? 15 : 100, date ? 23 : 116, date ? 42 : 139);
+  doc.text(date ? formatDocumentDate(date) : pendingDate, dateColumnX, signatureY);
+  y = signatureY + Math.max(nameLines.length * 5, 6);
+
+  if (identityLine) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text(identityLine, margin, y);
+    y += 5;
+  }
+
+  y += 3;
+  doc.setDrawColor(...BRAND_GREEN);
+  doc.line(margin, y, margin + contentWidth - 58, y);
+  doc.line(dateColumnX, y, dateColumnX + 52, y);
+
+  return y + 10;
+}
+
 export async function downloadMandatePdf(preview: MandatePreviewData) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -148,81 +210,36 @@ export async function downloadMandatePdf(preview: MandatePreviewData) {
     y += wrapped.length * 4.5;
   }
 
-  const signatureColumnWidth = (contentWidth - 8) / 2;
-  const lenderColumnX = margin + signatureColumnWidth + 8;
-
   y += 10;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...MUTED);
-  doc.text("Buyer's signature", margin, y);
-  doc.text("Date", margin + signatureColumnWidth - 28, y);
-  doc.text("Lender's signature", lenderColumnX, y);
-  doc.text("Date", pageWidth - margin - 28, y);
-  y += 5;
+  const dateColumnX = pageWidth - margin - 55;
 
-  const buyerSignatureY = y;
-  if (preview.buyerAcceptedAt) {
-    doc.setFont("times", "bolditalic");
-    doc.setFontSize(13);
-    doc.setTextColor(15, 23, 42);
-    const buyerNameLines = doc.splitTextToSize(preview.borrowerName, signatureColumnWidth - 4);
-    doc.text(buyerNameLines, margin, buyerSignatureY);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(
-      formatDocumentDate(preview.buyerAcceptedAt),
-      margin + signatureColumnWidth - 28,
-      buyerSignatureY
-    );
-    y = buyerSignatureY + Math.max(buyerNameLines.length * 5, 6);
+  y = drawSignatureBlock(doc, y, {
+    title: "Buyer's signature",
+    name: preview.borrowerName,
+    date: preview.buyerAcceptedAt,
+    pendingDate: "Pending acceptance",
+    identityLine: formatIdentityLine(
+      preview.buyerIdentityDocumentLabel,
+      preview.buyerIdentityDocumentNumber
+    ),
+    margin,
+    dateColumnX,
+    contentWidth,
+  });
 
-    const identityLine =
-      preview.buyerIdentityDocumentLabel && preview.buyerIdentityDocumentNumber
-        ? `${preview.buyerIdentityDocumentLabel}: ${preview.buyerIdentityDocumentNumber}`
-        : preview.buyerIdentityDocumentNumber
-          ? preview.buyerIdentityDocumentNumber
-          : null;
-
-    if (identityLine) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...MUTED);
-      doc.text(identityLine, margin, y);
-      y += 5;
-    }
-  } else {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...MUTED);
-    doc.text("Pending acceptance", margin + signatureColumnWidth - 28, buyerSignatureY);
-    y = buyerSignatureY + 8;
-  }
-
-  const lenderSignatureY = buyerSignatureY;
-  if (preview.lenderAcceptedAt && preview.lenderName) {
-    doc.setFont("times", "bolditalic");
-    doc.setFontSize(13);
-    doc.setTextColor(15, 23, 42);
-    const lenderNameLines = doc.splitTextToSize(preview.lenderName, signatureColumnWidth - 4);
-    doc.text(lenderNameLines, lenderColumnX, lenderSignatureY);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(formatDocumentDate(preview.lenderAcceptedAt), pageWidth - margin - 28, lenderSignatureY);
-    y = Math.max(y, lenderSignatureY + Math.max(lenderNameLines.length * 5, 6));
-  } else {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...MUTED);
-    doc.text("Pending financing", pageWidth - margin - 28, lenderSignatureY);
-    y = Math.max(y, lenderSignatureY + 8);
-  }
-
-  y += 4;
-  doc.setDrawColor(...BRAND_GREEN);
-  doc.line(margin, y, margin + signatureColumnWidth - 4, y);
-  doc.line(lenderColumnX, y, pageWidth - margin, y);
-  y += 10;
+  y = drawSignatureBlock(doc, y, {
+    title: "Lender's signature",
+    name: preview.lenderName ?? "Financing lender",
+    date: preview.lenderAcceptedAt,
+    pendingDate: "Pending financing",
+    identityLine: formatIdentityLine(
+      preview.lenderIdentityDocumentLabel,
+      preview.lenderIdentityDocumentNumber
+    ),
+    margin,
+    dateColumnX,
+    contentWidth,
+  });
 
   if (preview.ratePricingVisible && preview.monthlyPayment != null) {
     doc.setFillColor(236, 253, 245);
@@ -300,7 +317,13 @@ type AdminMandateForPdf = {
       acceptedAt?: Date | string | null;
     } | null;
   } | null;
-  lender?: { fullName?: string; institutionName?: string | null } | null;
+  lender?: {
+    fullName?: string;
+    institutionName?: string | null;
+    nationalId?: string | null;
+  } | null;
+  lenderIdentityDocumentLabel?: string | null;
+  lenderIdentityDocumentNumber?: string | null;
 };
 
 function formatLenderName(lender?: { fullName?: string; institutionName?: string | null } | null) {
@@ -322,6 +345,9 @@ export function adminMandateToPreview(mandate: AdminMandateForPdf): MandatePrevi
     durationMonths: financing?.durationMonths ?? 0,
     buyerAcceptedAt: financing?.buyerAcceptedAt ?? null,
     lenderName: formatLenderName(mandate.lender),
+    lenderIdentityDocumentLabel: mandate.lenderIdentityDocumentLabel ?? null,
+    lenderIdentityDocumentNumber:
+      mandate.lenderIdentityDocumentNumber ?? mandate.lender?.nationalId ?? null,
     property: financing?.property ?? null,
     tenant: mandate.tenant ?? null,
     feeDisclosure: financing?.feeDisclosure ?? null,

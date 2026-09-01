@@ -32,6 +32,8 @@ export type MandatePreviewData = {
   ratePricingVisible: boolean;
   buyerIdentityDocumentLabel?: string | null;
   buyerIdentityDocumentNumber?: string | null;
+  lenderIdentityDocumentLabel?: string | null;
+  lenderIdentityDocumentNumber?: string | null;
 };
 
 type FinancingLike = {
@@ -78,6 +80,8 @@ type FinancingLike = {
   } | null;
   buyerIdentityDocumentLabel?: string | null;
   buyerIdentityDocumentNumber?: string | null;
+  lenderIdentityDocumentLabel?: string | null;
+  lenderIdentityDocumentNumber?: string | null;
 };
 
 function toNumber(value: unknown): number | null {
@@ -176,5 +180,7 @@ export function buildMandatePreview(financing: FinancingLike): MandatePreviewDat
     ratePricingVisible,
     buyerIdentityDocumentLabel: financing.buyerIdentityDocumentLabel ?? null,
     buyerIdentityDocumentNumber: financing.buyerIdentityDocumentNumber ?? null,
+    lenderIdentityDocumentLabel: financing.lenderIdentityDocumentLabel ?? null,
+    lenderIdentityDocumentNumber: financing.lenderIdentityDocumentNumber ?? null,
   };
 }

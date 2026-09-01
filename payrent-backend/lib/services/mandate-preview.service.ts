@@ -41,8 +41,12 @@ export async function resolveBuyerIdentityDocuments(userIds: string[]) {
     return new Map<string, { label: string; number: string }>();
   }
 
-  const [tenants, verifications] = await Promise.all([
+  const [tenants, lenders, verifications] = await Promise.all([
     prisma.tenant.findMany({
+      where: { userId: { in: uniqueUserIds } },
+      select: { userId: true, nationalId: true },
+    }),
+    prisma.lender.findMany({
       where: { userId: { in: uniqueUserIds } },
       select: { userId: true, nationalId: true },
     }),
@@ -69,13 +73,15 @@ export async function resolveBuyerIdentityDocuments(userIds: string[]) {
   }
 
   const tenantByUser = new Map(tenants.map((tenant) => [tenant.userId, tenant]));
+  const lenderByUser = new Map(lenders.map((lender) => [lender.userId, lender]));
   const identityByUser = new Map<string, { label: string; number: string }>();
 
   for (const userId of uniqueUserIds) {
     const tenant = tenantByUser.get(userId);
+    const lender = lenderByUser.get(userId);
     const verification = verificationByUser.get(userId);
     const verificationData = verification?.data as VerificationIdentityData | null;
-    const number = tenant?.nationalId ?? verificationData?.idNumber ?? null;
+    const number = tenant?.nationalId ?? lender?.nationalId ?? verificationData?.idNumber ?? null;
     if (!number) continue;
 
     identityByUser.set(userId, {
@@ -141,9 +147,6 @@ export async function loadMandatePreviewsForTenant(
     : [];
 
   const bankById = new Map(bankAccounts.map((account) => [account.id, account]));
-  const identityByUser = await resolveBuyerIdentityDocuments(
-    requests.map((request) => request.tenant.user.id)
-  );
 
   const lenderUserIds = [
     ...new Set(
@@ -152,6 +155,11 @@ export async function loadMandatePreviewsForTenant(
         .filter((id): id is string => Boolean(id))
     ),
   ];
+
+  const identityByUser = await resolveBuyerIdentityDocuments([
+    ...requests.map((request) => request.tenant.user.id),
+    ...lenderUserIds,
+  ]);
 
   const lenders = lenderUserIds.length
     ? await prisma.lender.findMany({
@@ -166,6 +174,9 @@ export async function loadMandatePreviewsForTenant(
     const bankAccountId = (request.repaymentPreference as RepaymentPreference | null)?.bankAccountId;
     const repaymentBankAccount = bankAccountId ? bankById.get(bankAccountId) ?? null : null;
     const identity = identityByUser.get(request.tenant.user.id);
+    const lenderIdentity = request.feeDisclosure?.lenderUserId
+      ? identityByUser.get(request.feeDisclosure.lenderUserId)
+      : null;
     const lender = request.feeDisclosure?.lenderUserId
       ? lenderByUserId.get(request.feeDisclosure.lenderUserId)
       : null;
@@ -196,6 +207,8 @@ export async function loadMandatePreviewsForTenant(
       repaymentPreference: request.repaymentPreference as RepaymentPreference | null,
       buyerIdentityDocumentLabel: identity?.label ?? null,
       buyerIdentityDocumentNumber: identity?.number ?? null,
+      lenderIdentityDocumentLabel: lenderIdentity?.label ?? null,
+      lenderIdentityDocumentNumber: lenderIdentity?.number ?? null,
     });
   });
 }

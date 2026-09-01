@@ -207,7 +207,7 @@ function MandatePreviewBody({ preview }: { preview: MandatePreviewData }) {
       </dl>
 
       {(preview.buyerAcceptedAt || preview.lenderAcceptedAt || preview.lenderName) && (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-3">
           <SignatureTile
             label="Buyer signature"
             name={preview.borrowerName}
@@ -219,6 +219,11 @@ function MandatePreviewBody({ preview }: { preview: MandatePreviewData }) {
             name={preview.lenderName ?? "Financing lender"}
             date={preview.lenderAcceptedAt}
             pendingLabel="Pending lender financing"
+            identityLine={
+              preview.lenderIdentityDocumentLabel && preview.lenderIdentityDocumentNumber
+                ? `${preview.lenderIdentityDocumentLabel}: ${preview.lenderIdentityDocumentNumber}`
+                : preview.lenderIdentityDocumentNumber ?? null
+            }
           />
         </div>
       )}
@@ -278,25 +283,35 @@ function SignatureTile({
   name,
   date,
   pendingLabel,
+  identityLine,
 }: {
   label: string;
   name: string;
   date?: string | null;
   pendingLabel: string;
+  identityLine?: string | null;
 }) {
+  const formattedDate = date
+    ? new Date(date).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : pendingLabel;
+
   return (
     <div className="rounded-xl border border-border bg-background/60 p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="flex items-start justify-between gap-4">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <div className="text-right">
+          <p className="text-xs text-muted-foreground">Date</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">{formattedDate}</p>
+        </div>
+      </div>
       <p className="mt-2 font-serif text-lg font-semibold italic text-foreground">{name}</p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {date
-          ? new Date(date).toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })
-          : pendingLabel}
-      </p>
+      {identityLine ? (
+        <p className="mt-1 text-sm text-muted-foreground">{identityLine}</p>
+      ) : null}
     </div>
   );
 }
