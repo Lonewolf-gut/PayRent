@@ -1,9 +1,15 @@
+import { getBackendApiBaseUrl } from "@/lib/utils/backend-api-url";
+
 /**
  * Resolve API paths for the separated backend.
- * When NEXT_PUBLIC_API_URL is unset, relative /api/* requests are proxied by Next.js rewrites.
+ * Browser calls may use relative `/api/*` (Next.js rewrites). Server-side calls
+ * (e.g. NextAuth authorize) must use an absolute backend URL.
  */
 export function getApiBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+  const configured = getBackendApiBaseUrl();
+  if (configured) return configured;
+  if (typeof window !== "undefined") return "";
+  return (process.env.API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 }
 
 export function apiUrl(path: string): string {
