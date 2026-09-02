@@ -6,6 +6,22 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { APPLICATION_STATUS_LABELS } from "@/constants/platform";
 import { SecureFileLink } from "@/components/shared/secure-file-link";
+import { toast } from "sonner";
+
+type ApplicationRecord = {
+  id: string;
+  status: string;
+  notes?: string;
+  property?: { name: string };
+  tenant?: { fullName: string; user?: { email: string } };
+  documents?: { id: string; fileName: string; fileUrl: string }[];
+};
+
+function nextApplicationStatus(decision: "APPROVE" | "REJECT" | "CLARIFICATION") {
+  if (decision === "APPROVE") return "APPROVED";
+  if (decision === "REJECT") return "REJECTED";
+  return "CLARIFICATION_REQUIRED";
+}
 
 export default function LandlordApplicationsPage() {
   const queryClient = useQueryClient();
@@ -15,25 +31,58 @@ export default function LandlordApplicationsPage() {
     queryFn: async () => {
       const res = await fetch("/api/applications");
       const json = await res.json();
-      return json.data ?? [];
+      return (json.data ?? []) as ApplicationRecord[];
     },
   });
 
   const reviewMutation = useMutation({
-    mutationFn: async ({ id, decision }: { id: string; decision: "APPROVE" | "REJECT" | "CLARIFICATION" }) => {
+    mutationFn: async ({
+      id,
+      decision,
+    }: {
+      id: string;
+      decision: "APPROVE" | "REJECT" | "CLARIFICATION";
+    }) => {
       const res = await fetch(`/api/applications/${id}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ decision }),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.message);
+      if (!json.success) throw new Error(json.message ?? "Could not update application");
+      return { id, status: nextApplicationStatus(decision) };
     },
-    onSuccess: () => {
-      toast.success("Application updated");
+    onMutate: async ({ id, decision }) => {
+      await queryClient.cancelQueries({ queryKey: ["applications"] });
+      const previous = queryClient.getQueryData<ApplicationRecord[]>(["applications"]);
+      const status = nextApplicationStatus(decision);
+
+      queryClient.setQueryData<ApplicationRecord[]>(["applications"], (current) =>
+        (current ?? []).map((application) =>
+          application.id === id ? { ...application, status } : application
+        )
+      );
+
+      return { previous };
+    },
+    onSuccess: (result) => {
+      toast.success(
+        result.status === "APPROVED"
+          ? "Application approved"
+          : result.status === "REJECTED"
+            ? "Application rejected"
+            : "Clarification requested"
+      );
+    },
+    onError: (error: Error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["applications"], context.previous);
+      }
+      toast.error(error.message);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["applications"] });
     },
-    onError: (e: Error) => toast.error(e.message),
   });
 
   return (
@@ -89,9 +138,30 @@ export default function LandlordApplicationsPage() {
               )}
               {["SUBMITTED", "UNDER_REVIEW", "CLARIFICATION_REQUIRED"].includes(app.status) && (
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => reviewMutation.mutate({ id: app.id, decision: "APPROVE" })}>Approve</Button>
-                  <Button size="sm" variant="outline" onClick={() => reviewMutation.mutate({ id: app.id, decision: "CLARIFICATION" })}>Request clarification</Button>
-                  <Button size="sm" variant="destructive" onClick={() => reviewMutation.mutate({ id: app.id, decision: "REJECT" })}>Reject</Button>
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    disabled={reviewMutation.isPending}
+                    onClick={() => reviewMutation.mutate({ id: app.id, decision: "APPROVE" })}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={reviewMutation.isPending}
+                    onClick={() => reviewMutation.mutate({ id: app.id, decision: "CLARIFICATION" })}
+                  >
+                    Request clarification
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={reviewMutation.isPending}
+                    onClick={() => reviewMutation.mutate({ id: app.id, decision: "REJECT" })}
+                  >
+                    Reject
+                  </Button>
                 </div>
               )}
             </CardContent>

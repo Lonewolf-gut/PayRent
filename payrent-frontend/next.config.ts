@@ -41,7 +41,8 @@ const nextConfig: NextConfig = {
       })),
       afterFiles: [
         {
-          source: "/api/:path*",
+          source:
+            "/api/:path((?!auth/session|auth/csrf|auth/signin|auth/signout|auth/providers|auth/error|auth/verify-request|auth/callback).*)",
           destination: `${apiOrigin}/api/:path*`,
         },
       ],

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { LogOut, Menu, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -32,7 +32,8 @@ import {
   type NavItem,
 } from "@/components/dashboard/sidebar";
 import { RentVestLogo } from "@/components/rentvest/logo";
-import { getRoleSignOutPath, getStaffPortalHomePath } from "@/lib/auth/route-guards";
+import { getStaffPortalHomePath } from "@/lib/auth/route-guards";
+import { signOutToRoleHome } from "@/lib/auth/sign-out-client";
 import { useSettingsProfile } from "@/hooks/use-settings-profile";
 import { useDashboardTheme } from "@/components/dashboard/dashboard-theme-provider";
 import { cn } from "@/lib/utils";
@@ -184,7 +185,7 @@ export function DashboardHeader({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="cursor-pointer rounded-none"
-                onClick={() => signOut({ callbackUrl: "/" })}
+                onClick={() => void signOutToRoleHome(role)}
               >
                 <LogOut className="size-4" />
                 Sign out
@@ -195,7 +196,7 @@ export function DashboardHeader({
             variant="outline"
             size="sm"
             className="hidden sm:inline-flex"
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={() => void signOutToRoleHome(role)}
           >
             Sign out
           </Button>
@@ -204,7 +205,7 @@ export function DashboardHeader({
             size="icon-sm"
             className="sm:hidden"
             aria-label="Sign out"
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={() => void signOutToRoleHome(role)}
           >
             <LogOut className="h-4 w-4" />
           </Button>
@@ -223,7 +224,6 @@ export function AdminDashboardHeader({
 
   const role = session?.user?.role;
   const staffHomePath = getStaffPortalHomePath(sidebarTitle);
-  const signOutPath = getRoleSignOutPath(role);
   const profileApiPath =
     role === "ADMIN" ? "/api/admin/settings" : "/api/settings";
 
@@ -300,7 +300,7 @@ export function AdminDashboardHeader({
             variant="outline"
             size="sm"
             className="hidden rounded-none sm:inline-flex"
-            onClick={() => signOut({ callbackUrl: signOutPath })}
+            onClick={() => void signOutToRoleHome(role)}
           >
             Sign out
           </Button>
@@ -309,7 +309,7 @@ export function AdminDashboardHeader({
             size="icon-sm"
             className="rounded-none sm:hidden"
             aria-label="Sign out"
-            onClick={() => signOut({ callbackUrl: signOutPath })}
+            onClick={() => void signOutToRoleHome(role)}
           >
             <LogOut className="h-4 w-4" />
           </Button>

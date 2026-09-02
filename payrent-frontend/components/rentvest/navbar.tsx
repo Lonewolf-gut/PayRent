@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { LogOut, Menu, Sparkles } from "lucide-react";
 import { RentVestLogo } from "./logo";
@@ -26,7 +26,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { PROFILE_MENU_ITEMS } from "@/lib/nav/profile-menu";
-import { getRoleSignOutPath } from "@/lib/auth/route-guards";
+import { signOutToRoleHome } from "@/lib/auth/sign-out-client";
 import { NavQuickActions } from "@/components/dashboard/nav-quick-actions";
 import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
 import { isPaidPlan, normalizeSubscriptionPlan } from "@/lib/subscription/plans";
@@ -214,11 +214,7 @@ export function Navbar() {
                 <DropdownMenuItem
                   variant="destructive"
                   className="cursor-pointer rounded-none"
-                  onClick={() =>
-                    signOut({
-                      callbackUrl: getRoleSignOutPath(role),
-                    })
-                  }
+                  onClick={() => void signOutToRoleHome(role)}
                 >
                   <LogOut className="size-4" />
                   Sign out
