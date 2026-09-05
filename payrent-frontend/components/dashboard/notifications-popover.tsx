@@ -47,13 +47,13 @@ export function NotificationsPopover() {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
 
-  const { data: unreadNotifications = [] } = useQuery({
-    queryKey: ["notifications", "unread"],
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ["notifications", "count"],
     queryFn: async () => {
-      const res = await fetch("/api/notifications");
+      const res = await fetch("/api/notifications?countOnly=true");
       const json = await res.json();
       if (!res.ok) throw new Error(json.message ?? "Unable to load notifications");
-      return (json.data ?? []) as NotificationItem[];
+      return Number(json.data?.unreadCount ?? 0);
     },
     refetchInterval: 60000,
     enabled: !!session?.user?.id,
@@ -67,11 +67,10 @@ export function NotificationsPopover() {
       if (!res.ok) throw new Error(json.message ?? "Unable to load notifications");
       return json.data as NotificationsAllResponse;
     },
-    enabled: !!session?.user?.id,
+    enabled: !!session?.user?.id && popoverOpen,
   });
 
   const allNotifications = allData?.items ?? [];
-  const unreadCount = allData?.unreadCount ?? unreadNotifications.length;
 
   const markRead = useMutation({
     mutationFn: async (id: string) => {
@@ -82,11 +81,10 @@ export function NotificationsPopover() {
       });
     },
     onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: ["notifications", "unread"] });
-      await queryClient.cancelQueries({ queryKey: ["notifications", "all"] });
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
 
-      queryClient.setQueryData<NotificationItem[]>(["notifications", "unread"], (current) =>
-        current?.filter((item) => item.id !== id) ?? []
+      queryClient.setQueryData<number>(["notifications", "count"], (current) =>
+        Math.max(0, (current ?? 0) - 1)
       );
 
       queryClient.setQueryData<NotificationsAllResponse>(["notifications", "all"], (current) => {
@@ -104,8 +102,7 @@ export function NotificationsPopover() {
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications", "unread"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 
@@ -116,9 +113,8 @@ export function NotificationsPopover() {
       if (!res.ok) throw new Error(json.message ?? "Unable to clear notifications");
     },
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ["notifications", "unread"] });
-      await queryClient.cancelQueries({ queryKey: ["notifications", "all"] });
-      queryClient.setQueryData<NotificationItem[]>(["notifications", "unread"], []);
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
+      queryClient.setQueryData<number>(["notifications", "count"], 0);
       queryClient.setQueryData<NotificationsAllResponse>(["notifications", "all"], {
         items: [],
         unreadCount: 0,
@@ -126,8 +122,7 @@ export function NotificationsPopover() {
       setSelectedNotification(null);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications", "unread"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 
@@ -153,7 +148,6 @@ export function NotificationsPopover() {
 
   const handlePopoverOpenChange = (open: boolean) => {
     if (open) {
-      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
       setPopoverOpen(true);
       return;
     }

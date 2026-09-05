@@ -39,7 +39,7 @@ export function MessagesWidget() {
     setContent,
     sendMutation,
     typers,
-  } = useMessaging();
+  } = useMessaging({ enabled: state !== "collapsed" });
 
   const { data: profile } = useSettingsProfile(!!session?.user?.id);
 
@@ -51,7 +51,7 @@ export function MessagesWidget() {
       return Number(json.data?.count ?? 0);
     },
     enabled: !!session?.user?.id,
-    refetchInterval: 15000,
+    refetchInterval: state === "collapsed" ? 60000 : 15000,
   });
 
   useEffect(() => {

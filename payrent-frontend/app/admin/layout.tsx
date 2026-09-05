@@ -24,11 +24,11 @@ const navItems = [
 
   },
 
-  { href: "/admin/kyc", label: "KYC Exceptions", icon: "FileText" as const, badgeCountEndpoint: "/api/admin/reviews?type=kyc" },
+  { href: "/admin/kyc", label: "KYC Exceptions", icon: "FileText" as const, badgeCountEndpoint: "/api/admin/reviews?type=kyc&countOnly=true" },
 
   { href: "/admin/financing-documents", label: "Financing Docs", icon: "FileText" as const, badgeCountEndpoint: "/api/admin/financing-documents?status=PENDING" },
 
-  { href: "/admin/mandates", label: "Mandates", icon: "CreditCard" as const, badgeCountEndpoint: "/api/admin/reviews?type=mandate" },
+  { href: "/admin/mandates", label: "Mandates", icon: "CreditCard" as const, badgeCountEndpoint: "/api/admin/reviews?type=mandate&countOnly=true" },
 
   { href: "/admin/financing", label: "Financing", icon: "TrendingUp" as const },
 

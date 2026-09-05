@@ -61,8 +61,7 @@ export function VerificationPromptDialog() {
       return (json.data ?? null) as VerificationStatusSnapshot | null;
     },
     enabled: showVerificationUi && !!userId,
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 5 * 60 * 1000,
   });
 
   const emailVerified =

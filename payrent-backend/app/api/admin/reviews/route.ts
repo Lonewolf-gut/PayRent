@@ -8,12 +8,22 @@ export const GET = withAuth(
     const type = req.nextUrl.searchParams.get("type");
 
     if (type === "kyc") {
+      const countOnly = req.nextUrl.searchParams.get("countOnly") === "true";
+      if (countOnly) {
+        const total = await kycService.countPendingKycReviews();
+        return apiResponse({ total }, 200, "KYC review count retrieved.");
+      }
       const reviews = await kycService.getPendingKycReviews();
       return apiResponse(reviews, 200, "KYC review queue retrieved.");
     }
 
     if (type === "mandate") {
       const { mandateService } = await import("@/lib/services/mandate.service");
+      const countOnly = req.nextUrl.searchParams.get("countOnly") === "true";
+      if (countOnly) {
+        const total = await mandateService.countPendingReview();
+        return apiResponse({ total }, 200, "Mandate review count retrieved.");
+      }
       const mandates = await mandateService.listPendingReview();
       return apiResponse(mandates, 200, "Mandate review queue retrieved.");
     }

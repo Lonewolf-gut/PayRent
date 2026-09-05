@@ -24,13 +24,23 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+let dbConnectionVerified = false;
+
+export function resetDbConnectionCache() {
+  dbConnectionVerified = false;
+}
+
 /** Retry DB connect on cold Docker Desktop / dropped connections. */
 export async function ensureDbConnection(retries = 5): Promise<void> {
+  if (dbConnectionVerified) return;
+
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       await prisma.$queryRaw`SELECT 1`;
+      dbConnectionVerified = true;
       return;
     } catch {
+      dbConnectionVerified = false;
       try {
         await prisma.$disconnect();
       } catch {
@@ -40,6 +50,7 @@ export async function ensureDbConnection(retries = 5): Promise<void> {
       try {
         await prisma.$connect();
         await prisma.$queryRaw`SELECT 1`;
+        dbConnectionVerified = true;
         return;
       } catch (error) {
         if (attempt === retries) {

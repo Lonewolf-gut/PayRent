@@ -349,6 +349,12 @@ export class MandateService {
     });
   }
 
+  async countPendingReview() {
+    return prisma.mandate.count({
+      where: { status: { in: ["ADMIN_REVIEW", "PENDING_MANUAL_RESOLUTION"] } },
+    });
+  }
+
   async getById(mandateId: string, tenantId?: string) {
     return prisma.mandate.findFirst({
       where: { id: mandateId, ...(tenantId ? { tenantId } : {}) },
