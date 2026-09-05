@@ -87,5 +87,22 @@ export async function completeWalletDeposit(params: {
     },
   });
 
+  const { scheduleEmtechReport, reportWalletTransaction } = await import(
+    "@/lib/integrations/emtech"
+  );
+  scheduleEmtechReport(
+    () =>
+      reportWalletTransaction({
+        userId,
+        transaction: result.transaction,
+        provider: params.provider,
+        accountType: params.provider.toLowerCase().includes("momo")
+          ? "MOBILE_MONEY"
+          : "BANK",
+        gatewayTransactionId: params.clientReference,
+      }),
+    { source: "wallet_deposit", reference: params.clientReference }
+  );
+
   return { alreadyProcessed: false as const, transaction: result.transaction };
 }

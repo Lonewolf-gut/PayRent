@@ -197,6 +197,24 @@ export class MandateExecutionService {
           providerReference: bankResponse.bankReference,
         });
 
+        const { scheduleEmtechReport, reportMandateDeduction } = await import(
+          "@/lib/integrations/emtech"
+        );
+        scheduleEmtechReport(
+          () =>
+            reportMandateDeduction({
+              userId: financingRequest.tenant.userId,
+              deductionEventId: deductionEvent.id,
+              mandateId,
+              bankAccountId: mandate.bankAccount.id,
+              bankName: mandate.bankAccount.bankName,
+              amount: Number(amountDue),
+              status: "SUCCESS",
+              providerReference: bankResponse.bankReference,
+            }),
+          { source: "mandate_deduction_success", deductionEventId: deductionEvent.id }
+        );
+
         logger.info("Deduction successful", {
           requestId,
           deductionEventId: deductionEvent.id,
@@ -255,6 +273,25 @@ export class MandateExecutionService {
             mandateId,
             financingRequestId: financingRequest.id,
           }
+        );
+
+        const { scheduleEmtechReport, reportMandateDeduction } = await import(
+          "@/lib/integrations/emtech"
+        );
+        scheduleEmtechReport(
+          () =>
+            reportMandateDeduction({
+              userId: financingRequest.tenant.userId,
+              deductionEventId: deductionEvent.id,
+              mandateId,
+              bankAccountId: mandate.bankAccount.id,
+              bankName: mandate.bankAccount.bankName,
+              amount: Number(amountDue),
+              status: "FAILED",
+              providerReference: bankResponse.bankReference,
+              failureReason: bankResponse.failureReason,
+            }),
+          { source: "mandate_deduction_failed", deductionEventId: deductionEvent.id }
         );
       } else if (deductionStatus === "RETRY_SCHEDULED") {
         logger.info("Deduction failed - retry scheduled", {
