@@ -20,8 +20,12 @@ import {
   Share2,
   Coins,
   Package,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { signOutToRoleHome } from "@/lib/auth/sign-out-client";
 import { cn } from "@/lib/utils";
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { getStaffPortalHomePath } from "@/lib/auth/route-guards";
@@ -92,7 +96,9 @@ export function SidebarNavContent({
   showThemeToggle?: boolean;
 }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const badgeCountMap = useSidebarBadges(items);
+  const role = session?.user?.role;
 
   return (
     <div className="flex h-full flex-col">
@@ -145,6 +151,18 @@ export function SidebarNavContent({
             Appearance
           </p>
           <ThemeToggle />
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-4 w-full justify-start gap-2"
+            onClick={() => {
+              onNavigate?.();
+              void signOutToRoleHome(role);
+            }}
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </Button>
         </div>
       ) : null}
       <SidebarUpgradeCard />

@@ -141,7 +141,9 @@ export function DashboardHeader({
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
-          <NavQuickActions />
+          <div className="hidden md:flex">
+            <NavQuickActions />
+          </div>
           <NotificationsPopover />
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -199,15 +201,6 @@ export function DashboardHeader({
             onClick={() => void signOutToRoleHome(role)}
           >
             Sign out
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            className="sm:hidden"
-            aria-label="Sign out"
-            onClick={() => void signOutToRoleHome(role)}
-          >
-            <LogOut className="h-4 w-4" />
           </Button>
         </div>
       </header>
@@ -303,15 +296,6 @@ export function AdminDashboardHeader({
             onClick={() => void signOutToRoleHome(role)}
           >
             Sign out
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            className="rounded-none sm:hidden"
-            aria-label="Sign out"
-            onClick={() => void signOutToRoleHome(role)}
-          >
-            <LogOut className="h-4 w-4" />
           </Button>
         </div>
       </header>
