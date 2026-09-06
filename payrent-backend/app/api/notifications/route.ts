@@ -4,6 +4,13 @@ import { apiResponse, withAuth } from "@/lib/api/handler";
 
 export const GET = withAuth(async (req, _ctx, session) => {
   const all = req.nextUrl.searchParams.get("all") === "true";
+  const countOnly = req.nextUrl.searchParams.get("countOnly") === "true";
+
+  if (countOnly) {
+    const unreadCount = await notificationService.getUnreadCount(session.user.id);
+    return apiResponse({ unreadCount });
+  }
+
   if (all) {
     const [items, unreadCount] = await Promise.all([
       notificationService.getAll(session.user.id),

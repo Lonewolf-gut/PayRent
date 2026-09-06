@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { Bell, CheckCheck, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, Bell, CheckCheck, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -47,13 +47,13 @@ export function NotificationsPopover() {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
 
-  const { data: unreadNotifications = [] } = useQuery({
-    queryKey: ["notifications", "unread"],
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ["notifications", "count"],
     queryFn: async () => {
-      const res = await fetch("/api/notifications");
+      const res = await fetch("/api/notifications?countOnly=true");
       const json = await res.json();
       if (!res.ok) throw new Error(json.message ?? "Unable to load notifications");
-      return (json.data ?? []) as NotificationItem[];
+      return Number(json.data?.unreadCount ?? 0);
     },
     refetchInterval: 60000,
     enabled: !!session?.user?.id,
@@ -67,11 +67,11 @@ export function NotificationsPopover() {
       if (!res.ok) throw new Error(json.message ?? "Unable to load notifications");
       return json.data as NotificationsAllResponse;
     },
-    enabled: !!session?.user?.id,
+    enabled: !!session?.user?.id && popoverOpen,
   });
 
   const allNotifications = allData?.items ?? [];
-  const unreadCount = allData?.unreadCount ?? unreadNotifications.length;
+  const resolvedUnreadCount = allData?.unreadCount ?? unreadCount;
 
   const markRead = useMutation({
     mutationFn: async (id: string) => {
@@ -82,11 +82,10 @@ export function NotificationsPopover() {
       });
     },
     onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: ["notifications", "unread"] });
-      await queryClient.cancelQueries({ queryKey: ["notifications", "all"] });
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
 
-      queryClient.setQueryData<NotificationItem[]>(["notifications", "unread"], (current) =>
-        current?.filter((item) => item.id !== id) ?? []
+      queryClient.setQueryData<number>(["notifications", "count"], (current) =>
+        Math.max(0, (current ?? 0) - 1)
       );
 
       queryClient.setQueryData<NotificationsAllResponse>(["notifications", "all"], (current) => {
@@ -104,8 +103,7 @@ export function NotificationsPopover() {
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications", "unread"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 
@@ -116,9 +114,8 @@ export function NotificationsPopover() {
       if (!res.ok) throw new Error(json.message ?? "Unable to clear notifications");
     },
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ["notifications", "unread"] });
-      await queryClient.cancelQueries({ queryKey: ["notifications", "all"] });
-      queryClient.setQueryData<NotificationItem[]>(["notifications", "unread"], []);
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
+      queryClient.setQueryData<number>(["notifications", "count"], 0);
       queryClient.setQueryData<NotificationsAllResponse>(["notifications", "all"], {
         items: [],
         unreadCount: 0,
@@ -126,13 +123,12 @@ export function NotificationsPopover() {
       setSelectedNotification(null);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications", "unread"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 
   const hasNotifications = allNotifications.length > 0;
-  const badgeLabel = formatBadgeCount(unreadCount);
+  const badgeLabel = formatBadgeCount(resolvedUnreadCount);
   const showingDetail = Boolean(selectedNotification);
 
   const markAllRead = async () => {
@@ -153,7 +149,6 @@ export function NotificationsPopover() {
 
   const handlePopoverOpenChange = (open: boolean) => {
     if (open) {
-      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
       setPopoverOpen(true);
       return;
     }
@@ -184,10 +179,10 @@ export function NotificationsPopover() {
         align="end"
         sideOffset={8}
         className={cn(
-          "flex max-h-[min(32rem,85vh)] flex-col overflow-hidden border-border bg-popover p-0 text-popover-foreground transition-[width] duration-200",
+          "flex max-h-[min(32rem,85vh)] flex-col overflow-hidden border-border bg-popover p-0 text-popover-foreground",
           showingDetail
-            ? "w-[min(100vw-2rem,44rem)]"
-            : "w-[min(100vw-2rem,24rem)]",
+            ? "w-[calc(100vw-1rem)] sm:w-[min(100vw-2rem,44rem)]"
+            : "w-[min(calc(100vw-1rem),24rem)]",
           isDark && "dark"
         )}
       >
@@ -202,10 +197,23 @@ export function NotificationsPopover() {
           <PopoverHeader className="gap-1">
             <div className="flex items-center justify-between gap-3">
               <PopoverTitle className="flex items-center gap-2 text-base text-white">
-                <Sparkles className="h-4 w-4" />
-                Notifications
+                {showingDetail ? (
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="secondary"
+                    className="mr-1 h-7 w-7 bg-white/15 text-white hover:bg-white/25 sm:hidden"
+                    onClick={closeDetail}
+                    aria-label="Back to notifications"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {showingDetail ? "Notification" : "Notifications"}
               </PopoverTitle>
-              {!showingDetail && unreadCount > 0 ? (
+              {!showingDetail && resolvedUnreadCount > 0 ? (
                 <Button
                   type="button"
                   size="sm"
@@ -218,9 +226,11 @@ export function NotificationsPopover() {
                 </Button>
               ) : null}
             </div>
-            <p className={cn("text-xs", isDark ? "text-emerald-200/80" : "text-emerald-50/90")}>
-              {formatUnreadLabel(unreadCount)}
-            </p>
+            {!showingDetail ? (
+              <p className={cn("text-xs", isDark ? "text-emerald-200/80" : "text-emerald-50/90")}>
+                {formatUnreadLabel(resolvedUnreadCount)}
+              </p>
+            ) : null}
           </PopoverHeader>
         </div>
 
@@ -228,7 +238,7 @@ export function NotificationsPopover() {
           <div
             className={cn(
               "flex min-h-0 flex-col border-border",
-              showingDetail ? "w-[min(100%,14rem)] border-r sm:w-56" : "w-full"
+              showingDetail ? "hidden sm:flex sm:w-56 sm:border-r" : "w-full"
             )}
           >
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-popover">
@@ -324,7 +334,7 @@ export function NotificationsPopover() {
 
           {selectedNotification ? (
             <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-popover">
-              <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
+              <div className="hidden items-start justify-between gap-3 border-b border-border px-4 py-3 sm:flex">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">
                     {selectedNotification.title}
@@ -344,6 +354,16 @@ export function NotificationsPopover() {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
+
+              <div className="border-b border-border px-4 py-3 sm:hidden">
+                <p className="text-sm font-semibold text-foreground">
+                  {selectedNotification.title}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {new Date(selectedNotification.createdAt).toLocaleString()}
+                </p>
+              </div>
+
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
                 <p className="text-sm leading-7 whitespace-pre-wrap text-foreground">
                   {selectedNotification.body}
