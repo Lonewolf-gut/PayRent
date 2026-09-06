@@ -86,7 +86,9 @@ function useConversationTyping(activeId: string | null, content: string) {
   return typers;
 }
 
-export function useMessaging(startRecipientId?: string | null) {
+export function useMessaging(options?: { enabled?: boolean; startRecipientId?: string | null }) {
+  const pollEnabled = options?.enabled ?? true;
+  const startRecipientId = options?.startRecipientId ?? null;
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const currentUserId = session?.user?.id ?? "";
@@ -125,7 +127,9 @@ export function useMessaging(startRecipientId?: string | null) {
       const json = await res.json();
       return (json.data ?? []) as ConversationSummary[];
     },
-    refetchInterval: 15000,
+    enabled: pollEnabled && !!session?.user?.id,
+    refetchInterval: pollEnabled ? 15000 : false,
+    staleTime: 30_000,
   });
 
   const { data: messages = [] } = useQuery({

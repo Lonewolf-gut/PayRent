@@ -21,7 +21,7 @@ export function MessagesInbox({
     setContent,
     sendMutation,
     typers,
-  } = useMessaging(startRecipientId);
+  } = useMessaging({ startRecipientId });
 
   const title = activeConversation
     ? conversationTitle(activeConversation.participants, currentUserId)

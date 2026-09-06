@@ -31,6 +31,7 @@ export default function AdminDashboardPage() {
       }
       return json.data;
     },
+    staleTime: 30_000,
     refetchInterval: 30_000,
   });
 
@@ -44,6 +45,7 @@ export default function AdminDashboardPage() {
       }
       return json.data as { failedLogins?: number };
     },
+    staleTime: 15_000,
     refetchInterval: 15_000,
     refetchOnWindowFocus: true,
   });
@@ -71,7 +73,7 @@ export default function AdminDashboardPage() {
         <StatCard title="Transactions" value={String(data?.transactions ?? "—")} icon={CreditCard} />
         <StatCard
           title="Failed logins (total)"
-          value={String(failedLoginStats?.failedLogins ?? data?.failedLogins ?? 0)}
+          value={String(failedLoginStats?.failedLogins ?? 0)}
           icon={AlertTriangle}
           description="All recorded failed login attempts"
         />

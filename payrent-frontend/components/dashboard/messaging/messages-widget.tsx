@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, MessagesSquare } from "lucide-react";
+import { MessagesSquare } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { conversationTitle } from "@/lib/messaging/display";
 import { cn } from "@/lib/utils";
 import { ChatThread, useMessaging } from "./messaging-shared";
@@ -22,12 +21,14 @@ function getInitials(name: string) {
 
 function formatWidgetBadge(count: number) {
   if (count <= 0) return null;
-  return count > 3 ? "3" : String(count);
+  return count > 99 ? "99+" : String(count);
 }
 
 export function MessagesWidget() {
   const { data: session } = useSession();
   const [state, setState] = useState<WidgetState>("collapsed");
+  const isExpanded = state !== "collapsed";
+
   const {
     currentUserId,
     conversations,
@@ -39,9 +40,9 @@ export function MessagesWidget() {
     setContent,
     sendMutation,
     typers,
-  } = useMessaging();
+  } = useMessaging({ enabled: isExpanded });
 
-  const { data: profile } = useSettingsProfile(!!session?.user?.id);
+  const { data: profile } = useSettingsProfile(!!session?.user?.id && isExpanded);
 
   const { data: unread = 0 } = useQuery({
     queryKey: ["messages-unread-count"],
@@ -51,7 +52,8 @@ export function MessagesWidget() {
       return Number(json.data?.count ?? 0);
     },
     enabled: !!session?.user?.id,
-    refetchInterval: 15000,
+    refetchInterval: isExpanded ? 15000 : 60000,
+    staleTime: 30_000,
   });
 
   useEffect(() => {
@@ -68,10 +70,8 @@ export function MessagesWidget() {
     ? conversationTitle(activeConversation.participants, currentUserId)
     : "Messaging";
   const badge = formatWidgetBadge(unread);
-  const isExpanded = state !== "collapsed";
   const inChat = state === "chat" && !!activeId;
   const hasConversations = conversations.length > 0;
-  const showCompactLauncher = !isExpanded && !hasConversations;
 
   function openWidget() {
     setState("list");
@@ -81,6 +81,31 @@ export function MessagesWidget() {
     setActiveId(null);
     setState("collapsed");
   }
+
+  function toggleWidget() {
+    if (isExpanded) {
+      collapseWidget();
+      return;
+    }
+    openWidget();
+  }
+
+  const iconLauncher = (
+    <button
+      type="button"
+      onClick={toggleWidget}
+      aria-label={isExpanded ? "Minimize messaging" : "Open messaging"}
+      aria-expanded={isExpanded}
+      className="relative mb-3 flex size-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700 md:hidden"
+    >
+      <MessagesSquare className="size-6" strokeWidth={1.75} />
+      {badge ? (
+        <span className="absolute -right-0.5 -top-0.5 flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+          {badge}
+        </span>
+      ) : null}
+    </button>
+  );
 
   return (
     <div className="pointer-events-none fixed bottom-0 right-2 z-50 sm:right-4">
@@ -94,7 +119,12 @@ export function MessagesWidget() {
               : "pointer-events-none max-h-0 translate-y-full opacity-0"
           )}
         >
-          <div className="flex items-center gap-2 border-b px-3 py-2.5">
+          <button
+            type="button"
+            onClick={collapseWidget}
+            className="flex w-full items-center gap-2 border-b px-3 py-2.5 text-left transition hover:bg-muted/40"
+            aria-label="Minimize messaging"
+          >
             <Avatar className="size-8">
               {(profile?.image ?? session.user.image) ? (
                 <AvatarImage
@@ -107,22 +137,12 @@ export function MessagesWidget() {
             <p className="min-w-0 flex-1 truncate text-sm font-semibold">
               {inChat ? title : "Messaging"}
             </p>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Minimize messaging"
-              onClick={() => {
-                if (inChat) {
-                  setActiveId(null);
-                  setState("list");
-                  return;
-                }
-                collapseWidget();
-              }}
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </div>
+            {badge ? (
+              <span className="flex min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                {badge}
+              </span>
+            ) : null}
+          </button>
 
           <div
             className={cn(
@@ -175,46 +195,49 @@ export function MessagesWidget() {
           </div>
         </div>
 
-        {!isExpanded && showCompactLauncher ? (
-          <button
-            type="button"
-            onClick={openWidget}
-            aria-label="Open messaging"
-            className="relative mb-3 flex size-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700"
-          >
-            <MessagesSquare className="size-6" strokeWidth={1.75} />
-            {badge ? (
-              <span className="absolute -right-0.5 -top-0.5 flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
-                {badge}
-              </span>
-            ) : null}
-          </button>
-        ) : !isExpanded ? (
-          <button
-            type="button"
-            onClick={openWidget}
-            className="flex w-[min(100vw-1rem,360px)] items-center gap-3 rounded-t-xl border border-b-0 bg-card px-3 py-2.5 shadow-xl transition hover:bg-muted/40"
-          >
-            <div className="relative">
-              <Avatar className="size-9">
-                {(profile?.image ?? session.user.image) ? (
-                  <AvatarImage
-                    src={profile?.image ?? session.user.image ?? undefined}
-                    alt={displayName}
-                  />
+        {!isExpanded ? (
+          <>
+            {iconLauncher}
+            {!hasConversations ? (
+              <button
+                type="button"
+                onClick={openWidget}
+                aria-label="Open messaging"
+                className="relative mb-3 hidden size-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700 md:flex"
+              >
+                <MessagesSquare className="size-6" strokeWidth={1.75} />
+                {badge ? (
+                  <span className="absolute -right-0.5 -top-0.5 flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                    {badge}
+                  </span>
                 ) : null}
-                <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
-              </Avatar>
-              <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card bg-emerald-500" />
-            </div>
-            <span className="flex-1 text-left text-sm font-medium">Messaging</span>
-            {badge ? (
-              <span className="flex min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                {badge}
-              </span>
-            ) : null}
-            <ChevronUp className="h-4 w-4 text-muted-foreground" />
-          </button>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={toggleWidget}
+                aria-label="Open messaging"
+                aria-expanded={false}
+                className="mb-3 hidden w-[min(100vw-1rem,360px)] items-center gap-3 rounded-t-xl border border-b-0 bg-card px-3 py-2.5 shadow-xl transition hover:bg-muted/40 md:flex"
+              >
+                <Avatar className="size-9">
+                  {(profile?.image ?? session.user.image) ? (
+                    <AvatarImage
+                      src={profile?.image ?? session.user.image ?? undefined}
+                      alt={displayName}
+                    />
+                  ) : null}
+                  <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
+                </Avatar>
+                <span className="flex-1 text-left text-sm font-medium">Messaging</span>
+                {badge ? (
+                  <span className="flex min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                    {badge}
+                  </span>
+                ) : null}
+              </button>
+            )}
+          </>
         ) : null}
       </div>
     </div>
