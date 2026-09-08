@@ -2,6 +2,10 @@ import { Prisma, type WalletType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { walletService } from "@/lib/services/wallet.service";
 import { settlementAccountService } from "@/lib/services/payment/settlement-account.service";
+import {
+  payMerchantForFinancing,
+  type MerchantPayoutTarget,
+} from "@/lib/services/payment/financing-merchant-payout.service";
 import { AppError } from "@/lib/errors";
 
 export type TreasuryFlowType =
@@ -160,6 +164,104 @@ export class TreasuryService {
         `Agent commission for financing: ${params.propertyName}`
       );
     }
+  }
+
+  async disburseFinancingWithMerchantPayout(params: {
+    financingRequestId: string;
+    reference: string;
+    payoutReference: string;
+    lenderUserId: string;
+    merchantUserId: string;
+    buyerUserId: string;
+    propertyName: string;
+    principalAmount: number;
+    merchantNet: number;
+    agentUserId?: string | null;
+    agentCommission?: number;
+    merchantPayoutAccount: MerchantPayoutTarget;
+  }) {
+    if (params.principalAmount <= 0) {
+      throw new AppError("Financing amount must be positive", 400);
+    }
+
+    const lenderBalance = await walletService.getBalance(params.lenderUserId, "LENDER");
+    if (Number(lenderBalance.balance) < params.principalAmount) {
+      throw new AppError(
+        "Insufficient lender wallet balance. Top up your wallet before financing this listing.",
+        400,
+        "INSUFFICIENT_FUNDS"
+      );
+    }
+
+    await this.recordTreasuryMovement({
+      platformReference: params.reference,
+      amount: params.principalAmount,
+      flow: "FINANCING_DISBURSEMENT",
+      beneficiaryUserId: params.merchantUserId,
+      beneficiaryWalletType: "MERCHANT",
+      sourceUserId: params.lenderUserId,
+      sourceWalletType: "LENDER",
+      financingRequestId: params.financingRequestId,
+      buyerUserId: params.buyerUserId,
+      onBehalfOfCustomer: true,
+      propertyName: params.propertyName,
+    });
+
+    await walletService.transfer(
+      params.lenderUserId,
+      "LENDER",
+      params.merchantUserId,
+      "MERCHANT",
+      params.principalAmount,
+      `Financing disbursement for ${params.propertyName}`
+    );
+
+    if (params.agentUserId && (params.agentCommission ?? 0) > 0) {
+      const commissionReference = `${params.reference}-AGT`;
+      await this.recordTreasuryMovement({
+        platformReference: commissionReference,
+        amount: params.agentCommission!,
+        flow: "AGENT_COMMISSION",
+        beneficiaryUserId: params.agentUserId,
+        beneficiaryWalletType: "MARKETER",
+        sourceUserId: params.merchantUserId,
+        sourceWalletType: "MERCHANT",
+        financingRequestId: params.financingRequestId,
+        buyerUserId: params.buyerUserId,
+        onBehalfOfCustomer: true,
+        propertyName: params.propertyName,
+      });
+
+      await walletService.transfer(
+        params.merchantUserId,
+        "MERCHANT",
+        params.agentUserId,
+        "MARKETER",
+        params.agentCommission!,
+        `Agent commission for financing: ${params.propertyName}`
+      );
+    }
+
+    const payoutResult = await payMerchantForFinancing({
+      amount: params.merchantNet,
+      account: params.merchantPayoutAccount,
+      reference: params.payoutReference,
+      description: `Pay-for-me financing payout for ${params.propertyName}`,
+    });
+
+    if (payoutResult.status === "FAILED") {
+      throw new AppError("Merchant bank payout failed. Please try again or contact support.", 502);
+    }
+
+    await walletService.withdraw(
+      params.merchantUserId,
+      "MERCHANT",
+      params.merchantNet,
+      `Paid to merchant bank for ${params.propertyName}`,
+      params.payoutReference
+    );
+
+    return payoutResult;
   }
 }
 

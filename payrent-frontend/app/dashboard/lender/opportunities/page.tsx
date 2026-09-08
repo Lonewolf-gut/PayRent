@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,16 +12,21 @@ import {
 } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { normalizeLenderQueueResponse } from "@/lib/utils/lender-queue-response";
+import {
+  FinancingDisbursementDialog,
+  type FinancingDisbursementRequest,
+  type MerchantPayoutAccount,
+} from "@/components/lender/financing-disbursement-dialog";
 
-type FinancingRequest = {
-  id: string;
+type FinancingRequest = FinancingDisbursementRequest & {
   status: string;
-  requestedAmount: number;
-  approvedAmount?: number | null;
-  offeredInterestRate?: number | null;
-  durationMonths: number;
   buyerAcceptedAt?: string | null;
-  property?: { name: string; location: string; monthlyRent: number; status?: string };
+  property?: {
+    name: string;
+    location: string;
+    monthlyRent: number;
+    status?: string;
+  };
   tenant?: { fullName: string; monthlyIncome: number; user?: { email: string } };
   mandate?: { status: string } | null;
 };
@@ -55,6 +60,7 @@ function mergeAcceptedOffers(
 
 export default function LenderOpportunitiesPage() {
   const queryClient = useQueryClient();
+  const [disburseTarget, setDisburseTarget] = useState<FinancingRequest | null>(null);
 
   const { data: queueInsight, isLoading } = useQuery({
     queryKey: ["financing-pending"],
@@ -117,7 +123,6 @@ export default function LenderOpportunitiesPage() {
       toast.success("Request rejected");
       invalidateQueue();
     },
-    onError: (e: Error) => toast.error(e.message),
   });
 
   const disburseMutation = useMutation({
@@ -131,7 +136,8 @@ export default function LenderOpportunitiesPage() {
       if (!json.success) throw new Error(json.message ?? json.error?.message);
     },
     onSuccess: () => {
-      toast.success("Financing disbursed to merchant");
+      toast.success("Payment sent to merchant bank account");
+      setDisburseTarget(null);
       invalidateQueue();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -147,8 +153,9 @@ export default function LenderOpportunitiesPage() {
       <div>
         <h1 className="text-2xl font-bold">Listings awaiting financing</h1>
         <p className="text-muted-foreground">
-          Finance listings at the platform category rate, or reject requests that do not fit your
-          portfolio. After mandate activation, disburse funds from your wallet.
+          Finance listings at the platform category rate. When the mandate is active, pay the
+          merchant directly through {queueInsight?.payoutProviderLabel ?? "the payment provider"} —
+          their verified bank or MoMo details are filled in automatically.
         </p>
       </div>
 
@@ -159,7 +166,7 @@ export default function LenderOpportunitiesPage() {
           {acceptedOffers.length > 0 ? (
             <QueueSection
               title="Ready to finance"
-              description="Mandate is in progress or active. Top up your lender wallet if needed, then click Finance listing to pay the merchant."
+              description="Mandate is active. Review the merchant payout account, then confirm payment from your lender wallet."
             >
               <FinancingQueueAccordion
                 items={acceptedOffers}
@@ -178,8 +185,12 @@ export default function LenderOpportunitiesPage() {
                 renderActions={(req) => (
                   <Button
                     className="bg-emerald-600 hover:bg-emerald-700"
-                    disabled={disburseMutation.isPending}
-                    onClick={() => disburseMutation.mutate(req.id)}
+                    disabled={
+                      disburseMutation.isPending ||
+                      !req.merchantPayoutAccount ||
+                      req.mandate?.status !== "ACTIVE"
+                    }
+                    onClick={() => setDisburseTarget(req)}
                   >
                     Finance listing
                   </Button>
@@ -191,7 +202,7 @@ export default function LenderOpportunitiesPage() {
           {awaitingBuyer.length > 0 ? (
             <QueueSection
               title="Awaiting mandate setup"
-              description="You approved these requests. The customer must complete repayment mandate setup before you can finance."
+              description="You approved these requests. The repayment mandate must become active before you can pay the merchant."
             >
               <FinancingQueueAccordion
                 items={awaitingBuyer}
@@ -205,7 +216,7 @@ export default function LenderOpportunitiesPage() {
           {requests.length > 0 ? (
             <QueueSection
               title="New financing requests"
-              description="Review verified listings and approve financing at the platform category interest rate."
+              description="Review verified listings from different merchants. Each shows the merchant payout account that will receive funds."
             >
               <Accordion
                 type="single"
@@ -225,13 +236,22 @@ export default function LenderOpportunitiesPage() {
                         <div className="space-y-4">
                           <RequestDetails req={req} />
 
+                          {!req.merchantPayoutAccount ? (
+                            <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                              This merchant has not added a verified payout account yet. They must
+                              complete that before you can finance this listing.
+                            </p>
+                          ) : null}
+
                           <div className="flex flex-wrap justify-end gap-2 rounded-xl border border-border p-4">
                             <Button
                               className="bg-emerald-600 hover:bg-emerald-700"
-                              disabled={financeMutation.isPending}
+                              disabled={
+                                financeMutation.isPending || !req.merchantPayoutAccount
+                              }
                               onClick={() => financeMutation.mutate(req.id)}
                             >
-                              Finance
+                              Approve & start mandate
                             </Button>
                             <Button
                               variant="outline"
@@ -285,6 +305,18 @@ export default function LenderOpportunitiesPage() {
           ) : null}
         </>
       )}
+
+      <FinancingDisbursementDialog
+        request={disburseTarget}
+        open={Boolean(disburseTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDisburseTarget(null);
+        }}
+        onConfirm={() => {
+          if (disburseTarget) disburseMutation.mutate(disburseTarget.id);
+        }}
+        isPending={disburseMutation.isPending}
+      />
     </div>
   );
 }
@@ -319,7 +351,11 @@ function FinancingQueueAccordion({
   renderActions?: (req: FinancingRequest) => React.ReactNode;
 }) {
   return (
-    <Accordion type="single" collapsible className="divide-y divide-border rounded-xl border border-border bg-card">
+    <Accordion
+      type="single"
+      collapsible
+      className="divide-y divide-border rounded-xl border border-border bg-card"
+    >
       {items.map((req) => {
         const propertyName = cleanPropertyName(req.property?.name);
         const amount = Number(req.approvedAmount ?? req.requestedAmount);
@@ -337,7 +373,9 @@ function FinancingQueueAccordion({
                       </p>
                       {renderBadge(req)}
                     </div>
-                    <p className="truncate text-sm text-muted-foreground">{req.property?.location}</p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {req.property?.location}
+                    </p>
                     <p className="mt-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
                       GHS {amount.toLocaleString()}
                       {rate != null ? ` · ${rate}%` : ""} · {req.durationMonths} months
@@ -388,6 +426,24 @@ function ListingAccordionSummary({
   );
 }
 
+function MerchantPayoutDetails({ payout }: { payout: MerchantPayoutAccount | null | undefined }) {
+  if (!payout) {
+    return (
+      <Detail label="Merchant payout" value="No verified account on file" />
+    );
+  }
+
+  return (
+    <>
+      <Detail
+        label="Merchant payout"
+        value={`${payout.bankName} · ${payout.accountNumberMasked}`}
+      />
+      <Detail label="Account name" value={payout.accountName} />
+    </>
+  );
+}
+
 function RequestDetails({ req }: { req: FinancingRequest }) {
   return (
     <dl className="grid gap-3 rounded-xl border border-border bg-muted/10 p-4 text-sm sm:grid-cols-2">
@@ -402,16 +458,8 @@ function RequestDetails({ req }: { req: FinancingRequest }) {
         label="Rent"
         value={`GHS ${Number(req.property?.monthlyRent ?? 0).toLocaleString()}/mo`}
       />
-      {req.buyerAcceptedAt ? (
-        <Detail
-          label="Accepted on"
-          value={new Date(req.buyerAcceptedAt).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
-        />
-      ) : null}
+      {req.merchantName ? <Detail label="Merchant" value={req.merchantName} /> : null}
+      <MerchantPayoutDetails payout={req.merchantPayoutAccount} />
       {req.mandate?.status ? (
         <Detail
           label="Mandate status"

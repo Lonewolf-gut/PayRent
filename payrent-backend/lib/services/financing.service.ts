@@ -23,6 +23,12 @@ import {
 } from "@/lib/services/eligibility.service";
 import { repaymentService } from "@/lib/services/repayment.service";
 import { isDemoMode } from "@/lib/config/demo";
+import { treasuryService } from "@/lib/services/treasury.service";
+import {
+  requireMerchantDefaultPayoutAccount,
+  serializeMerchantPayoutAccountForDisplay,
+} from "@/lib/utils/merchant-payout-account";
+import { getFinancingPayoutProviderLabel } from "@/lib/services/payment/financing-merchant-payout.service";
 
 export class FinancingService {
   private async assertEligibility(tenantId: string) {
@@ -884,7 +890,25 @@ export class FinancingService {
             user: { select: { email: true, image: true } },
           },
         },
-        property: { include: { images: { take: 1 } } },
+        property: {
+          include: {
+            images: { take: 1 },
+            landlord: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    bankAccounts: {
+                      where: { isVerified: true },
+                      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+                      take: 1,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
         mandate: true,
         application: true,
       },
@@ -908,10 +932,66 @@ export class FinancingService {
         user: { select: { email: true, image: true } },
       },
     },
-    property: { include: { images: { take: 1 } } },
+    property: {
+      include: {
+        images: { take: 1 },
+        landlord: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                bankAccounts: {
+                  where: { isVerified: true },
+                  orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     mandate: true,
     feeDisclosure: true,
   } as const;
+
+  private enrichLenderQueueRequest<T extends Record<string, unknown>>(request: T) {
+    const property = request.property as
+      | {
+          landlord?: {
+            fullName?: string | null;
+            user?: {
+              id: string;
+              bankAccounts?: Array<{
+                id: string;
+                accountType: string;
+                bankName: string;
+                bankCode: string | null;
+                accountName: string;
+                accountNumber: string;
+                accountNumberMasked: string | null;
+                isDefault: boolean;
+              }>;
+            };
+          };
+        }
+      | undefined;
+
+    const payoutAccount = property?.landlord?.user?.bankAccounts?.[0] ?? null;
+
+    return {
+      ...request,
+      merchantName: property?.landlord?.fullName ?? null,
+      merchantPayoutAccount: payoutAccount
+        ? serializeMerchantPayoutAccountForDisplay(payoutAccount)
+        : null,
+      payoutProviderLabel: getFinancingPayoutProviderLabel(),
+    };
+  }
+
+  private mapLenderQueueRequests<T extends Record<string, unknown>>(requests: T[]) {
+    return requests.map((request) => this.enrichLenderQueueRequest(request));
+  }
 
   private async fetchAwaitingBuyerAcceptance(lenderUserId: string) {
     return prisma.financingRequest.findMany({
@@ -942,12 +1022,11 @@ export class FinancingService {
     return prisma.financingRequest.findMany({
       where: {
         status: { in: ["APPROVED", "MANDATE_PENDING"] },
-        buyerAcceptedAt: { not: null },
         mandate: { status: "ACTIVE" },
         feeDisclosure: { lenderUserId },
       },
       include: this.lenderOfferInclude,
-      orderBy: { buyerAcceptedAt: "desc" },
+      orderBy: { approvedAt: "desc" },
     });
   }
 
@@ -998,13 +1077,14 @@ export class FinancingService {
     }
 
     return {
-      pending,
-      awaitingBuyerAcceptance,
-      awaitingMandate,
-      readyToFinance,
+      pending: this.mapLenderQueueRequests(pending),
+      awaitingBuyerAcceptance: this.mapLenderQueueRequests(awaitingBuyerAcceptance),
+      awaitingMandate: this.mapLenderQueueRequests(awaitingMandate),
+      readyToFinance: this.mapLenderQueueRequests(readyToFinance),
       waitingOnMerchant,
       waitingOnAdminDocs,
       waitingOnAdminEligibility,
+      payoutProviderLabel: getFinancingPayoutProviderLabel(),
     };
   }
 
@@ -1364,9 +1444,11 @@ export class FinancingService {
 
     if (!request) throw new AppError("Financing request not found", 404);
     if (request.status === "DISBURSED") return request;
-    if (!request.buyerAcceptedAt) {
-      throw new AppError("Customer must accept lender terms before disbursement", 400);
+
+    if (!request.mandate || request.mandate.status !== "ACTIVE") {
+      throw new AppError("An active repayment mandate is required before disbursement", 400);
     }
+
     if (!request.approvedAmount || request.offeredInterestRate == null) {
       throw new AppError("Financing offer not found or incomplete", 404);
     }
@@ -1383,13 +1465,8 @@ export class FinancingService {
       throw new AppError("Lender not found for this financing offer", 404);
     }
 
-    const lenderBalance = await walletService.getBalance(lenderUserId, "LENDER");
-    if (Number(lenderBalance.balance) < amount) {
-      throw new AppError(
-        "Insufficient lender wallet balance. Top up your wallet before financing this listing.",
-        400
-      );
-    }
+    const landlordUserId = request.property.landlord.userId;
+    const merchantPayoutAccount = await requireMerchantDefaultPayoutAccount(landlordUserId);
 
     const rules = await getBusinessRules();
     const commissionAgent = await agentCommissionService.resolveCommissionAgent(
@@ -1397,29 +1474,31 @@ export class FinancingService {
       request.referredAgentProfileId
     );
     const agentCommission = commissionAgent ? calculateAgentCommission(amount) : 0;
-    const landlordUserId = request.property.landlord.userId;
-    const landlordNet = amount - agentCommission;
+    const merchantNet = amount - agentCommission;
     const reference = `FIN-${financingRequestId.slice(0, 8).toUpperCase()}`;
+    const payoutReference = `${reference}-PAY`;
 
-    await walletService.transfer(
+    await treasuryService.disburseFinancingWithMerchantPayout({
+      financingRequestId: request.id,
+      reference,
+      payoutReference,
       lenderUserId,
-      "LENDER",
-      landlordUserId,
-      "MERCHANT",
-      landlordNet,
-      `Financing disbursement for ${request.property.name}`
-    );
-
-    if (commissionAgent && agentCommission > 0) {
-      await walletService.transfer(
-        landlordUserId,
-        "MERCHANT",
-        commissionAgent.user.id,
-        "MARKETER",
-        agentCommission,
-        `Agent commission for financing: ${request.property.name}`
-      );
-    }
+      merchantUserId: landlordUserId,
+      buyerUserId: request.tenant.userId,
+      propertyName: request.property.name,
+      principalAmount: amount,
+      merchantNet,
+      agentUserId: commissionAgent?.user.id ?? null,
+      agentCommission,
+      merchantPayoutAccount: {
+        id: merchantPayoutAccount.id,
+        accountType: merchantPayoutAccount.accountType,
+        bankName: merchantPayoutAccount.bankName,
+        bankCode: merchantPayoutAccount.bankCode,
+        accountNumber: merchantPayoutAccount.accountNumber,
+        accountName: merchantPayoutAccount.accountName,
+      },
+    });
 
     const result = await runTransaction(async (db) => {
       const existingInvestment = await db.investment.findUnique({
@@ -1442,6 +1521,7 @@ export class FinancingService {
         data: {
           status: "DISBURSED",
           disbursedAt: new Date(),
+          buyerAcceptedAt: request.buyerAcceptedAt ?? new Date(),
         },
       });
     });
@@ -1463,7 +1543,7 @@ export class FinancingService {
       await notificationService.create({
         userId: commissionAgent.user.id,
         title: "Financing commission earned",
-        body: `You earned GHS ${agentCommission.toLocaleString()} commission on financing for "${request.property.name}".`,
+        body: `You earned GHS ${agentCommission.toLocaleString()} commission on financing for "${request.property.name}". Withdraw from your wallet when ready.`,
         metadata: {
           propertyId: request.propertyId,
           financingRequestId: request.id,
@@ -1474,36 +1554,46 @@ export class FinancingService {
 
     await settlementService.createFromFinancing(request.id, lenderUserId);
 
+    const payoutMask =
+      merchantPayoutAccount.accountNumberMasked ??
+      serializeMerchantPayoutAccountForDisplay(merchantPayoutAccount).accountNumberMasked;
+
     await notificationService.create({
       userId: landlordUserId,
-      title: "Financing disbursed",
-      body: `Pay-for-me financing for ${request.property.name} has been disbursed to your wallet. Confirm delivery when the customer receives the product.`,
-      metadata: { financingRequestId: request.id },
+      title: "Financing paid to your account",
+      body: `GHS ${merchantNet.toLocaleString()} for ${request.property.name} has been sent to your ${merchantPayoutAccount.accountType === "MOMO" ? "MoMo" : "bank"} account (${payoutMask}). Confirm delivery when the customer receives the product.`,
+      metadata: { financingRequestId: request.id, payoutReference },
+      sendEmail: true,
     });
 
     await notificationService.create({
       userId: lenderUserId,
       title: "Financing disbursed",
-      body: `Funds for ${request.property.name} have been disbursed to the merchant after mandate activation.`,
-      metadata: { financingRequestId: request.id },
+      body: `GHS ${amount.toLocaleString()} for ${request.property.name} has been paid to the merchant's bank account. Repayments will flow through the active mandate.`,
+      metadata: { financingRequestId: request.id, payoutReference },
     });
 
     await notificationService.create({
       userId: request.tenant.userId,
-      title: "Financing disbursed",
-      body: `Your financing for ${request.property.name} has been disbursed to the merchant.`,
+      title: "Financing active",
+      body: `Your Pay-for-me financing for ${request.property.name} is active — GHS ${amount.toLocaleString()} at ${interestRate}% for ${request.durationMonths} months. The merchant has been paid.`,
       metadata: { financingRequestId: request.id },
+      sendEmail: true,
     });
 
     await auditService.log({
-      userId: request.tenant.userId,
+      userId: lenderUserId,
       action: "FINANCING_DISBURSED",
       entity: "FinancingRequest",
       entityId: request.id,
-      metadata: { amount, interestRate },
+      metadata: { amount, interestRate, payoutReference, merchantPayoutAccountId: merchantPayoutAccount.id },
     });
 
-    return result;
+    return {
+      ...result,
+      payoutReference,
+      merchantPayoutAccount: serializeMerchantPayoutAccountForDisplay(merchantPayoutAccount),
+    };
   }
 
   async disburseByLender(lenderUserId: string, financingRequestId: string) {
