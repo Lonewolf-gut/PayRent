@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,18 +46,6 @@ function cleanPropertyName(name?: string) {
   return name?.replace(/^\[Demo\]\s*/i, "") ?? "Listing";
 }
 
-function mergeAcceptedOffers(
-  readyToFinance: FinancingRequest[],
-  awaitingMandate: FinancingRequest[]
-) {
-  const seen = new Set<string>();
-  return [...readyToFinance, ...awaitingMandate].filter((request) => {
-    if (seen.has(request.id)) return false;
-    seen.add(request.id);
-    return true;
-  });
-}
-
 export default function LenderOpportunitiesPage() {
   const queryClient = useQueryClient();
   const [disburseTarget, setDisburseTarget] = useState<FinancingRequest | null>(null);
@@ -72,16 +60,18 @@ export default function LenderOpportunitiesPage() {
       }
       return normalizeLenderQueueResponse(json.data);
     },
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const waiting =
+        (data?.awaitingMandate?.length ?? 0) + (data?.awaitingBuyerAcceptance?.length ?? 0);
+      return waiting > 0 ? 8000 : false;
+    },
   });
 
   const requests = (queueInsight?.pending ?? []) as FinancingRequest[];
   const awaitingBuyer = (queueInsight?.awaitingBuyerAcceptance ?? []) as FinancingRequest[];
   const awaitingMandate = (queueInsight?.awaitingMandate ?? []) as FinancingRequest[];
   const readyToFinance = (queueInsight?.readyToFinance ?? []) as FinancingRequest[];
-  const acceptedOffers = useMemo(
-    () => mergeAcceptedOffers(readyToFinance, awaitingMandate),
-    [readyToFinance, awaitingMandate]
-  );
 
   const invalidateQueue = () => {
     queryClient.invalidateQueries({ queryKey: ["financing-pending"] });
@@ -103,7 +93,7 @@ export default function LenderOpportunitiesPage() {
       if (!json.success) throw new Error(json.message ?? json.error?.message);
     },
     onSuccess: () => {
-      toast.success("Financing approved — mandate processing started");
+      toast.success("Financing approved");
       invalidateQueue();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -143,10 +133,33 @@ export default function LenderOpportunitiesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const syncMandateMutation = useMutation({
+    mutationFn: async (financingRequestId: string) => {
+      const res = await fetch("/api/financing/sync-mandate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ financingRequestId }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message ?? json.error?.message);
+      return json.data as { mandate?: { status?: string } };
+    },
+    onSuccess: (data) => {
+      if (data?.mandate?.status === "ACTIVE") {
+        toast.success("Mandate is active — you can finance this listing now");
+      } else {
+        toast.success("Mandate submitted — checking bank status…");
+      }
+      invalidateQueue();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const hasAnyQueueItems =
     requests.length > 0 ||
     awaitingBuyer.length > 0 ||
-    acceptedOffers.length > 0;
+    awaitingMandate.length > 0 ||
+    readyToFinance.length > 0;
 
   return (
     <div className="space-y-8">
@@ -163,37 +176,64 @@ export default function LenderOpportunitiesPage() {
         <p className="text-muted-foreground">Loading...</p>
       ) : (
         <>
-          {acceptedOffers.length > 0 ? (
+          {readyToFinance.length > 0 ? (
             <QueueSection
               title="Ready to finance"
               description="Mandate is active. Review the merchant payout account, then confirm payment from your lender wallet."
             >
               <FinancingQueueAccordion
-                items={acceptedOffers}
-                renderBadge={(req) =>
-                  req.mandate?.status === "ACTIVE" ? (
-                    <Badge className="bg-emerald-700 hover:bg-emerald-700">
-                      Mandate active
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">
-                      Mandate{" "}
-                      {req.mandate?.status?.toLowerCase().replace(/_/g, " ") ?? "pending"}
-                    </Badge>
-                  )
-                }
+                items={readyToFinance}
+                renderBadge={() => (
+                  <Badge className="bg-emerald-700 hover:bg-emerald-700">Mandate active</Badge>
+                )}
                 renderActions={(req) => (
                   <Button
                     className="bg-emerald-600 hover:bg-emerald-700"
-                    disabled={
-                      disburseMutation.isPending ||
-                      !req.merchantPayoutAccount ||
-                      req.mandate?.status !== "ACTIVE"
-                    }
+                    disabled={disburseMutation.isPending || !req.merchantPayoutAccount}
                     onClick={() => setDisburseTarget(req)}
                   >
                     Finance listing
                   </Button>
+                )}
+              />
+            </QueueSection>
+          ) : null}
+
+          {awaitingMandate.length > 0 ? (
+            <QueueSection
+              title="Awaiting mandate activation"
+              description="You approved these listings. The repayment mandate must become active before you can pay the merchant. This page refreshes automatically."
+            >
+              <FinancingQueueAccordion
+                items={awaitingMandate}
+                renderBadge={(req) => (
+                  <Badge variant="secondary">
+                    Mandate {req.mandate?.status?.toLowerCase().replace(/_/g, " ") ?? "pending"}
+                  </Badge>
+                )}
+                renderActions={(req) => (
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      variant="outline"
+                      disabled={
+                        syncMandateMutation.isPending &&
+                        syncMandateMutation.variables === req.id
+                      }
+                      onClick={() => syncMandateMutation.mutate(req.id)}
+                    >
+                      {syncMandateMutation.isPending &&
+                      syncMandateMutation.variables === req.id
+                        ? "Activating…"
+                        : "Activate mandate"}
+                    </Button>
+                    <Button
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                      disabled
+                      title="Available once the mandate is active"
+                    >
+                      Finance listing
+                    </Button>
+                  </div>
                 )}
               />
             </QueueSection>
@@ -247,11 +287,16 @@ export default function LenderOpportunitiesPage() {
                             <Button
                               className="bg-emerald-600 hover:bg-emerald-700"
                               disabled={
-                                financeMutation.isPending || !req.merchantPayoutAccount
+                                !req.merchantPayoutAccount ||
+                                (financeMutation.isPending &&
+                                  financeMutation.variables === req.id)
                               }
                               onClick={() => financeMutation.mutate(req.id)}
                             >
-                              Approve & start mandate
+                              {financeMutation.isPending &&
+                              financeMutation.variables === req.id
+                                ? "Approving…"
+                                : "Approve"}
                             </Button>
                             <Button
                               variant="outline"

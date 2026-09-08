@@ -1264,8 +1264,8 @@ export class FinancingService {
       throw new AppError("Financing offer not found or incomplete", 404);
     }
 
-    if (request.buyerAcceptedAt) {
-      return { request, mandateSubmitted: Boolean(request.mandate) };
+    if (request.mandate?.status === "ACTIVE") {
+      return { request, mandateSubmitted: true };
     }
 
     const repaymentPreference = request.repaymentPreference as RepaymentPreference | null;
@@ -1309,9 +1309,11 @@ export class FinancingService {
         where: { id: request.id },
         data: { status: "MANDATE_PENDING" },
       });
-    } else if (request.mandateId) {
+    } else if (request.mandateId && request.mandate?.status === "DRAFT") {
       await mandateService.submitDraftToBank(request.mandateId, tenant.id, tenantUserId);
-    } else {
+    } else if (request.mandateId && request.mandate?.status === "BANK_PROCESSING") {
+      await mandateService.syncBankStatus(request.mandateId);
+    } else if (!request.mandateId) {
       await mandateService.create(tenant.id, tenantUserId, {
         financingRequestId: request.id,
         bankAccountId,
@@ -1594,6 +1596,46 @@ export class FinancingService {
       payoutReference,
       merchantPayoutAccount: serializeMerchantPayoutAccountForDisplay(merchantPayoutAccount),
     };
+  }
+
+  async syncMandateForLender(lenderUserId: string, financingRequestId: string) {
+    const request = await prisma.financingRequest.findFirst({
+      where: {
+        id: financingRequestId,
+        status: { in: ["APPROVED", "MANDATE_PENDING"] },
+        feeDisclosure: { lenderUserId },
+      },
+      include: { mandate: true, tenant: true },
+    });
+
+    if (!request?.tenant) {
+      throw new AppError("Financing request not found or not yours", 404);
+    }
+
+    if (!request.mandate) {
+      const advanced = await this.advanceApprovedRequestToMandate(
+        request.tenant.userId,
+        financingRequestId
+      );
+      return advanced.request;
+    }
+
+    const { mandateService } = await import("@/lib/services/mandate.service");
+
+    if (request.mandate.status === "DRAFT") {
+      await mandateService.submitDraftToBank(
+        request.mandate.id,
+        request.tenantId,
+        request.tenant.userId
+      );
+    } else if (request.mandate.status === "BANK_PROCESSING") {
+      await mandateService.syncBankStatus(request.mandate.id);
+    }
+
+    return prisma.financingRequest.findUnique({
+      where: { id: financingRequestId },
+      include: { mandate: true },
+    });
   }
 
   async disburseByLender(lenderUserId: string, financingRequestId: string) {
