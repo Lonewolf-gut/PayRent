@@ -30,6 +30,13 @@ import {
 } from "@/lib/utils/merchant-payout-account";
 import { getFinancingPayoutProviderLabel } from "@/lib/services/payment/financing-merchant-payout.service";
 
+/** Mandate has been submitted to the partner bank — lender may finance the listing. */
+const MANDATE_SENT_TO_BANK_STATUSES = [
+  "BANK_PROCESSING",
+  "ACTIVE",
+  "PENDING_MANUAL_RESOLUTION",
+] as const;
+
 export class FinancingService {
   private async assertEligibility(tenantId: string) {
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
@@ -1009,12 +1016,20 @@ export class FinancingService {
     return prisma.financingRequest.findMany({
       where: {
         status: { in: ["APPROVED", "MANDATE_PENDING"] },
-        buyerAcceptedAt: { not: null },
         feeDisclosure: { lenderUserId },
-        OR: [{ mandate: null }, { mandate: { status: { not: "ACTIVE" } } }],
+        OR: [
+          { mandate: null },
+          {
+            mandate: {
+              status: {
+                in: ["DRAFT", "PENDING_SUBMISSION", "ADMIN_REVIEW", "SUBMITTED"],
+              },
+            },
+          },
+        ],
       },
       include: this.lenderOfferInclude,
-      orderBy: { buyerAcceptedAt: "desc" },
+      orderBy: { approvedAt: "desc" },
     });
   }
 
@@ -1022,8 +1037,8 @@ export class FinancingService {
     return prisma.financingRequest.findMany({
       where: {
         status: { in: ["APPROVED", "MANDATE_PENDING"] },
-        mandate: { status: "ACTIVE" },
         feeDisclosure: { lenderUserId },
+        mandate: { status: { in: [...MANDATE_SENT_TO_BANK_STATUSES] } },
       },
       include: this.lenderOfferInclude,
       orderBy: { approvedAt: "desc" },
@@ -1216,12 +1231,13 @@ export class FinancingService {
         title: "Financing approved — mandate sent to bank",
         body: `A lender approved GHS ${input.amount.toLocaleString()} at ${interestRate}% for ${request.durationMonths} months on ${request.property.name}. Your repayment mandate has been sent to the bank.`,
         metadata: { financingRequestId: request.id },
+        sendEmail: true,
       });
 
       await notificationService.create({
         userId: lender.user.id,
-        title: "Financing approved",
-        body: `You approved financing for ${request.property.name} at the platform category rate (${interestRate}%). Awaiting mandate activation before disbursement.`,
+        title: "Ready to finance",
+        body: `You approved financing for ${request.property.name} at ${interestRate}%. The mandate has been sent to the bank — you can finance this listing now.`,
         metadata: { financingRequestId: request.id },
       });
     } else {
@@ -1264,7 +1280,10 @@ export class FinancingService {
       throw new AppError("Financing offer not found or incomplete", 404);
     }
 
-    if (request.mandate?.status === "ACTIVE") {
+    if (
+      request.mandate &&
+      (MANDATE_SENT_TO_BANK_STATUSES as readonly string[]).includes(request.mandate.status)
+    ) {
       return { request, mandateSubmitted: true };
     }
 
@@ -1447,8 +1466,14 @@ export class FinancingService {
     if (!request) throw new AppError("Financing request not found", 404);
     if (request.status === "DISBURSED") return request;
 
-    if (!request.mandate || request.mandate.status !== "ACTIVE") {
-      throw new AppError("An active repayment mandate is required before disbursement", 400);
+    if (
+      !request.mandate ||
+      !(MANDATE_SENT_TO_BANK_STATUSES as readonly string[]).includes(request.mandate.status)
+    ) {
+      throw new AppError(
+        "The repayment mandate must be sent to the bank before you can finance this listing.",
+        400
+      );
     }
 
     if (!request.approvedAmount || request.offeredInterestRate == null) {

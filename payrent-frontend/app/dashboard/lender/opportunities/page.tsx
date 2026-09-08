@@ -31,6 +31,8 @@ type FinancingRequest = FinancingDisbursementRequest & {
   mandate?: { status: string } | null;
 };
 
+const MANDATE_SENT_TO_BANK = ["BANK_PROCESSING", "ACTIVE", "PENDING_MANUAL_RESOLUTION"] as const;
+
 function PropertyVerifiedBadge({ verified }: { verified?: boolean }) {
   if (!verified) {
     return <Badge variant="secondary">Listing pending verification</Badge>;
@@ -64,7 +66,7 @@ export default function LenderOpportunitiesPage() {
       const data = query.state.data;
       const waiting =
         (data?.awaitingMandate?.length ?? 0) + (data?.awaitingBuyerAcceptance?.length ?? 0);
-      return waiting > 0 ? 8000 : false;
+      return waiting > 0 ? 5000 : false;
     },
   });
 
@@ -93,7 +95,7 @@ export default function LenderOpportunitiesPage() {
       if (!json.success) throw new Error(json.message ?? json.error?.message);
     },
     onSuccess: () => {
-      toast.success("Financing approved");
+      toast.success("Approved — mandate sent to bank. You can finance this listing now.");
       invalidateQueue();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -145,10 +147,10 @@ export default function LenderOpportunitiesPage() {
       return json.data as { mandate?: { status?: string } };
     },
     onSuccess: (data) => {
-      if (data?.mandate?.status === "ACTIVE") {
-        toast.success("Mandate is active — you can finance this listing now");
+      if ((MANDATE_SENT_TO_BANK as readonly string[]).includes(data?.mandate?.status ?? "")) {
+        toast.success("Mandate sent to bank — you can finance this listing now");
       } else {
-        toast.success("Mandate submitted — checking bank status…");
+        toast.success("Mandate submitted — try financing shortly");
       }
       invalidateQueue();
     },
@@ -166,9 +168,9 @@ export default function LenderOpportunitiesPage() {
       <div>
         <h1 className="text-2xl font-bold">Listings awaiting financing</h1>
         <p className="text-muted-foreground">
-          Finance listings at the platform category rate. When the mandate is active, pay the
-          merchant directly through {queueInsight?.payoutProviderLabel ?? "the payment provider"} —
-          their verified bank or MoMo details are filled in automatically.
+          Approve a buyer request to send the repayment mandate to the bank. Once sent, finance the
+          listing and pay the merchant through{" "}
+          {queueInsight?.payoutProviderLabel ?? "the payment provider"}.
         </p>
       </div>
 
@@ -179,12 +181,16 @@ export default function LenderOpportunitiesPage() {
           {readyToFinance.length > 0 ? (
             <QueueSection
               title="Ready to finance"
-              description="Mandate is active. Review the merchant payout account, then confirm payment from your lender wallet."
+              description="You approved these listings and the mandate was sent to the bank. Pay the merchant when you are ready."
             >
               <FinancingQueueAccordion
                 items={readyToFinance}
-                renderBadge={() => (
-                  <Badge className="bg-emerald-700 hover:bg-emerald-700">Mandate active</Badge>
+                renderBadge={(req) => (
+                  <Badge className="bg-emerald-700 hover:bg-emerald-700">
+                    {req.mandate?.status === "ACTIVE"
+                      ? "Mandate active"
+                      : "Mandate sent to bank"}
+                  </Badge>
                 )}
                 renderActions={(req) => (
                   <Button
@@ -201,14 +207,14 @@ export default function LenderOpportunitiesPage() {
 
           {awaitingMandate.length > 0 ? (
             <QueueSection
-              title="Awaiting mandate activation"
-              description="You approved these listings. The repayment mandate must become active before you can pay the merchant. This page refreshes automatically."
+              title="Mandate not sent yet"
+              description="You approved these listings but the mandate could not be sent to the bank yet. Use Send mandate to bank, then finance the listing."
             >
               <FinancingQueueAccordion
                 items={awaitingMandate}
                 renderBadge={(req) => (
                   <Badge variant="secondary">
-                    Mandate {req.mandate?.status?.toLowerCase().replace(/_/g, " ") ?? "pending"}
+                    Mandate {req.mandate?.status?.toLowerCase().replace(/_/g, " ") ?? "not created"}
                   </Badge>
                 )}
                 renderActions={(req) => (
@@ -223,13 +229,13 @@ export default function LenderOpportunitiesPage() {
                     >
                       {syncMandateMutation.isPending &&
                       syncMandateMutation.variables === req.id
-                        ? "Activating…"
-                        : "Activate mandate"}
+                        ? "Sending…"
+                        : "Send mandate to bank"}
                     </Button>
                     <Button
                       className="bg-emerald-600 hover:bg-emerald-700"
                       disabled
-                      title="Available once the mandate is active"
+                      title="Send the mandate to the bank first"
                     >
                       Finance listing
                     </Button>
@@ -241,8 +247,8 @@ export default function LenderOpportunitiesPage() {
 
           {awaitingBuyer.length > 0 ? (
             <QueueSection
-              title="Awaiting mandate setup"
-              description="You approved these requests. The repayment mandate must become active before you can pay the merchant."
+              title="Awaiting buyer bank details"
+              description="You approved these requests. The buyer must add a verified bank account on their financing request before the mandate can be sent."
             >
               <FinancingQueueAccordion
                 items={awaitingBuyer}
