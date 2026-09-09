@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,19 +12,26 @@ import {
 } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { normalizeLenderQueueResponse } from "@/lib/utils/lender-queue-response";
+import {
+  FinancingDisbursementDialog,
+  type FinancingDisbursementRequest,
+  type MerchantPayoutAccount,
+} from "@/components/lender/financing-disbursement-dialog";
 
-type FinancingRequest = {
-  id: string;
+type FinancingRequest = FinancingDisbursementRequest & {
   status: string;
-  requestedAmount: number;
-  approvedAmount?: number | null;
-  offeredInterestRate?: number | null;
-  durationMonths: number;
   buyerAcceptedAt?: string | null;
-  property?: { name: string; location: string; monthlyRent: number; status?: string };
+  property?: {
+    name: string;
+    location: string;
+    monthlyRent: number;
+    status?: string;
+  };
   tenant?: { fullName: string; monthlyIncome: number; user?: { email: string } };
   mandate?: { status: string } | null;
 };
+
+const MANDATE_SENT_TO_BANK = ["BANK_PROCESSING", "ACTIVE", "PENDING_MANUAL_RESOLUTION"] as const;
 
 function PropertyVerifiedBadge({ verified }: { verified?: boolean }) {
   if (!verified) {
@@ -41,20 +48,9 @@ function cleanPropertyName(name?: string) {
   return name?.replace(/^\[Demo\]\s*/i, "") ?? "Listing";
 }
 
-function mergeAcceptedOffers(
-  readyToFinance: FinancingRequest[],
-  awaitingMandate: FinancingRequest[]
-) {
-  const seen = new Set<string>();
-  return [...readyToFinance, ...awaitingMandate].filter((request) => {
-    if (seen.has(request.id)) return false;
-    seen.add(request.id);
-    return true;
-  });
-}
-
 export default function LenderOpportunitiesPage() {
   const queryClient = useQueryClient();
+  const [disburseTarget, setDisburseTarget] = useState<FinancingRequest | null>(null);
 
   const { data: queueInsight, isLoading } = useQuery({
     queryKey: ["financing-pending"],
@@ -66,16 +62,18 @@ export default function LenderOpportunitiesPage() {
       }
       return normalizeLenderQueueResponse(json.data);
     },
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const waiting =
+        (data?.awaitingMandate?.length ?? 0) + (data?.awaitingBuyerAcceptance?.length ?? 0);
+      return waiting > 0 ? 5000 : false;
+    },
   });
 
   const requests = (queueInsight?.pending ?? []) as FinancingRequest[];
   const awaitingBuyer = (queueInsight?.awaitingBuyerAcceptance ?? []) as FinancingRequest[];
   const awaitingMandate = (queueInsight?.awaitingMandate ?? []) as FinancingRequest[];
   const readyToFinance = (queueInsight?.readyToFinance ?? []) as FinancingRequest[];
-  const acceptedOffers = useMemo(
-    () => mergeAcceptedOffers(readyToFinance, awaitingMandate),
-    [readyToFinance, awaitingMandate]
-  );
 
   const invalidateQueue = () => {
     queryClient.invalidateQueries({ queryKey: ["financing-pending"] });
@@ -97,7 +95,7 @@ export default function LenderOpportunitiesPage() {
       if (!json.success) throw new Error(json.message ?? json.error?.message);
     },
     onSuccess: () => {
-      toast.success("Financing approved — mandate processing started");
+      toast.success("Approved — mandate sent to bank. You can finance this listing now.");
       invalidateQueue();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -117,7 +115,6 @@ export default function LenderOpportunitiesPage() {
       toast.success("Request rejected");
       invalidateQueue();
     },
-    onError: (e: Error) => toast.error(e.message),
   });
 
   const disburseMutation = useMutation({
@@ -131,7 +128,30 @@ export default function LenderOpportunitiesPage() {
       if (!json.success) throw new Error(json.message ?? json.error?.message);
     },
     onSuccess: () => {
-      toast.success("Financing disbursed to merchant");
+      toast.success("Payment sent to merchant bank account");
+      setDisburseTarget(null);
+      invalidateQueue();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const syncMandateMutation = useMutation({
+    mutationFn: async (financingRequestId: string) => {
+      const res = await fetch("/api/financing/sync-mandate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ financingRequestId }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message ?? json.error?.message);
+      return json.data as { mandate?: { status?: string } };
+    },
+    onSuccess: (data) => {
+      if ((MANDATE_SENT_TO_BANK as readonly string[]).includes(data?.mandate?.status ?? "")) {
+        toast.success("Mandate sent to bank — you can finance this listing now");
+      } else {
+        toast.success("Mandate submitted — try financing shortly");
+      }
       invalidateQueue();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -140,15 +160,17 @@ export default function LenderOpportunitiesPage() {
   const hasAnyQueueItems =
     requests.length > 0 ||
     awaitingBuyer.length > 0 ||
-    acceptedOffers.length > 0;
+    awaitingMandate.length > 0 ||
+    readyToFinance.length > 0;
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Listings awaiting financing</h1>
         <p className="text-muted-foreground">
-          Finance listings at the platform category rate, or reject requests that do not fit your
-          portfolio. After mandate activation, disburse funds from your wallet.
+          Approve a buyer request to send the repayment mandate to the bank. Once sent, finance the
+          listing and pay the merchant through{" "}
+          {queueInsight?.payoutProviderLabel ?? "the payment provider"}.
         </p>
       </div>
 
@@ -156,30 +178,25 @@ export default function LenderOpportunitiesPage() {
         <p className="text-muted-foreground">Loading...</p>
       ) : (
         <>
-          {acceptedOffers.length > 0 ? (
+          {readyToFinance.length > 0 ? (
             <QueueSection
               title="Ready to finance"
-              description="Mandate is in progress or active. Top up your lender wallet if needed, then click Finance listing to pay the merchant."
+              description="You approved these listings and the mandate was sent to the bank. Pay the merchant when you are ready."
             >
               <FinancingQueueAccordion
-                items={acceptedOffers}
-                renderBadge={(req) =>
-                  req.mandate?.status === "ACTIVE" ? (
-                    <Badge className="bg-emerald-700 hover:bg-emerald-700">
-                      Mandate active
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">
-                      Mandate{" "}
-                      {req.mandate?.status?.toLowerCase().replace(/_/g, " ") ?? "pending"}
-                    </Badge>
-                  )
-                }
+                items={readyToFinance}
+                renderBadge={(req) => (
+                  <Badge className="bg-emerald-700 hover:bg-emerald-700">
+                    {req.mandate?.status === "ACTIVE"
+                      ? "Mandate active"
+                      : "Mandate sent to bank"}
+                  </Badge>
+                )}
                 renderActions={(req) => (
                   <Button
                     className="bg-emerald-600 hover:bg-emerald-700"
-                    disabled={disburseMutation.isPending}
-                    onClick={() => disburseMutation.mutate(req.id)}
+                    disabled={disburseMutation.isPending || !req.merchantPayoutAccount}
+                    onClick={() => setDisburseTarget(req)}
                   >
                     Finance listing
                   </Button>
@@ -188,10 +205,50 @@ export default function LenderOpportunitiesPage() {
             </QueueSection>
           ) : null}
 
+          {awaitingMandate.length > 0 ? (
+            <QueueSection
+              title="Mandate not sent yet"
+              description="You approved these listings but the mandate could not be sent to the bank yet. Use Send mandate to bank, then finance the listing."
+            >
+              <FinancingQueueAccordion
+                items={awaitingMandate}
+                renderBadge={(req) => (
+                  <Badge variant="secondary">
+                    Mandate {req.mandate?.status?.toLowerCase().replace(/_/g, " ") ?? "not created"}
+                  </Badge>
+                )}
+                renderActions={(req) => (
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      variant="outline"
+                      disabled={
+                        syncMandateMutation.isPending &&
+                        syncMandateMutation.variables === req.id
+                      }
+                      onClick={() => syncMandateMutation.mutate(req.id)}
+                    >
+                      {syncMandateMutation.isPending &&
+                      syncMandateMutation.variables === req.id
+                        ? "Sending…"
+                        : "Send mandate to bank"}
+                    </Button>
+                    <Button
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                      disabled
+                      title="Send the mandate to the bank first"
+                    >
+                      Finance listing
+                    </Button>
+                  </div>
+                )}
+              />
+            </QueueSection>
+          ) : null}
+
           {awaitingBuyer.length > 0 ? (
             <QueueSection
-              title="Awaiting mandate setup"
-              description="You approved these requests. The customer must complete repayment mandate setup before you can finance."
+              title="Awaiting buyer bank details"
+              description="You approved these requests. The buyer must add a verified bank account on their financing request before the mandate can be sent."
             >
               <FinancingQueueAccordion
                 items={awaitingBuyer}
@@ -205,7 +262,7 @@ export default function LenderOpportunitiesPage() {
           {requests.length > 0 ? (
             <QueueSection
               title="New financing requests"
-              description="Review verified listings and approve financing at the platform category interest rate."
+              description="Review verified listings from different merchants. Each shows the merchant payout account that will receive funds."
             >
               <Accordion
                 type="single"
@@ -225,13 +282,27 @@ export default function LenderOpportunitiesPage() {
                         <div className="space-y-4">
                           <RequestDetails req={req} />
 
+                          {!req.merchantPayoutAccount ? (
+                            <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                              This merchant has not added a verified payout account yet. They must
+                              complete that before you can finance this listing.
+                            </p>
+                          ) : null}
+
                           <div className="flex flex-wrap justify-end gap-2 rounded-xl border border-border p-4">
                             <Button
                               className="bg-emerald-600 hover:bg-emerald-700"
-                              disabled={financeMutation.isPending}
+                              disabled={
+                                !req.merchantPayoutAccount ||
+                                (financeMutation.isPending &&
+                                  financeMutation.variables === req.id)
+                              }
                               onClick={() => financeMutation.mutate(req.id)}
                             >
-                              Finance
+                              {financeMutation.isPending &&
+                              financeMutation.variables === req.id
+                                ? "Approving…"
+                                : "Approve"}
                             </Button>
                             <Button
                               variant="outline"
@@ -285,6 +356,18 @@ export default function LenderOpportunitiesPage() {
           ) : null}
         </>
       )}
+
+      <FinancingDisbursementDialog
+        request={disburseTarget}
+        open={Boolean(disburseTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDisburseTarget(null);
+        }}
+        onConfirm={() => {
+          if (disburseTarget) disburseMutation.mutate(disburseTarget.id);
+        }}
+        isPending={disburseMutation.isPending}
+      />
     </div>
   );
 }
@@ -319,7 +402,11 @@ function FinancingQueueAccordion({
   renderActions?: (req: FinancingRequest) => React.ReactNode;
 }) {
   return (
-    <Accordion type="single" collapsible className="divide-y divide-border rounded-xl border border-border bg-card">
+    <Accordion
+      type="single"
+      collapsible
+      className="divide-y divide-border rounded-xl border border-border bg-card"
+    >
       {items.map((req) => {
         const propertyName = cleanPropertyName(req.property?.name);
         const amount = Number(req.approvedAmount ?? req.requestedAmount);
@@ -337,7 +424,9 @@ function FinancingQueueAccordion({
                       </p>
                       {renderBadge(req)}
                     </div>
-                    <p className="truncate text-sm text-muted-foreground">{req.property?.location}</p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {req.property?.location}
+                    </p>
                     <p className="mt-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
                       GHS {amount.toLocaleString()}
                       {rate != null ? ` · ${rate}%` : ""} · {req.durationMonths} months
@@ -388,6 +477,24 @@ function ListingAccordionSummary({
   );
 }
 
+function MerchantPayoutDetails({ payout }: { payout: MerchantPayoutAccount | null | undefined }) {
+  if (!payout) {
+    return (
+      <Detail label="Merchant payout" value="No verified account on file" />
+    );
+  }
+
+  return (
+    <>
+      <Detail
+        label="Merchant payout"
+        value={`${payout.bankName} · ${payout.accountNumberMasked}`}
+      />
+      <Detail label="Account name" value={payout.accountName} />
+    </>
+  );
+}
+
 function RequestDetails({ req }: { req: FinancingRequest }) {
   return (
     <dl className="grid gap-3 rounded-xl border border-border bg-muted/10 p-4 text-sm sm:grid-cols-2">
@@ -402,16 +509,8 @@ function RequestDetails({ req }: { req: FinancingRequest }) {
         label="Rent"
         value={`GHS ${Number(req.property?.monthlyRent ?? 0).toLocaleString()}/mo`}
       />
-      {req.buyerAcceptedAt ? (
-        <Detail
-          label="Accepted on"
-          value={new Date(req.buyerAcceptedAt).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
-        />
-      ) : null}
+      {req.merchantName ? <Detail label="Merchant" value={req.merchantName} /> : null}
+      <MerchantPayoutDetails payout={req.merchantPayoutAccount} />
       {req.mandate?.status ? (
         <Detail
           label="Mandate status"

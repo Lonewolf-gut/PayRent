@@ -42,3 +42,7 @@ export type ApproveFinancingInput = z.infer<typeof approveFinancingSchema>;
 export const disburseFinancingSchema = z.object({
   financingRequestId: z.string().cuid(),
 });
+
+export const syncFinancingMandateSchema = z.object({
+  financingRequestId: z.string().cuid(),
+});

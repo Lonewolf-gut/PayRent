@@ -6,6 +6,7 @@ export type LenderQueueInsight = {
   waitingOnMerchant: number;
   waitingOnAdminDocs: number;
   waitingOnAdminEligibility: number;
+  payoutProviderLabel?: string;
 };
 
 export function normalizeLenderQueueResponse(data: unknown): LenderQueueInsight {
@@ -33,6 +34,10 @@ export function normalizeLenderQueueResponse(data: unknown): LenderQueueInsight 
       waitingOnMerchant: Number(insight.waitingOnMerchant ?? 0),
       waitingOnAdminDocs: Number(insight.waitingOnAdminDocs ?? 0),
       waitingOnAdminEligibility: Number(insight.waitingOnAdminEligibility ?? 0),
+      payoutProviderLabel:
+        typeof insight.payoutProviderLabel === "string"
+          ? insight.payoutProviderLabel
+          : undefined,
     };
   }
 

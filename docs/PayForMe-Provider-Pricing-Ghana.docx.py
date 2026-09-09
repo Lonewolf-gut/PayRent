@@ -1,0 +1,252 @@
+#!/usr/bin/env python3
+"""Generate PayForMe provider pricing Word document."""
+
+from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import Inches, Pt, RGBColor
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+
+OUTPUT = "/workspace/docs/PayForMe-Provider-Pricing-Ghana.docx"
+
+
+def set_cell_shading(cell, fill: str) -> None:
+    shading = OxmlElement("w:shd")
+    shading.set(qn("w:fill"), fill)
+    cell._tc.get_or_add_tcPr().append(shading)
+
+
+def add_table(doc: Document, headers: list[str], rows: list[list[str]], header_fill: str = "1F4E79") -> None:
+    table = doc.add_table(rows=1 + len(rows), cols=len(headers))
+    table.style = "Table Grid"
+    hdr = table.rows[0].cells
+    for i, text in enumerate(headers):
+        hdr[i].text = text
+        set_cell_shading(hdr[i], header_fill)
+        for p in hdr[i].paragraphs:
+            for run in p.runs:
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(255, 255, 255)
+                run.font.size = Pt(10)
+    for r_idx, row in enumerate(rows):
+        cells = table.rows[r_idx + 1].cells
+        for c_idx, text in enumerate(row):
+            cells[c_idx].text = text
+            for p in cells[c_idx].paragraphs:
+                for run in p.runs:
+                    run.font.size = Pt(10)
+    doc.add_paragraph()
+
+
+def main() -> None:
+    doc = Document()
+
+    # Title
+    title = doc.add_heading("PayForMe — Ghana Provider Pricing Guide", 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    sub = doc.add_paragraph("SMS / Phone Verification · Payment Collections · Disbursements")
+    sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    sub.runs[0].italic = True
+
+    doc.add_paragraph("Prepared for: PayForMe business planning")
+    doc.add_paragraph("Date: September 2026")
+    doc.add_paragraph(
+        "Note: Payment costs scale with transaction volume — there is no fixed monthly "
+        "subscription for Paystack or Hubtel basic API access. Confirm final rates with "
+        "each provider before signing."
+    )
+
+    doc.add_heading("1. SMS / Phone Verification Providers", level=1)
+
+    doc.add_heading("1.1 Arkesel (PayForMe default)", level=2)
+    add_table(
+        doc,
+        ["Service", "Cost"],
+        [
+            ["Account / integration", "GHS 0/month"],
+            ["Maintenance fee", "GHS 0/month"],
+            ["Phone OTP (SMS + USSD)", "GHS 0.035 per verification"],
+            ["Voice OTP", "GHS 0.20/min (answered calls only)"],
+            ["Bulk SMS", "GHS 0.022–0.031 per SMS (volume tiers)"],
+        ],
+    )
+    doc.add_paragraph("Example: 500 users verify phone in one month")
+    doc.add_paragraph("500 × GHS 0.035 = GHS 17.50", style="List Bullet")
+    doc.add_paragraph("Source: https://arkesel.com/pricing/")
+
+    doc.add_heading("1.2 Hubtel SMS", level=2)
+    add_table(
+        doc,
+        ["Service", "Cost"],
+        [
+            ["Account / integration", "GHS 0/month"],
+            ["Maintenance fee", "GHS 0/month"],
+            ["SMS / OTP", "GHS 0.007–0.025 per SMS (gateway-dependent)"],
+            ["SIM / MoMo identity check API", "Contact Hubtel sales (not public)"],
+        ],
+    )
+    doc.add_paragraph("Example: 500 users, 1 OTP each")
+    doc.add_paragraph("500 × GHS 0.007 = GHS 3.50 (lowest gateway)", style="List Bullet")
+    doc.add_paragraph("500 × GHS 0.025 = GHS 12.50 (typical gateway)", style="List Bullet")
+    doc.add_paragraph("Prepaid wallet — top up before sending.")
+    doc.add_paragraph("Source: https://developers.hubtel.com/")
+
+    doc.add_page_break()
+
+    doc.add_heading("2. Paystack Ghana", level=1)
+    add_table(
+        doc,
+        ["Service", "Cost"],
+        [
+            ["Account / integration", "GHS 0/month"],
+            ["Maintenance fee", "GHS 0/month"],
+            ["Local payments (MoMo, cards, bank transfer)", "1.95% per transaction"],
+            ["International payments", "1.95%"],
+            ["Transfer to Mobile Money", "GHS 1 per successful transfer"],
+            ["Transfer to bank account", "GHS 8 per successful transfer"],
+        ],
+    )
+
+    doc.add_heading("Paystack cost examples", level=2)
+    doc.add_paragraph("Example 1 — Collections: GHS 100,000 customer payments in a month")
+    doc.add_paragraph("GHS 100,000 × 1.95% = GHS 1,950", style="List Bullet")
+
+    doc.add_paragraph("Example 2 — Disbursements: 500 Mobile Money payouts")
+    doc.add_paragraph("500 × GHS 1 = GHS 500", style="List Bullet")
+
+    doc.add_paragraph("Example 3 — Disbursements: 500 bank payouts")
+    doc.add_paragraph("500 × GHS 8 = GHS 4,000", style="List Bullet")
+
+    doc.add_paragraph("Total example (GHS 100,000 collections + 500 MoMo payouts):")
+    p = doc.add_paragraph("GHS 1,950 + GHS 500 = GHS 2,450")
+    p.runs[0].bold = True
+
+    doc.add_paragraph(
+        "Key point: There is no separate GHS 1,950 monthly subscription — the GHS 1,950 "
+        "is transaction fees generated by that payment volume."
+    )
+    doc.add_paragraph("Sources:")
+    doc.add_paragraph("https://website-v4.paystack.co/gh/pricing", style="List Bullet")
+    doc.add_paragraph("https://support.paystack.com/en/articles/2130370", style="List Bullet")
+
+    doc.add_page_break()
+
+    doc.add_heading("3. Hubtel Ghana", level=1)
+    add_table(
+        doc,
+        ["Service", "Cost"],
+        [
+            ["Account / integration (basic API)", "GHS 0/month"],
+            ["One-time API setup", "~GHS 200 one-time (sometimes waived)"],
+            ["Maintenance fee (basic gateway)", "GHS 0/month"],
+            ["MoMo collections (MTN, Telecel, AirtelTigo)", "1.95% per transaction (min ~GHS 0.30)"],
+            ["Local cards (Visa/Mastercard Ghana)", "~2.90% per transaction"],
+            ["International cards", "~3.50% per transaction"],
+            ["Send Money → MoMo wallet", "Not publicly listed — confirm with Hubtel sales"],
+            ["Send Money → bank (GhIPSS)", "Not publicly listed — confirm with Hubtel sales"],
+            ["SMS / OTP (Hubtel SMS)", "GHS 0.007–0.025 per SMS"],
+        ],
+    )
+
+    doc.add_heading("Hubtel cost examples", level=2)
+    doc.add_paragraph("Example 1 — Collections (MoMo): GHS 100,000 customer payments in a month")
+    doc.add_paragraph("GHS 100,000 × 1.95% = GHS 1,950", style="List Bullet")
+
+    doc.add_paragraph(
+        "Example 2 — Disbursements: Hubtel does not publish flat payout fees like Paystack. "
+        "Request a written quote from Hubtel before budgeting payouts."
+    )
+    doc.add_paragraph("Industry estimate (not official Hubtel pricing):")
+    doc.add_paragraph("MoMo disbursement: ~GHS 2–5 per transfer", style="List Bullet")
+    doc.add_paragraph("Bank disbursement: ~GHS 5–10 per transfer", style="List Bullet")
+
+    doc.add_paragraph("Example 3 — If Hubtel quotes GHS 3/MoMo payout: 500 MoMo payouts")
+    doc.add_paragraph("500 × GHS 3 = GHS 1,500 (estimate only)", style="List Bullet")
+
+    doc.add_paragraph("Total example (GHS 100k collections + 500 MoMo payouts at GHS 3 each):")
+    p = doc.add_paragraph("GHS 1,950 + GHS 1,500 = GHS 3,450 (estimate)")
+    p.runs[0].bold = True
+
+    doc.add_paragraph("Sources:")
+    doc.add_paragraph("https://developers.hubtel.com/", style="List Bullet")
+    doc.add_paragraph(
+        "https://news.hubtel.com/correction-of-false-claims-about-ecg-commercial-agreement/",
+        style="List Bullet",
+    )
+
+    doc.add_page_break()
+
+    doc.add_heading("4. Paystack vs Hubtel — Side by Side", level=1)
+    add_table(
+        doc,
+        ["Item", "Paystack", "Hubtel"],
+        [
+            ["Monthly subscription", "GHS 0", "GHS 0"],
+            ["MoMo collection fee", "1.95%", "1.95%"],
+            ["GHS 100,000 collections/month", "GHS 1,950", "GHS 1,950"],
+            ["MoMo payout fee (published)", "GHS 1 each", "Not published"],
+            ["Bank payout fee (published)", "GHS 8 each", "Not published"],
+            ["500 MoMo payouts/month", "GHS 500", "Quote required (est. GHS 1,000–2,500)"],
+            ["500 bank payouts/month", "GHS 4,000", "Quote required (est. GHS 2,500–5,000)"],
+            ["SMS OTP", "Use Arkesel or Hubtel SMS", "GHS 0.007–0.025/SMS"],
+            ["Pricing transparency", "Fully published", "Collections published; payouts need sales quote"],
+        ],
+    )
+
+    doc.add_heading("5. PayForMe Stack Examples", level=1)
+    doc.add_paragraph("Scenario: GHS 100,000 customer payments + 500 phone verifications per month")
+    add_table(
+        doc,
+        ["Stack", "SMS cost", "Payment cost", "Total/month"],
+        [
+            ["Arkesel + Paystack (incl. 500 MoMo payouts)", "GHS 17.50", "GHS 2,450", "~GHS 2,468"],
+            ["Arkesel + Hubtel (collections only)", "GHS 17.50", "GHS 1,950", "~GHS 1,968"],
+            ["Arkesel + Hubtel (+ est. 500 MoMo @ GHS 3)", "GHS 17.50", "GHS 3,450", "~GHS 3,468 (estimate)"],
+            ["Hubtel SMS + Hubtel payments", "GHS 3.50–12.50", "GHS 1,950–3,450", "~GHS 1,954–3,463"],
+        ],
+    )
+
+    doc.add_heading("6. Quick Reference — Cost Per User", level=1)
+    doc.add_paragraph("Assumption: 1 OTP + 1 payment of GHS 500 per user")
+    add_table(
+        doc,
+        ["Provider / Stack", "Cost per user", "Notes"],
+        [
+            ["Arkesel (SMS only)", "GHS 0.035", "Per OTP verification"],
+            ["Hubtel SMS only", "GHS 0.007–0.025", "Per SMS"],
+            ["Paystack (payment only)", "GHS 9.75", "GHS 500 × 1.95%"],
+            ["Hubtel (payment only)", "GHS 9.75", "GHS 500 × 1.95%"],
+            ["Arkesel + Paystack", "GHS 9.79", "OTP + payment (excl. payout)"],
+            ["Arkesel + Hubtel", "GHS 9.79", "OTP + payment (excl. payout)"],
+        ],
+    )
+
+    doc.add_heading("7. Bottom Line", level=1)
+    doc.add_paragraph(
+        "• Paystack and Hubtel both charge ~1.95% on MoMo/card collections with no monthly subscription.",
+        style="List Bullet",
+    )
+    doc.add_paragraph(
+        "• Paystack publishes payout fees: GHS 1 (MoMo) and GHS 8 (bank) per successful transfer.",
+        style="List Bullet",
+    )
+    doc.add_paragraph(
+        "• Hubtel collection rate is confirmed at 1.95%; payout fees must be confirmed with Hubtel sales.",
+        style="List Bullet",
+    )
+    doc.add_paragraph(
+        "• SMS is usually a separate cost unless using Hubtel for both SMS and payments.",
+        style="List Bullet",
+    )
+    doc.add_paragraph(
+        "• PayForMe current integration: Arkesel (SMS) + Paystack/Hubtel (payments).",
+        style="List Bullet",
+    )
+
+    doc.save(OUTPUT)
+    print(f"Created: {OUTPUT}")
+
+
+if __name__ == "__main__":
+    main()
