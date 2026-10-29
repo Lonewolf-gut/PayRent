@@ -30,6 +30,14 @@ type PrintPack = {
 };
 
 export default function AdminMandatePrintPage() {
+  return (
+    <Suspense fallback={<p className="p-8">Loading print view…</p>}>
+      <AdminMandatePrintContent />
+    </Suspense>
+  );
+}
+
+function AdminMandatePrintContent() {
   const params = useSearchParams();
   const mandateId = params.get("id") ?? "";
 

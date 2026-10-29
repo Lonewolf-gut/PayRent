@@ -9,8 +9,8 @@
     "clean": "node -e \"const fs=require('fs'); for (const d of ['.next','.next-dev']) { try { fs.rmSync(d,{recursive:true,force:true}); } catch {} } console.log('Removed .next and .next-dev');\"",
     "build": "npm run db:generate && next build --webpack",
     "postinstall": "npm run db:generate || echo Prisma generate skipped - run npm run db:generate manually",
-    "prestart": "node scripts/check-next-build.cjs",
-    "start": "next start --port 3000",
+    "start": "node scripts/ensure-frontend-server.cjs",
+    "start:prod": "node scripts/check-next-build.cjs && next start --port 3000",
     "lint": "eslint",
     "db:generate": "prisma generate --schema prisma/schema.prisma"
   },
