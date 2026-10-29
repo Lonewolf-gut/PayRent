@@ -41,7 +41,7 @@ export function getStaffPortalHomePath(title: string) {
 export function getRoleSignOutPath(role?: string | null) {
   if (role === "ADMIN") return "/admin/login";
   if (role === "COMPLIANCE_OFFICER") return "/compliance/login";
-  return "/";
+  return "/login";
 }
 
 export function shouldRedirectStaffFromMarketing(role?: string | null) {
