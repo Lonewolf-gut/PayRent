@@ -146,9 +146,9 @@ export function PayoutBanksPanel() {
     <div className="space-y-6">
       <div>
         <p className="text-sm text-muted-foreground">
-          GCB, CBG, ADB, and Zenith are always available. Add more banks here and they will appear
-          in the user bank dropdown with live Paystack account lookup. You can remove any additional
-          bank at any time using the Remove button.
+          GCB, CBG, ADB, and Zenith are preferred merchant payout partners. Buyers can add any Ghana
+          bank for Pay-for-me repayment; only CBG mandates are sent to the bank API automatically.
+          Additional banks you add here appear in payout dropdowns with Paystack lookup.
         </p>
         <ul className="mt-3 space-y-1 text-sm">
           {DEFAULT_BANKS.map((name) => (

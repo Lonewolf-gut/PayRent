@@ -5,6 +5,7 @@ import {
 } from "@/lib/services/verification-notifications";
 import { auditService } from "@/lib/services/audit.service";
 import { AppError } from "@/lib/errors";
+import { isCbgBankAccount } from "@/lib/constants/allowed-payout-banks";
 import { getMandateProvider } from "@/lib/integrations/mandate";
 import type {
   CreateMandateInput,
@@ -112,6 +113,53 @@ export class MandateService {
     });
 
     if (input.mandateSource === "PLATFORM_GENERATED") {
+      const usesCbgIntegration = isCbgBankAccount(
+        bankAccount.bankCode,
+        bankAccount.bankName
+      );
+
+      if (!usesCbgIntegration) {
+        const updated = await prisma.mandate.update({
+          where: { id: mandate.id },
+          data: {
+            providerName: "manual-bank",
+            providerReference: `manual_${mandate.id}`,
+            status: "PENDING_MANUAL_RESOLUTION",
+            submittedAt: new Date(),
+          },
+        });
+
+        await prisma.adminReviewRecord.create({
+          data: {
+            reviewType: "MANDATE",
+            relatedEntityType: "Mandate",
+            relatedEntityId: mandate.id,
+            status: "PENDING",
+          },
+        });
+
+        await notifyAllAdminsInAppAndEmail(
+          "Manual bank mandate — print & send",
+          `Pay-for-me mandate ${mandate.id} uses ${bankAccount.bankName}. Print the mandate pack and send it to the bank for monthly deduction setup.`
+        );
+
+        await notifyUserInAppAndEmail(
+          userId,
+          "Mandate submitted for manual bank setup",
+          `Your repayment mandate at ${bankAccount.bankName} will be processed by our team and sent to your bank. We will notify you when it is active.`
+        );
+
+        await auditService.log({
+          userId,
+          action: "MANDATE_CREATED",
+          entity: "Mandate",
+          entityId: mandate.id,
+          metadata: { processingChannel: "MANUAL_BANK" },
+        });
+
+        return updated;
+      }
+
       const registration = await provider.registerPlatformMandate({
         mandateId: mandate.id,
         bankAccountId: input.bankAccountId,
@@ -156,6 +204,7 @@ export class MandateService {
         action: "MANDATE_CREATED",
         entity: "Mandate",
         entityId: mandate.id,
+        metadata: { processingChannel: "CBG_BANK_API" },
       });
 
       return updated;
@@ -273,6 +322,33 @@ export class MandateService {
       return prisma.mandate.findUniqueOrThrow({ where: { id: mandateId } });
     }
 
+    if (mandate.providerName === "manual-bank") {
+      await prisma.adminReviewRecord.updateMany({
+        where: {
+          relatedEntityType: "Mandate",
+          relatedEntityId: mandateId,
+          status: "PENDING",
+        },
+        data: {
+          status: "APPROVED",
+          assignedAdminUserId: adminUserId,
+          decision: "APPROVE",
+          decisionNote: input.decisionNote ?? "Mandate sent to bank manually",
+          completedAt: new Date(),
+        },
+      });
+
+      await auditService.log({
+        userId: adminUserId,
+        action: "MANDATE_APPROVED",
+        entity: "Mandate",
+        entityId: mandateId,
+        metadata: { processingChannel: "MANUAL_BANK" },
+      });
+
+      return this.activateMandate(mandateId, adminUserId);
+    }
+
     await prisma.mandate.update({
       where: { id: mandateId },
       data: { status: "BANK_PROCESSING" },
@@ -349,14 +425,25 @@ export class MandateService {
     });
   }
 
-  async getById(mandateId: string, tenantId?: string) {
-    return prisma.mandate.findFirst({
-      where: { id: mandateId, ...(tenantId ? { tenantId } : {}) },
+  async getAdminPrintPack(mandateId: string) {
+    const mandate = await prisma.mandate.findUnique({
+      where: { id: mandateId },
       include: {
+        tenant: {
+          include: {
+            user: { select: { email: true, phone: true } },
+          },
+        },
         bankAccount: true,
-        financingRequest: { include: { property: true } },
+        financingRequest: {
+          include: {
+            property: { select: { name: true, location: true } },
+          },
+        },
       },
     });
+    if (!mandate) throw new AppError("Mandate not found", 404);
+    return mandate;
   }
 }
 

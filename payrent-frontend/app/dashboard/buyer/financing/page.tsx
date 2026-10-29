@@ -15,10 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
+import { isCbgBankAccount } from "@/lib/constants/bank-partners";
 
 type BankAccount = {
   id: string;
+  bankCode?: string | null;
   bankName: string;
   accountNumberMasked?: string;
   isVerified: boolean;
@@ -42,6 +43,11 @@ export default function TenantFinancingPage() {
 
   const verifiedAccounts = (kyc?.bankAccounts ?? []).filter((a) => a.isVerified);
   const bankAccountId = selectedBankId || verifiedAccounts[0]?.id;
+  const selectedAccount =
+    verifiedAccounts.find((a) => a.id === bankAccountId) ?? verifiedAccounts[0];
+  const selectedUsesCbg = selectedAccount
+    ? isCbgBankAccount(selectedAccount.bankCode, selectedAccount.bankName)
+    : false;
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ["financing"],
@@ -218,6 +224,13 @@ export default function TenantFinancingPage() {
                         </Select>
                       </div>
                     )}
+                    {selectedAccount ? (
+                      <p className="text-sm text-muted-foreground">
+                        {selectedUsesCbg
+                          ? "Consolidated Bank Ghana (CBG): your mandate is sent electronically to CBG for recurring monthly deductions."
+                          : `${selectedAccount.bankName}: PayForMe will queue this mandate for admin to print and submit to your bank manually.`}
+                      </p>
+                    ) : null}
                     <Button
                       size="sm"
                       className="bg-emerald-600 hover:bg-emerald-700"

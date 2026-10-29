@@ -101,6 +101,48 @@ export function filterAllowedPaystackBanks(
   return providers;
 }
 
+/** All GHIPSS banks from Paystack — used when buyers add repayment accounts. */
+export function mapAllPaystackBanksToProviders(
+  banks: Array<Pick<PaystackBank, "code" | "longcode" | "name" | "slug">>
+): PayoutBankProvider[] {
+  const seen = new Set<string>();
+  const providers: PayoutBankProvider[] = [];
+
+  for (const bank of banks) {
+    const code = bank.code.trim();
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+
+    const resolveCode = paystackBankResolveCode(bank);
+    const longcode = bank.longcode?.trim();
+    providers.push({
+      code,
+      name: bank.name.trim(),
+      resolveCode,
+      alternateResolveCodes: longcode && longcode !== resolveCode ? [longcode] : undefined,
+    });
+  }
+
+  return providers.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+const CBG_DEFINITION = ALLOWED_PAYOUT_BANK_DEFINITIONS.find((b) => b.key === "cbg")!;
+
+/** Consolidated Bank Ghana — only partner with live Pay-for-me mandate API integration. */
+export function isCbgBankAccount(bankCode?: string | null, bankName?: string | null) {
+  const code = bankCode?.trim();
+  if (code && CBG_DEFINITION.paystackCodes.includes(code)) {
+    return true;
+  }
+
+  const name = bankName?.trim();
+  if (name && CBG_DEFINITION.matches(name)) {
+    return true;
+  }
+
+  return false;
+}
+
 export function findAllowedPayoutBankProvider(
   bankCode: string,
   providers: PayoutBankProvider[]
@@ -139,8 +181,8 @@ export async function getAllowedPayoutBankProviders(): Promise<PayoutBankProvide
   }
 
   const banks = await listPaystackBanks({ type: "ghipss", country: "ghana" });
-  const filtered = filterAllowedPaystackBanks(banks);
-  if (!filtered.length && !adminProviders.length) {
+  const allBanks = mapAllPaystackBanksToProviders(banks);
+  if (!allBanks.length && !adminProviders.length) {
     throw new AppError(
       "Could not load supported bank codes from Paystack. Please try again shortly.",
       503,
@@ -148,6 +190,19 @@ export async function getAllowedPayoutBankProviders(): Promise<PayoutBankProvide
     );
   }
 
+  return mergePayoutBankProviders(allBanks, adminProviders);
+}
+
+/** Preferred partner banks for merchant payout configuration UI. */
+export async function getPreferredMerchantPayoutBankProviders(): Promise<PayoutBankProvider[]> {
+  const adminProviders = await payoutBankConfigService.listActiveProviders();
+
+  if (!isPaystackConfigured()) {
+    return mergePayoutBankProviders(ALLOWED_PAYOUT_BANK_FALLBACKS, adminProviders);
+  }
+
+  const banks = await listPaystackBanks({ type: "ghipss", country: "ghana" });
+  const filtered = filterAllowedPaystackBanks(banks);
   return mergePayoutBankProviders(filtered, adminProviders);
 }
 
@@ -189,8 +244,8 @@ export function assertAllowedPayoutBank(params: {
   const allowedNames = providers.map((provider) => provider.name).join(", ");
   throw new AppError(
     allowedNames
-      ? `Only these banks are supported for payout accounts: ${allowedNames}.`
-      : "This bank is not supported for payout accounts.",
+      ? `Select a bank from the supported list. "${bankName || bankCode}" is not recognized.`
+      : "This bank is not supported.",
     400,
     "BANK_NOT_ALLOWED"
   );

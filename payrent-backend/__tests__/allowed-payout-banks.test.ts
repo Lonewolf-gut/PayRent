@@ -5,6 +5,8 @@ import {
   findAllowedPayoutBankProvider,
   isAllowedPayoutBankCode,
   isAllowedPayoutBankName,
+  isCbgBankAccount,
+  mapAllPaystackBanksToProviders,
   mergePayoutBankProviders,
 } from "@/lib/constants/allowed-payout-banks";
 import { filterPaystackMomoProviders } from "@/lib/integrations/paystack/banks";
@@ -48,23 +50,23 @@ describe("allowed payout banks", () => {
     ]);
   });
 
-  it("accepts allowed bank names and codes", () => {
-    const providers = filterAllowedPaystackBanks(paystackBanks);
-    expect(isAllowedPayoutBankName("GCB Bank Limited")).toBe(true);
-    expect(isAllowedPayoutBankCode("040", providers)).toBe(true);
-    expect(findAllowedPayoutBankProvider("040", providers)?.resolveCode).toBe("040");
-    expect(() =>
-      assertAllowedPayoutBank({
-        accountType: "BANK",
-        bankCode: "040",
-        bankName: "GCB Bank",
-        providers,
-      })
-    ).not.toThrow();
+  it("maps all Paystack GHIPSS banks for buyer account lookup", () => {
+    const all = mapAllPaystackBanksToProviders(paystackBanks);
+    expect(all.some((b) => b.code === "130")).toBe(true);
+    expect(all.some((b) => b.code === "340")).toBe(true);
   });
 
-  it("rejects unsupported banks", () => {
-    const providers = filterAllowedPaystackBanks(paystackBanks);
+  it("detects CBG accounts for automated mandate routing", () => {
+    expect(isCbgBankAccount("340", "Consolidated Bank Ghana Limited")).toBe(true);
+    expect(isCbgBankAccount("130", "Ecobank Ghana Limited")).toBe(false);
+  });
+
+  it("accepts allowed bank names and codes", () => {
+    const providers = mapAllPaystackBanksToProviders(paystackBanks);
+    expect(isAllowedPayoutBankName("GCB Bank Limited")).toBe(true);
+    expect(isAllowedPayoutBankCode("040", providers)).toBe(true);
+    expect(isAllowedPayoutBankCode("130", providers)).toBe(true);
+    expect(findAllowedPayoutBankProvider("040", providers)?.resolveCode).toBe("040");
     expect(() =>
       assertAllowedPayoutBank({
         accountType: "BANK",
@@ -72,7 +74,19 @@ describe("allowed payout banks", () => {
         bankName: "Ecobank Ghana Limited",
         providers,
       })
-    ).toThrow(/Only these banks are supported/);
+    ).not.toThrow();
+  });
+
+  it("rejects banks not in the provider list", () => {
+    const providers = filterAllowedPaystackBanks(paystackBanks);
+    expect(() =>
+      assertAllowedPayoutBank({
+        accountType: "BANK",
+        bankCode: "999",
+        bankName: "Unknown Bank",
+        providers,
+      })
+    ).toThrow(/Select a bank from the supported list/);
   });
 
   it("merges admin banks without duplicating defaults", () => {

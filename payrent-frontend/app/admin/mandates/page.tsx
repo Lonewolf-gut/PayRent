@@ -9,15 +9,19 @@ import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { MANDATE_STATUS_LABELS } from "@/constants/platform";
 import { SecureFileLink } from "@/components/shared/secure-file-link";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { ExternalLink, Printer, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { toast } from "sonner";
+import { isCbgBankAccount } from "@/lib/constants/bank-partners";
 
 type Mandate = {
   id: string;
   status: string;
   mandateSource: string;
+  providerName?: string | null;
   documentUrl?: string | null;
   tenant?: { user?: { email: string } };
-  bankAccount?: { bankName: string; accountNumberMasked?: string };
+  bankAccount?: { bankName: string; bankCode?: string | null; accountNumberMasked?: string };
   financingRequest?: { property?: { name: string } };
 };
 
@@ -82,6 +86,7 @@ export default function AdminMandatesPage() {
         <h1 className="text-2xl font-bold">Mandate review</h1>
         <p className="text-muted-foreground">
           Approve scanned mandates, resolve bank exceptions, and activate repayment deductions.
+          Non-CBG Pay-for-me mandates appear here for print and manual submission to the bank.
         </p>
       </div>
       {isLoading ? (
@@ -93,7 +98,13 @@ export default function AdminMandatesPage() {
           </CardContent>
         </Card>
       ) : (
-        mandates.map((mandate) => (
+        mandates.map((mandate) => {
+          const manualBank =
+            mandate.providerName === "manual-bank" ||
+            (mandate.bankAccount &&
+              !isCbgBankAccount(mandate.bankAccount.bankCode, mandate.bankAccount.bankName));
+
+          return (
           <Card key={mandate.id}>
             <CardHeader className="flex flex-row items-start justify-between gap-4">
               <div>
@@ -101,6 +112,7 @@ export default function AdminMandatesPage() {
                 <p className="text-sm text-muted-foreground">
                   {mandate.financingRequest?.property?.name ?? "Financing mandate"} ·{" "}
                   {mandate.bankAccount?.bankName} · {mandate.mandateSource.replace("_", " ")}
+                  {manualBank ? " · Manual bank" : " · CBG API"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Account {mandate.bankAccount?.accountNumberMasked ?? "—"}
@@ -109,6 +121,20 @@ export default function AdminMandatesPage() {
               <StatusBadge status={mandate.status} label={MANDATE_STATUS_LABELS[mandate.status]} />
             </CardHeader>
             <CardContent className="space-y-4">
+              {manualBank && (
+                <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  Print this pack and send it to {mandate.bankAccount?.bankName} to set up monthly
+                  deductions. Mark approved after the bank confirms.
+                </p>
+              )}
+              {manualBank && (
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/admin/mandates/print?id=${mandate.id}`} target="_blank">
+                    <Printer className="mr-2 h-4 w-4" />
+                    Print bank pack
+                  </Link>
+                </Button>
+              )}
               {mandate.documentUrl && (
                 <Button asChild size="sm" variant="outline">
                   <SecureFileLink request={{ scope: "mandate", mandateId: mandate.id }}>
@@ -183,7 +209,8 @@ export default function AdminMandatesPage() {
               )}
             </CardContent>
           </Card>
-        ))
+          );
+        })
       )}
     </div>
   );
