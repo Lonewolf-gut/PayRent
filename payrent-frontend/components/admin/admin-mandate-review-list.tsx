@@ -30,7 +30,6 @@ type AdminMandateReviewListProps = {
   description: string;
   queryKey: string;
   fetchUrl: string;
-  manualOnly?: boolean;
   emptyMessage?: string;
 };
 
@@ -47,7 +46,6 @@ export function AdminMandateReviewList({
   description,
   queryKey,
   fetchUrl,
-  manualOnly = false,
   emptyMessage = "No mandates pending review.",
 }: AdminMandateReviewListProps) {
   const queryClient = useQueryClient();

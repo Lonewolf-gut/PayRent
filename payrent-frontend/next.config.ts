@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const lifecycle = process.env.npm_lifecycle_event ?? "";
 const isDevServer = lifecycle === "dev" || lifecycle === "dev:turbo";
@@ -7,8 +8,13 @@ const isWindowsDev = process.platform === "win32" && isDevServer;
 const turboFsCacheEnabled = process.env.TURBOPACK_FS_CACHE === "1";
 const apiOrigin = (process.env.API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 
+/** Project root when commands run from PayRent-Frontend (avoids monorepo lockfile mis-detection). */
+const frontendRoot = path.resolve(process.cwd());
+
 const nextConfig: NextConfig = {
-  distDir: isDevServer ? ".next-dev" : ".next",
+  /** Single output dir — dev and production share `.next` so `npm start` is not pointed at an empty folder. */
+  distDir: ".next",
+  outputFileTracingRoot: frontendRoot,
   ...(useStandaloneOutput ? { output: "standalone" as const } : {}),
   typescript: {
     ignoreBuildErrors: true,
