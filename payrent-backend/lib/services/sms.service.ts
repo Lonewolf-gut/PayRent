@@ -1,6 +1,7 @@
 import { logger } from "@/lib/logger";
 import { sendArkeselSms, isArkeselConfigured } from "@/lib/integrations/sms/arkesel";
 import { sendHubtelSms, isHubtelConfigured } from "@/lib/integrations/sms/hubtel";
+import { sendWigalSms, isWigalConfigured } from "@/lib/integrations/sms/wigal";
 
 export interface SendSmsParams {
   to: string;
@@ -52,6 +53,27 @@ export async function sendSms(params: SendSmsParams) {
       const message = error instanceof Error ? error.message : String(error);
       if (process.env.NODE_ENV === "development") {
         logger.error("Hubtel SMS failed; falling back to log provider", { message });
+        return logDevSms(params);
+      }
+      throw error;
+    }
+  }
+
+  if (smsProvider === "wigal") {
+    if (!isWigalConfigured()) {
+      if (process.env.NODE_ENV === "development") {
+        return logDevSms(params);
+      }
+      throw new Error("Wigal SMS configuration missing");
+    }
+
+    try {
+      const result = await sendWigalSms(params);
+      return { provider: "wigal" as const, ...result };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (process.env.NODE_ENV === "development") {
+        logger.error("Wigal SMS failed; falling back to log provider", { message });
         return logDevSms(params);
       }
       throw error;
