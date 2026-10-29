@@ -27,6 +27,19 @@ export function markSavedPropertyViewed(propertyId: string) {
   return true;
 }
 
+export function markAllSavedPropertiesViewed(propertyIds: string[]) {
+  const viewed = readViewedIds();
+  let changed = false;
+  for (const id of propertyIds) {
+    if (!viewed.has(id)) {
+      viewed.add(id);
+      changed = true;
+    }
+  }
+  if (changed) writeViewedIds(viewed);
+  return changed;
+}
+
 export function clearSavedPropertyViewed(propertyId: string) {
   const viewed = readViewedIds();
   if (!viewed.has(propertyId)) return false;
