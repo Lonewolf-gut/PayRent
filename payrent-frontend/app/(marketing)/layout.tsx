@@ -8,6 +8,8 @@ import { MarketingSignedInExtras } from "@/components/marketing/marketing-signed
 import { MarketingSubscriptionShell } from "@/components/marketing/marketing-subscription-shell";
 import { MarketingThemeGuard } from "@/components/marketing/marketing-theme-guard";
 
+export const dynamic = "force-dynamic";
+
 export default async function MarketingLayout({
   children,
 }: { children: React.ReactNode }) {

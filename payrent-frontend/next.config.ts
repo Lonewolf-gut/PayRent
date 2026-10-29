@@ -12,9 +12,12 @@ const apiOrigin = (process.env.API_URL ?? "http://localhost:3001").replace(/\/$/
 const frontendRoot = path.resolve(process.cwd());
 
 const nextConfig: NextConfig = {
-  /** Single output dir — dev and production share `.next` so `npm start` is not pointed at an empty folder. */
-  distDir: ".next",
+  /** Dev cache separate from production build (matches backend; avoids corrupting `next start`). */
+  distDir: isDevServer ? ".next-dev" : ".next",
   outputFileTracingRoot: frontendRoot,
+  turbopack: {
+    root: frontendRoot,
+  },
   ...(useStandaloneOutput ? { output: "standalone" as const } : {}),
   typescript: {
     ignoreBuildErrors: true,

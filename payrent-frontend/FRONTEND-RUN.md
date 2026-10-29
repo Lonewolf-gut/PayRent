@@ -1,40 +1,73 @@
 # PayRent Frontend — run on Windows
 
-## Manifests error (`The manifests singleton was not initialized`)
+## Manifests error on `npm start`
 
-This happens when **`npm start`** runs **without** a completed **`npm run build`**, or when old **`.next-dev`** folders conflict with **`.next`**.
+This was caused by the home page (`/`) being treated as a **static** route in production while the marketing layout uses **auth()**. That broke `next start` with:
 
-### Fix (do this in `PayRent-Frontend`)
+`Invariant: The manifests singleton was not initialized`
+
+**Fixed in the latest sync branch** (`force-dynamic` on the marketing layout + separate `.next-dev` for dev).
+
+---
+
+## Recommended commands (PowerShell)
 
 ```powershell
 cd C:\Users\USER\Desktop\PayRent-Frontend
-# Stop any running node/next process (Ctrl+C in those terminals)
-
+git fetch origin sync/payrent-frontend-5e51
+git reset --hard origin/sync/payrent-frontend-5e51
 npm run clean
-Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
 npm install
 npm run dev
 ```
 
 Open **http://localhost:3000**
 
-Use **`npm run dev`** for daily work — not **`npm start`**.
+Use **`npm run dev`** for daily work (not raw `next start`).
 
-### Production mode only
+---
+
+## If you use `npm start`
+
+After pulling the latest code:
+
+- Valid **`npm run build`** output → runs production server
+- Otherwise → clears stale cache and runs **`npm run dev`**
+
+Production mode:
 
 ```powershell
 npm run clean
-npm install
 npm run build
-npm start
+npm run start:prod
 ```
 
-If `npm start` runs without a build, the `prestart` script now prints clear instructions instead of the manifests error.
+---
 
 ## Backend
 
-Run **PayRent-Backend** on port **3001** and set in `.env`:
+Run **PayRent-Backend** on port **3001**. In frontend `.env`:
 
 ```env
 API_URL=http://localhost:3001
+AUTH_SECRET=any-long-random-string-for-local-dev
+```
+
+---
+
+## Pull without a `payrent` remote
+
+If `origin` is your frontend repo and sync lives on GitHub monorepo:
+
+```powershell
+git fetch origin sync/payrent-frontend-5e51
+git merge --ff-only origin/sync/payrent-frontend-5e51
+```
+
+Or add the monorepo once:
+
+```powershell
+git remote add payrent https://github.com/Lonewolf-gut/PayRent.git
+git fetch payrent sync/payrent-frontend-5e51
+git reset --hard payrent/sync/payrent-frontend-5e51
 ```
