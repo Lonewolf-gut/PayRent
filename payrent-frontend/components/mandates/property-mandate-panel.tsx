@@ -11,6 +11,7 @@ import {
   filterMandatePreviewsForProperty,
 } from "@/lib/mandates/fetch-mandate-previews";
 import { getFinancingActiveStep } from "@/lib/financing/status-flow";
+import { MANDATE_PREVIEW_STATUS_LABELS } from "@/lib/mandates/preview-status-labels";
 import { downloadMandatePdf } from "@/lib/utils/mandate-pdf";
 import { toast } from "sonner";
 
@@ -82,7 +83,11 @@ export function PropertyMandatePanel({
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <FinancingFlowCarousel activeStep={activeStep} />
+        <FinancingFlowCarousel
+          activeStep={activeStep}
+          propertyName={preview.propertyName.replace(/^\[Demo\]\s*/i, "")}
+          statusLabel={MANDATE_PREVIEW_STATUS_LABELS[preview.previewStatus]}
+        />
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"

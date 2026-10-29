@@ -71,7 +71,6 @@ export function MessagesWidget() {
   const isExpanded = state !== "collapsed";
   const inChat = state === "chat" && !!activeId;
   const hasConversations = conversations.length > 0;
-  const showCompactLauncher = !isExpanded && !hasConversations;
 
   function openWidget() {
     setState("list");
@@ -80,6 +79,11 @@ export function MessagesWidget() {
   function collapseWidget() {
     setActiveId(null);
     setState("collapsed");
+  }
+
+  function toggleWidget() {
+    if (isExpanded) collapseWidget();
+    else openWidget();
   }
 
   return (
@@ -95,30 +99,30 @@ export function MessagesWidget() {
           )}
         >
           <div className="flex items-center gap-2 border-b px-3 py-2.5">
-            <Avatar className="size-8">
-              {(profile?.image ?? session.user.image) ? (
-                <AvatarImage
-                  src={profile?.image ?? session.user.image ?? undefined}
-                  alt={displayName}
-                />
-              ) : null}
-              <AvatarFallback className="text-xs">{getInitials(displayName)}</AvatarFallback>
-            </Avatar>
-            <p className="min-w-0 flex-1 truncate text-sm font-semibold">
-              {inChat ? title : "Messaging"}
-            </p>
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              onClick={toggleWidget}
+              aria-label="Minimize messaging"
+            >
+              <Avatar className="size-8">
+                {(profile?.image ?? session.user.image) ? (
+                  <AvatarImage
+                    src={profile?.image ?? session.user.image ?? undefined}
+                    alt={displayName}
+                  />
+                ) : null}
+                <AvatarFallback className="text-xs">{getInitials(displayName)}</AvatarFallback>
+              </Avatar>
+              <p className="min-w-0 flex-1 truncate text-sm font-semibold">
+                {inChat ? title : "Messaging"}
+              </p>
+            </button>
             <Button
               variant="ghost"
               size="icon-sm"
               aria-label="Minimize messaging"
-              onClick={() => {
-                if (inChat) {
-                  setActiveId(null);
-                  setState("list");
-                  return;
-                }
-                collapseWidget();
-              }}
+              onClick={collapseWidget}
             >
               <ChevronDown className="h-4 w-4" />
             </Button>
@@ -175,11 +179,12 @@ export function MessagesWidget() {
           </div>
         </div>
 
-        {!isExpanded && showCompactLauncher ? (
+        {!hasConversations ? (
           <button
             type="button"
-            onClick={openWidget}
-            aria-label="Open messaging"
+            onClick={toggleWidget}
+            aria-label={isExpanded ? "Close messaging" : "Open messaging"}
+            aria-expanded={isExpanded}
             className="relative mb-3 flex size-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700"
           >
             <MessagesSquare className="size-6" strokeWidth={1.75} />
@@ -189,10 +194,12 @@ export function MessagesWidget() {
               </span>
             ) : null}
           </button>
-        ) : !isExpanded ? (
+        ) : (
           <button
             type="button"
-            onClick={openWidget}
+            onClick={toggleWidget}
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? "Close messaging" : "Open messaging"}
             className="flex w-[min(100vw-1rem,360px)] items-center gap-3 rounded-t-xl border border-b-0 bg-card px-3 py-2.5 shadow-xl transition hover:bg-muted/40"
           >
             <div className="relative">
@@ -213,9 +220,13 @@ export function MessagesWidget() {
                 {badge}
               </span>
             ) : null}
-            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            )}
           </button>
-        ) : null}
+        )}
       </div>
     </div>
   );

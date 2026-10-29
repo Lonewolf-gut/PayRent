@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { MandateAccordionList } from "@/components/mandates/mandate-accordion-list";
 import { FinancingFlowCarousel } from "@/components/financing/financing-flow-carousel";
 import { fetchMandatePreviews } from "@/lib/mandates/fetch-mandate-previews";
 import type { MandatePreviewData } from "@/lib/utils/mandate-preview";
 import { getFinancingActiveStep } from "@/lib/financing/status-flow";
+import { MANDATE_PREVIEW_STATUS_LABELS } from "@/lib/mandates/preview-status-labels";
 import { Upload } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,6 +27,9 @@ export default function TenantMandatesPage() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [selectedFinancingRequestId, setSelectedFinancingRequestId] = useState<string | null>(
+    null
+  );
 
   const {
     data: previews = [],
@@ -98,8 +103,22 @@ export default function TenantMandatesPage() {
     return json.data?.mandateId as string;
   };
 
+  useEffect(() => {
+    if (!previews.length) return;
+    setSelectedFinancingRequestId((current) => {
+      if (current && previews.some((preview) => preview.financingRequestId === current)) {
+        return current;
+      }
+      return previews[0]?.financingRequestId ?? null;
+    });
+  }, [previews]);
+
+  const selectedPreview =
+    previews.find((preview) => preview.financingRequestId === selectedFinancingRequestId) ??
+    previews[0];
+
   const uploadFile = async (file: File) => {
-    const targetPreview = previews[0];
+    const targetPreview = selectedPreview ?? previews[0];
     if (!targetPreview) {
       toast.error("Submit a Pay-for-Me request first");
       return;
@@ -197,9 +216,55 @@ export default function TenantMandatesPage() {
         </Card>
       ) : (
         <div className="space-y-6">
-          <FinancingFlowCarousel
-            activeStep={getFinancingActiveStep(previews[0]?.financingStatus ?? "CREATED")}
-          />
+          {previews.length > 1 ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">Which request?</p>
+              <p className="text-xs text-muted-foreground">
+                The four steps below apply to the selected pay-for-me request only—not all requests
+                at once.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {previews.map((preview) => {
+                  const name = preview.propertyName.replace(/^\[Demo\]\s*/i, "");
+                  const selected = preview.financingRequestId === selectedFinancingRequestId;
+                  return (
+                    <button
+                      key={preview.financingRequestId}
+                      type="button"
+                      onClick={() => setSelectedFinancingRequestId(preview.financingRequestId)}
+                      className={`rounded-full border px-3 py-1.5 text-left text-xs transition ${
+                        selected
+                          ? "border-emerald-600 bg-emerald-50 text-emerald-900"
+                          : "border-border bg-card hover:bg-muted/40"
+                      }`}
+                    >
+                      <span className="block max-w-[14rem] truncate font-medium">{name}</span>
+                      <span className="text-muted-foreground">
+                        {MANDATE_PREVIEW_STATUS_LABELS[preview.previewStatus]}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : selectedPreview ? (
+            <p className="text-xs text-muted-foreground">
+              Progress for{" "}
+              <span className="font-medium text-foreground">
+                {selectedPreview.propertyName.replace(/^\[Demo\]\s*/i, "")}
+              </span>
+              .
+            </p>
+          ) : null}
+
+          {selectedPreview ? (
+            <FinancingFlowCarousel
+              activeStep={getFinancingActiveStep(selectedPreview.financingStatus)}
+              propertyName={selectedPreview.propertyName.replace(/^\[Demo\]\s*/i, "")}
+              statusLabel={MANDATE_PREVIEW_STATUS_LABELS[selectedPreview.previewStatus]}
+            />
+          ) : null}
+
           <MandateAccordionList
           previews={previews}
           getMandateForPreview={getMandateForPreview}
@@ -207,6 +272,8 @@ export default function TenantMandatesPage() {
           onRefreshStatus={(mandateId) => syncMutation.mutate(mandateId)}
           submitPending={submitMutation.isPending}
           syncPending={syncMutation.isPending}
+          selectedFinancingRequestId={selectedFinancingRequestId ?? undefined}
+          onSelectedFinancingRequestIdChange={setSelectedFinancingRequestId}
         />
         </div>
       )}

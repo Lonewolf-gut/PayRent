@@ -12,18 +12,11 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import type { MandatePreviewData } from "@/lib/utils/mandate-preview";
+import { MANDATE_PREVIEW_STATUS_LABELS } from "@/lib/mandates/preview-status-labels";
 import { downloadMandatePdf } from "@/lib/utils/mandate-pdf";
 import { toast } from "sonner";
 
-const STATUS_LABELS: Record<MandatePreviewData["previewStatus"], string> = {
-  awaiting_lender: "Awaiting lender rate",
-  awaiting_buyer: "Review lender offer",
-  mandate_pending: "Mandate prepared",
-  bank_processing: "Bank processing",
-  active: "Active mandate",
-  declined: "Declined / cancelled",
-  none: "Not available",
-};
+const STATUS_LABELS = MANDATE_PREVIEW_STATUS_LABELS;
 
 type MandateRecord = {
   id: string;
@@ -39,6 +32,8 @@ export function MandateAccordionList({
   onRefreshStatus,
   submitPending,
   syncPending,
+  selectedFinancingRequestId,
+  onSelectedFinancingRequestIdChange,
 }: {
   previews: MandatePreviewData[];
   getMandateForPreview: (preview: MandatePreviewData) => MandateRecord | undefined;
@@ -46,12 +41,22 @@ export function MandateAccordionList({
   onRefreshStatus: (mandateId: string) => void;
   submitPending: boolean;
   syncPending: boolean;
+  selectedFinancingRequestId?: string;
+  onSelectedFinancingRequestIdChange?: (financingRequestId: string) => void;
 }) {
+  const accordionValue =
+    selectedFinancingRequestId ?? previews[0]?.financingRequestId ?? undefined;
+
   return (
     <Accordion
       type="single"
       collapsible
-      defaultValue={previews[0]?.financingRequestId}
+      value={accordionValue}
+      onValueChange={(value) => {
+        if (value && onSelectedFinancingRequestIdChange) {
+          onSelectedFinancingRequestIdChange(value);
+        }
+      }}
       className="divide-y divide-border rounded-xl border border-border bg-card"
     >
       {previews.map((preview) => {
