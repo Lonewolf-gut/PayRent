@@ -224,6 +224,9 @@ export function PropertyActionPanel({
                   <Button className="w-full rounded-none bg-amber-500 hover:bg-amber-600" asChild>
                     <Link href="/dashboard/buyer/applications">View progress</Link>
                   </Button>
+                  <Button className="w-full rounded-none" variant="outline" asChild>
+                    <Link href="/dashboard/buyer/mandates">Mandate workspace</Link>
+                  </Button>
                 </div>
               ) : approvedApplication ? (
                 <div className="space-y-3">

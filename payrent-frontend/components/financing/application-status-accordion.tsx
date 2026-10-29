@@ -20,6 +20,7 @@ import {
   canSubmitFinancingRequest,
   getApplicationProgressSummary,
   getApprovedApplicationProgressSummary,
+  getFinancingActiveStep,
 } from "@/lib/financing/status-flow";
 import { cn } from "@/lib/utils";
 
@@ -162,6 +163,11 @@ export function ApplicationAccordionItem({
                     ) ? (
                       <Button asChild size="sm" variant="outline">
                         <Link href="/dashboard/buyer/repayments">View repayments</Link>
+                      </Button>
+                    ) : null}
+                    {getFinancingActiveStep(financing.status) >= 3 ? (
+                      <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                        <Link href="/dashboard/buyer/mandates">Mandate — download &amp; bank sign-off</Link>
                       </Button>
                     ) : null}
                   </div>

@@ -25,6 +25,7 @@ import { PropertyLocationSheet, PropertyLocationTrigger } from "@/components/pro
 import { PropertySpecsGrid } from "@/components/properties/property-specs-grid";
 import { SimilarPropertiesSection } from "@/components/properties/similar-properties";
 import { PropertyActionPanel } from "@/components/properties/property-action-panel";
+import { PropertyMandatePanel } from "@/components/mandates/property-mandate-panel";
 import { AgentReferralTracker } from "@/components/properties/agent-referral-tracker";
 import { buildPropertySpecs } from "@/lib/utils/property-specs";
 import { isEmploymentRecorded } from "@/lib/constants/employment-status";
@@ -157,6 +158,10 @@ export default function PropertyDetailPage() {
   const approvedApplication = applications?.find(
     (app: { propertyId: string; status: string }) =>
       app.propertyId === id && app.status === "APPROVED"
+  );
+
+  const propertyApplication = applications?.find(
+    (app: { propertyId: string }) => app.propertyId === id
   );
 
   const profileComplete = ["PROFILE_COMPLETED", "KYC_PENDING", "KYC_VERIFIED"].includes(
@@ -333,6 +338,7 @@ export default function PropertyDetailPage() {
           <PropertySaveButton propertyId={id} variant="button" />
           {session ? (
             session.user.role === "BUYER" ? (
+              <>
               <PropertyActionPanel
                 propertyId={id}
                 propertyName={property.name}
@@ -340,18 +346,15 @@ export default function PropertyDetailPage() {
                 purchasePrice={purchasePrice}
                 walletBalance={walletBalance}
                 monthlyRent={listPrice}
+                annualRent={property.annualRent ? Number(property.annualRent) : undefined}
                 propertyStatus={property.status}
-                kycVerified={financingReady}
-                financingDocsApproved={Boolean(financingDocs?.allApproved)}
+                fullyVerified={financingReady}
                 approvedApplication={approvedApplication}
+                propertyApplication={propertyApplication}
                 moveInDate={moveInDate}
                 setMoveInDate={setMoveInDate}
                 notes={notes}
                 setNotes={setNotes}
-                amount={amount}
-                setAmount={setAmount}
-                months={months}
-                setMonths={setMonths}
                 onDepositPrompt={() => setDepositPromptOpen(true)}
                 onChat={(recipientUserId, label) =>
                   chatMutation.mutate({ recipientUserId, label })
@@ -365,6 +368,8 @@ export default function PropertyDetailPage() {
                     : null,
                 }}
               />
+              <PropertyMandatePanel propertyId={id} propertyName={property.name} enabled />
+              </>
             ) : null
           ) : (
             <Card className="rounded-none">

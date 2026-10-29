@@ -90,3 +90,14 @@ export function markSavedPropertyViewedAndSyncCount(
   setSavedPropertyCountQuery(queryClient, nextCount);
   return nextCount;
 }
+
+export function markAllSavedPropertiesViewedAndSyncCount(
+  queryClient: QueryClient,
+  propertyIds: string[]
+) {
+  markAllSavedPropertiesViewed(propertyIds);
+  setSavedPropertyCountQuery(queryClient, 0);
+}
+
+/** @deprecated Use fetchUnviewedSavedCount */
+export const fetchSavedPropertyCount = fetchUnviewedSavedCount;
