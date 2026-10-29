@@ -51,11 +51,14 @@ git clone -b sync/payrent-backend-5e51 https://github.com/Lonewolf-gut/PayRent.g
 
 ### Fix an existing folder without re-cloning
 
+After a cloud-agent update (for example PR **#56** — all banks + manual CBG mandates), pull the latest **sync branches**:
+
 ```powershell
 cd C:\Users\USER\Desktop\PayRent-Frontend
 git fetch origin sync/payrent-frontend-5e51
 git checkout sync/payrent-frontend-5e51
 git reset --hard origin/sync/payrent-frontend-5e51
+npm install
 ```
 
 ```powershell
@@ -63,7 +66,26 @@ cd C:\Users\USER\Desktop\PayRent-Backend
 git fetch origin sync/payrent-backend-5e51
 git checkout sync/payrent-backend-5e51
 git reset --hard origin/sync/payrent-backend-5e51
+npm install
+npm run db:push
 ```
+
+If you use **separate GitHub repos** instead of sync branches:
+
+```powershell
+cd C:\Users\USER\Desktop\PayRent-Frontend
+git pull origin main
+npm install
+```
+
+```powershell
+cd C:\Users\USER\Desktop\PayRent-Backend
+git pull origin main
+npm install
+npm run db:push
+```
+
+Replace `main` with whatever branch your team merges agent PRs into.
 
 ## Run commands
 

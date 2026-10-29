@@ -30,6 +30,18 @@ const navItems = [
 
   { href: "/admin/mandates", label: "Mandates", icon: "CreditCard" as const, badgeCountEndpoint: "/api/admin/reviews?type=mandate" },
 
+  {
+
+    href: "/admin/manual-bank-mandates",
+
+    label: "Manual bank mandates",
+
+    icon: "FileText" as const,
+
+    badgeCountEndpoint: "/api/admin/mandates/manual-bank",
+
+  },
+
   { href: "/admin/financing", label: "Financing", icon: "TrendingUp" as const },
 
   { href: "/admin/settlements", label: "Settlements", icon: "DollarSign" as const },

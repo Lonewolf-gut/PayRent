@@ -1,0 +1,241 @@
+"use client";
+
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { StatusBadge } from "@/components/dashboard/status-badge";
+import { MANDATE_STATUS_LABELS } from "@/constants/platform";
+import { SecureFileLink } from "@/components/shared/secure-file-link";
+import { ExternalLink, Printer, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { toast } from "sonner";
+import { isCbgBankAccount } from "@/lib/constants/bank-partners";
+
+type Mandate = {
+  id: string;
+  status: string;
+  mandateSource: string;
+  providerName?: string | null;
+  documentUrl?: string | null;
+  tenant?: { user?: { email: string } };
+  bankAccount?: { bankName: string; bankCode?: string | null; accountNumberMasked?: string };
+  financingRequest?: { property?: { name: string } };
+};
+
+type AdminMandateReviewListProps = {
+  title: string;
+  description: string;
+  queryKey: string;
+  fetchUrl: string;
+  manualOnly?: boolean;
+  emptyMessage?: string;
+};
+
+function isManualBankMandate(mandate: Mandate) {
+  return (
+    mandate.providerName === "manual-bank" ||
+    (mandate.bankAccount &&
+      !isCbgBankAccount(mandate.bankAccount.bankCode, mandate.bankAccount.bankName))
+  );
+}
+
+export function AdminMandateReviewList({
+  title,
+  description,
+  queryKey,
+  fetchUrl,
+  manualOnly = false,
+  emptyMessage = "No mandates pending review.",
+}: AdminMandateReviewListProps) {
+  const queryClient = useQueryClient();
+  const [rejectId, setRejectId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+
+  const { data: mandates, isLoading } = useQuery({
+    queryKey: [queryKey],
+    queryFn: async () => {
+      const res = await fetch(fetchUrl);
+      const json = await res.json();
+      if (json.data?.items) {
+        return json.data.items as Mandate[];
+      }
+      return (json.data ?? []) as Mandate[];
+    },
+  });
+
+  const displayMandates = mandates;
+
+  const reviewMutation = useMutation({
+    mutationFn: async ({
+      id,
+      decision,
+      rejectedReason,
+    }: {
+      id: string;
+      decision: "APPROVE" | "REJECT";
+      rejectedReason?: string;
+    }) => {
+      const res = await fetch(`/api/mandates/${id}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision, rejectedReason }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
+    },
+    onSuccess: () => {
+      toast.success("Mandate reviewed");
+      setRejectId(null);
+      setRejectReason("");
+      queryClient.invalidateQueries({ queryKey: [queryKey] });
+      queryClient.invalidateQueries({ queryKey: ["admin-mandates"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-badge"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: async (mandateId: string) => {
+      const res = await fetch(`/api/mandates/${mandateId}/status`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
+    },
+    onSuccess: () => {
+      toast.success("Bank status refreshed");
+      queryClient.invalidateQueries({ queryKey: [queryKey] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">{title}</h1>
+        <p className="text-muted-foreground">{description}</p>
+      </div>
+      {isLoading ? (
+        <p className="text-muted-foreground">Loading...</p>
+      ) : !displayMandates?.length ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            {emptyMessage}
+          </CardContent>
+        </Card>
+      ) : (
+        displayMandates.map((mandate) => {
+          const manualBank = isManualBankMandate(mandate);
+
+          return (
+            <Card key={mandate.id}>
+              <CardHeader className="flex flex-row items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base">{mandate.tenant?.user?.email}</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    {mandate.financingRequest?.property?.name ?? "Financing mandate"} ·{" "}
+                    {mandate.bankAccount?.bankName} · {mandate.mandateSource.replace("_", " ")}
+                    {manualBank ? " · Manual bank" : " · CBG API"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Account {mandate.bankAccount?.accountNumberMasked ?? "—"}
+                  </p>
+                </div>
+                <StatusBadge status={mandate.status} label={MANDATE_STATUS_LABELS[mandate.status]} />
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {manualBank && (
+                  <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    Print this pack and send it to {mandate.bankAccount?.bankName} to set up monthly
+                    deductions. Mark approved after the bank confirms.
+                  </p>
+                )}
+                {manualBank && (
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/admin/mandates/print?id=${mandate.id}`} target="_blank">
+                      <Printer className="mr-2 h-4 w-4" />
+                      Print bank pack
+                    </Link>
+                  </Button>
+                )}
+                {mandate.documentUrl && (
+                  <Button asChild size="sm" variant="outline">
+                    <SecureFileLink request={{ scope: "mandate", mandateId: mandate.id }}>
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      View mandate document
+                    </SecureFileLink>
+                  </Button>
+                )}
+
+                {rejectId === mandate.id ? (
+                  <div className="space-y-2 rounded-lg border p-4">
+                    <Label htmlFor={`reject-${mandate.id}`}>Rejection reason</Label>
+                    <Input
+                      id={`reject-${mandate.id}`}
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      placeholder="Explain why the mandate was rejected"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={reviewMutation.isPending}
+                        onClick={() =>
+                          reviewMutation.mutate({
+                            id: mandate.id,
+                            decision: "REJECT",
+                            rejectedReason: rejectReason || "Rejected by administrator",
+                          })
+                        }
+                      >
+                        Confirm reject
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setRejectId(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {["ADMIN_REVIEW", "PENDING_MANUAL_RESOLUTION"].includes(mandate.status) && (
+                      <>
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                          disabled={reviewMutation.isPending}
+                          onClick={() => reviewMutation.mutate({ id: mandate.id, decision: "APPROVE" })}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => setRejectId(mandate.id)}
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    )}
+                    {mandate.status === "BANK_PROCESSING" && !manualBank && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={syncMutation.isPending}
+                        onClick={() => syncMutation.mutate(mandate.id)}
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Poll bank status
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })
+      )}
+    </div>
+  );
+}

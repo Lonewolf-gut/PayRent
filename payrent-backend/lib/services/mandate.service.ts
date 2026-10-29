@@ -425,6 +425,21 @@ export class MandateService {
     });
   }
 
+  async listManualBankPendingReview() {
+    const mandates = await this.listPendingReview();
+    return mandates.filter(
+      (mandate) =>
+        mandate.providerName === "manual-bank" ||
+        (mandate.bankAccount &&
+          !isCbgBankAccount(mandate.bankAccount.bankCode, mandate.bankAccount.bankName))
+    );
+  }
+
+  async countManualBankPendingReview() {
+    const mandates = await this.listManualBankPendingReview();
+    return mandates.length;
+  }
+
   async getAdminPrintPack(mandateId: string) {
     const mandate = await prisma.mandate.findUnique({
       where: { id: mandateId },
