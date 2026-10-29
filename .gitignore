@@ -17,6 +17,10 @@
 /.next/
 /.next-dev/
 /out/
+payrent-backend/.next/
+payrent-backend/.next-dev/
+payrent-frontend/.next/
+payrent-frontend/.next-dev/
 
 # production
 /build
