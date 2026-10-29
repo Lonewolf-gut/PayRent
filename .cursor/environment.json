@@ -1,0 +1,16 @@
+{
+  "name": "PayRent",
+  "install": "bash .cursor/install.sh",
+  "start": "bash .cursor/start.sh",
+  "terminals": [
+    {
+      "name": "dev",
+      "command": "npm run dev",
+      "description": "Runs the PayRent backend (Next.js API on http://localhost:3001) and frontend (Next.js web app on http://localhost:3000) together via concurrently."
+    }
+  ],
+  "ports": [
+    { "name": "frontend", "port": 3000 },
+    { "name": "backend", "port": 3001 }
+  ]
+}
