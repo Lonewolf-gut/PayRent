@@ -413,6 +413,17 @@ export class MandateService {
     });
   }
 
+  isManualBankMandate(mandate: {
+    providerName: string | null;
+    bankAccount: { bankCode: string | null; bankName: string } | null;
+  }) {
+    return (
+      mandate.providerName === "manual-bank" ||
+      (mandate.bankAccount &&
+        !isCbgBankAccount(mandate.bankAccount.bankCode, mandate.bankAccount.bankName))
+    );
+  }
+
   async listPendingReview() {
     return prisma.mandate.findMany({
       where: { status: { in: ["ADMIN_REVIEW", "PENDING_MANUAL_RESOLUTION"] } },
@@ -425,14 +436,14 @@ export class MandateService {
     });
   }
 
+  async listAutomatedPendingReview() {
+    const mandates = await this.listPendingReview();
+    return mandates.filter((mandate) => !this.isManualBankMandate(mandate));
+  }
+
   async listManualBankPendingReview() {
     const mandates = await this.listPendingReview();
-    return mandates.filter(
-      (mandate) =>
-        mandate.providerName === "manual-bank" ||
-        (mandate.bankAccount &&
-          !isCbgBankAccount(mandate.bankAccount.bankCode, mandate.bankAccount.bankName))
-    );
+    return mandates.filter((mandate) => this.isManualBankMandate(mandate));
   }
 
   async countManualBankPendingReview() {

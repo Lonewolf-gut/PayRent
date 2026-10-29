@@ -16,7 +16,7 @@ export const GET = withAuth(
     }
 
     if (session.user.role === "ADMIN") {
-      const mandates = await mandateService.listPendingReview();
+      const mandates = await mandateService.listAutomatedPendingReview();
       return apiResponse(mandates, 200, "Pending mandates retrieved.");
     }
 

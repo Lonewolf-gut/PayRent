@@ -14,7 +14,7 @@ export const GET = withAuth(
 
     if (type === "mandate") {
       const { mandateService } = await import("@/lib/services/mandate.service");
-      const mandates = await mandateService.listPendingReview();
+      const mandates = await mandateService.listAutomatedPendingReview();
       return apiResponse(mandates, 200, "Mandate review queue retrieved.");
     }
 
