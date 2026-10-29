@@ -161,7 +161,52 @@ export class FinancingService {
       },
     });
 
+    if (initialStatus === "MANDATE_PENDING" && repaymentPreference?.bankAccountId) {
+      await this.syncMandateDraftForRequest(
+        tenantId,
+        request.tenant.userId,
+        request.id
+      );
+    }
+
     return request;
+  }
+
+  async syncMandateDraftForRequest(
+    tenantId: string,
+    userId: string,
+    financingRequestId: string
+  ) {
+    const request = await prisma.financingRequest.findFirst({
+      where: { id: financingRequestId, tenantId },
+    });
+    if (!request?.repaymentPreference) return null;
+
+    const preference = request.repaymentPreference as RepaymentPreference;
+    if (!preference.bankAccountId) return null;
+
+    const { mandateService } = await import("@/lib/services/mandate.service");
+    return mandateService.createDraftForFinancing(
+      tenantId,
+      userId,
+      financingRequestId,
+      preference.bankAccountId
+    );
+  }
+
+  async syncAllMandateDraftsForTenant(tenantId: string, userId: string) {
+    const requests = await prisma.financingRequest.findMany({
+      where: {
+        tenantId,
+        mandateId: null,
+        status: { notIn: ["REJECTED", "WITHDRAWN", "CLOSED", "COMPLETED"] },
+      },
+      select: { id: true },
+    });
+
+    for (const request of requests) {
+      await this.syncMandateDraftForRequest(tenantId, userId, request.id);
+    }
   }
 
   async adminReviewRequest(
