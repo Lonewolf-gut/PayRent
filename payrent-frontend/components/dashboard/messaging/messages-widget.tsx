@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, MessagesSquare } from "lucide-react";
+import { ChevronDown, MessagesSquare } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { conversationTitle } from "@/lib/messaging/display";
@@ -22,7 +22,67 @@ function getInitials(name: string) {
 
 function formatWidgetBadge(count: number) {
   if (count <= 0) return null;
-  return count > 3 ? "3" : String(count);
+  return count > 9 ? "9+" : String(count);
+}
+
+function MessageLauncher({
+  badge,
+  isExpanded,
+  onClick,
+  displayName,
+  avatarSrc,
+  variant,
+}: {
+  badge: string | null;
+  isExpanded: boolean;
+  onClick: () => void;
+  displayName: string;
+  avatarSrc?: string | null;
+  variant: "fab" | "bar";
+}) {
+  if (variant === "fab") {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={isExpanded ? "Close messaging" : "Open messaging"}
+        aria-expanded={isExpanded}
+        className="relative mb-3 flex size-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700"
+      >
+        <MessagesSquare className="size-6" strokeWidth={1.75} />
+        {badge ? (
+          <span className="absolute -right-0.5 -top-0.5 flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+            {badge}
+          </span>
+        ) : null}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={isExpanded}
+      aria-label={isExpanded ? "Close messaging" : "Open messaging"}
+      className="mb-0 flex w-[min(100vw-1rem,360px)] items-center gap-3 rounded-t-xl border border-b-0 bg-card px-3 py-2.5 shadow-xl transition hover:bg-muted/40"
+    >
+      <div className="relative">
+        <Avatar className="size-9">
+          {avatarSrc ? <AvatarImage src={avatarSrc} alt={displayName} /> : null}
+          <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
+        </Avatar>
+        <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card bg-emerald-500" />
+      </div>
+      <span className="flex-1 text-left text-sm font-medium">Messaging</span>
+      {badge ? (
+        <span className="flex min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+          {badge}
+        </span>
+      ) : null}
+      <MessagesSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </button>
+  );
 }
 
 export function MessagesWidget() {
@@ -64,6 +124,7 @@ export function MessagesWidget() {
 
   const displayName =
     profile?.fullName?.trim() || session.user.email?.split("@")[0] || "You";
+  const avatarSrc = profile?.image ?? session.user.image ?? null;
   const title = activeConversation
     ? conversationTitle(activeConversation.participants, currentUserId)
     : "Messaging";
@@ -89,143 +150,106 @@ export function MessagesWidget() {
   return (
     <div className="pointer-events-none fixed bottom-0 right-2 z-50 sm:right-4">
       <div className="pointer-events-auto flex flex-col items-end">
-        <div
-          className={cn(
-            "origin-bottom flex flex-col overflow-hidden rounded-t-xl border border-b-0 bg-card shadow-2xl transition-all duration-300 ease-out",
-            inChat ? "w-[min(100vw-1rem,640px)]" : "w-[min(100vw-1rem,360px)]",
-            isExpanded
-              ? "translate-y-0 opacity-100"
-              : "pointer-events-none max-h-0 translate-y-full opacity-0"
-          )}
-        >
-          <div className="flex items-center gap-2 border-b px-3 py-2.5">
-            <button
-              type="button"
-              className="flex min-w-0 flex-1 items-center gap-2 text-left"
-              onClick={toggleWidget}
-              aria-label="Minimize messaging"
-            >
-              <Avatar className="size-8">
-                {(profile?.image ?? session.user.image) ? (
-                  <AvatarImage
-                    src={profile?.image ?? session.user.image ?? undefined}
-                    alt={displayName}
-                  />
-                ) : null}
-                <AvatarFallback className="text-xs">{getInitials(displayName)}</AvatarFallback>
-              </Avatar>
-              <p className="min-w-0 flex-1 truncate text-sm font-semibold">
-                {inChat ? title : "Messaging"}
-              </p>
-            </button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Minimize messaging"
-              onClick={collapseWidget}
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </div>
-
+        {isExpanded ? (
           <div
             className={cn(
-              "flex min-h-0",
-              inChat ? "h-[min(72vh,520px)]" : "h-[min(60vh,420px)]"
+              "flex max-h-[min(85vh,640px)] flex-col overflow-hidden rounded-t-xl border border-b-0 bg-card shadow-2xl",
+              inChat ? "w-[min(100vw-1rem,640px)]" : "w-[min(100vw-1rem,360px)]"
             )}
           >
-            {inChat ? (
-              <>
-                <div className="w-[40%] shrink-0 border-r">
-                  <MessagingListPanel
-                    conversations={conversations}
-                    activeId={activeId}
-                    currentUserId={currentUserId}
-                    onSelect={(id) => {
-                      setActiveId(id);
-                      setState("chat");
-                    }}
-                    compact
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <ChatThread
-                    messages={messages}
-                    currentUserId={currentUserId}
-                    title={title}
-                    content={content}
-                    onContentChange={setContent}
-                    onSend={() => sendMutation.mutate()}
-                    sending={sendMutation.isPending}
-                    typers={typers}
-                    compact
-                    showHeader={false}
-                  />
-                </div>
-              </>
-            ) : (
-              <MessagingListPanel
-                conversations={conversations}
-                activeId={activeId}
-                currentUserId={currentUserId}
-                onSelect={(id) => {
-                  setActiveId(id);
-                  setState("chat");
-                }}
-                compact
-                className="w-full"
-              />
-            )}
-          </div>
-        </div>
-
-        {!hasConversations ? (
-          <button
-            type="button"
-            onClick={toggleWidget}
-            aria-label={isExpanded ? "Close messaging" : "Open messaging"}
-            aria-expanded={isExpanded}
-            className="relative mb-3 flex size-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700"
-          >
-            <MessagesSquare className="size-6" strokeWidth={1.75} />
-            {badge ? (
-              <span className="absolute -right-0.5 -top-0.5 flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
-                {badge}
-              </span>
-            ) : null}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={toggleWidget}
-            aria-expanded={isExpanded}
-            aria-label={isExpanded ? "Close messaging" : "Open messaging"}
-            className="flex w-[min(100vw-1rem,360px)] items-center gap-3 rounded-t-xl border border-b-0 bg-card px-3 py-2.5 shadow-xl transition hover:bg-muted/40"
-          >
-            <div className="relative">
-              <Avatar className="size-9">
-                {(profile?.image ?? session.user.image) ? (
-                  <AvatarImage
-                    src={profile?.image ?? session.user.image ?? undefined}
-                    alt={displayName}
-                  />
-                ) : null}
-                <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
-              </Avatar>
-              <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card bg-emerald-500" />
+            <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2.5">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <Avatar className="size-8">
+                  {avatarSrc ? <AvatarImage src={avatarSrc} alt={displayName} /> : null}
+                  <AvatarFallback className="text-xs">{getInitials(displayName)}</AvatarFallback>
+                </Avatar>
+                <p className="min-w-0 flex-1 truncate text-sm font-semibold">
+                  {inChat ? title : "Messaging"}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Minimize messaging"
+                onClick={collapseWidget}
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
             </div>
-            <span className="flex-1 text-left text-sm font-medium">Messaging</span>
-            {badge ? (
-              <span className="flex min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                {badge}
-              </span>
-            ) : null}
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            )}
-          </button>
+
+            <div
+              className={cn(
+                "flex min-h-0 flex-1",
+                inChat ? "h-[min(72vh,520px)]" : "h-[min(60vh,420px)]"
+              )}
+            >
+              {inChat ? (
+                <>
+                  <div className="hidden w-[40%] shrink-0 border-r sm:block">
+                    <MessagingListPanel
+                      conversations={conversations}
+                      activeId={activeId}
+                      currentUserId={currentUserId}
+                      onSelect={(id) => {
+                        setActiveId(id);
+                        setState("chat");
+                      }}
+                      compact
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <ChatThread
+                      messages={messages}
+                      currentUserId={currentUserId}
+                      title={title}
+                      content={content}
+                      onContentChange={setContent}
+                      onSend={() => sendMutation.mutate()}
+                      sending={sendMutation.isPending}
+                      typers={typers}
+                      compact
+                      showHeader={false}
+                    />
+                  </div>
+                </>
+              ) : (
+                <MessagingListPanel
+                  conversations={conversations}
+                  activeId={activeId}
+                  currentUserId={currentUserId}
+                  onSelect={(id) => {
+                    setActiveId(id);
+                    setState("chat");
+                  }}
+                  compact
+                  className="w-full"
+                />
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="md:hidden">
+              <MessageLauncher
+                variant="fab"
+                badge={badge}
+                isExpanded={false}
+                onClick={openWidget}
+                displayName={displayName}
+                avatarSrc={avatarSrc}
+              />
+            </div>
+            <div className="hidden md:block">
+              <MessageLauncher
+                variant={hasConversations ? "bar" : "fab"}
+                badge={badge}
+                isExpanded={false}
+                onClick={toggleWidget}
+                displayName={displayName}
+                avatarSrc={avatarSrc}
+              />
+            </div>
+          </>
         )}
       </div>
     </div>

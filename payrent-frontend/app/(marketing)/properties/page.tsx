@@ -17,7 +17,7 @@ import { useMemo, useState } from "react";
 import { MapPin, Bed, Car, Refrigerator } from "lucide-react";
 import { PropertySaveButton } from "@/components/properties/property-save-button";
 import { PropertyListingImage } from "@/components/properties/property-listing-image";
-import { MandateNavStatus } from "@/components/mandates/mandate-nav-status";
+import { BrowseBuyerActions } from "@/components/marketing/browse-buyer-actions";
 import {
   PROPERTY_CATEGORIES,
   PROPERTY_TYPE_LABELS,
@@ -72,11 +72,16 @@ export default function PropertiesPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Browse listings</h1>
-        <p className="mt-2 text-muted-foreground">
-          Find houses, rooms, cars, and home appliances — apply for rental financing
-        </p>
-        <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_200px_220px_minmax(0,auto)] lg:items-center">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Browse listings</h1>
+            <p className="mt-2 text-muted-foreground">
+              Find houses, rooms, cars, and home appliances — apply for rental financing
+            </p>
+          </div>
+          <BrowseBuyerActions />
+        </div>
+        <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_200px_220px] lg:items-center">
           <Input
             placeholder="Search by location, name, or keyword..."
             value={search}
@@ -115,9 +120,6 @@ export default function PropertiesPage() {
               ))}
             </SelectContent>
           </Select>
-          <div className="flex items-center justify-start lg:justify-end">
-            <MandateNavStatus />
-          </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {(Object.keys(PROPERTY_CATEGORIES) as PropertyCategory[]).map((key) => (

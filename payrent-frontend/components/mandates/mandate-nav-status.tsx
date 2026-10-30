@@ -21,7 +21,13 @@ import {
 } from "@/lib/mandates/preview-status-labels";
 import { cn } from "@/lib/utils";
 
-export function MandateNavStatus({ className }: { className?: string }) {
+export function MandateNavStatus({
+  className,
+  hideCount = false,
+}: {
+  className?: string;
+  hideCount?: boolean;
+}) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const role = session?.user?.role;
@@ -101,9 +107,11 @@ export function MandateNavStatus({ className }: { className?: string }) {
         <span className="truncate">
           {primary ? mandatePreviewShortLabel(primary.previewStatus) : "Mandates"}
         </span>
-        <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] text-white">
-          {previews.length}
-        </span>
+        {!hideCount ? (
+          <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] text-white">
+            {previews.length}
+          </span>
+        ) : null}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel>Pay-for-me mandates</DropdownMenuLabel>
