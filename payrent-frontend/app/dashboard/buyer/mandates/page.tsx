@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { MandateAccordionList } from "@/components/mandates/mandate-accordion-list";
 import { FinancingFlowCarousel } from "@/components/financing/financing-flow-carousel";
 import { fetchMandatePreviews } from "@/lib/mandates/fetch-mandate-previews";
