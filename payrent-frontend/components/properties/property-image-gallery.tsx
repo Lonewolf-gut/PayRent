@@ -32,6 +32,10 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
   const active = images[activeIndex] ?? images[0];
   const activeSrc = resolveAssetUrl(active.url);
 
+  if (!activeSrc) {
+    return <div className="aspect-video w-full bg-muted" />;
+  }
+
   const goPrev = () => setActiveIndex((i) => (i === 0 ? images.length - 1 : i - 1));
   const goNext = () => setActiveIndex((i) => (i === images.length - 1 ? 0 : i + 1));
 

@@ -6,8 +6,27 @@ function isPropertyImageReference(value: string): boolean {
   return value.includes("properties/images/");
 }
 
+function refFromPublicFilesApi(value: string): string | null {
+  const normalized = value.startsWith("http://") || value.startsWith("https://")
+    ? value
+    : `http://local${value.startsWith("/") ? value : `/${value}`}`;
+
+  try {
+    const parsed = new URL(normalized);
+    if (!parsed.pathname.endsWith("/api/files/public")) return null;
+    return (
+      parsed.searchParams.get("ref") ??
+      parsed.searchParams.get("key") ??
+      parsed.searchParams.get("path")
+    );
+  } catch {
+    return null;
+  }
+}
+
 function shouldProxyMediaUrl(value: string): boolean {
-  if (value.startsWith("/api/files/public") || value.startsWith("/api/media")) return false;
+  if (value.startsWith("/api/media")) return false;
+  if (value.includes("/api/files/public")) return true;
   if (value.startsWith("public/") && value.includes("properties/images/")) return true;
   if (value.startsWith("/uploads/")) return true;
   if (value.includes("properties/images/")) return true;
@@ -23,8 +42,13 @@ export function resolveAssetUrl(url: string | null | undefined): string {
   const trimmed = url.trim();
   if (!trimmed) return "";
 
-  if (trimmed.startsWith("/api/files/public") || trimmed.startsWith("/api/media")) {
+  if (trimmed.startsWith("/api/media")) {
     return trimmed;
+  }
+
+  const filesPublicRef = refFromPublicFilesApi(trimmed);
+  if (filesPublicRef) {
+    return `/api/media?ref=${encodeURIComponent(filesPublicRef)}`;
   }
 
   if (shouldProxyMediaUrl(trimmed)) {

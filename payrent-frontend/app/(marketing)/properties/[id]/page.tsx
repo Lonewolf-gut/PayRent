@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Eye, Bookmark, Phone, Mail } from "lucide-react";
 import { PropertySaveButton } from "@/components/properties/property-save-button";
+import { PropertyPromoteButton } from "@/components/properties/property-promote-button";
 import { PropertyImageGallery } from "@/components/properties/property-image-gallery";
 import { PropertyLocationSheet, PropertyLocationTrigger } from "@/components/properties/property-location-sheet";
 import { PropertySpecsGrid } from "@/components/properties/property-specs-grid";
@@ -179,6 +180,13 @@ export default function PropertyDetailPage() {
 
   const displayAgent = property.contacts?.agent ?? property.agent;
   const displayLandlord = property.contacts?.landlord;
+  const isMarketer = session?.user?.role === "MARKETER";
+  const promotionStatus = property.promotionStatus as
+    | "available"
+    | "yours"
+    | "claimed_by_other"
+    | null
+    | undefined;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
@@ -337,7 +345,9 @@ export default function PropertyDetailPage() {
         <div className="space-y-4">
           <PropertySaveButton propertyId={id} variant="button" />
           {session ? (
-            session.user.role === "BUYER" ? (
+            isMarketer ? (
+              <PropertyPromoteButton propertyId={id} promotionStatus={promotionStatus} />
+            ) : session.user.role === "BUYER" ? (
               <>
               <PropertyActionPanel
                 propertyId={id}

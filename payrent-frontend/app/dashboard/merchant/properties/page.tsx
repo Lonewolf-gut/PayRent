@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useForm, type Resolver } from "react-hook-form";
@@ -27,6 +27,7 @@ import { PropertyCategorySelect } from "@/components/dashboard/PropertyCategoryS
 import { AgentSearchField } from "@/components/dashboard/AgentSearchField";
 import { PropertyAmenityChips } from "@/components/properties/property-amenity-chips";
 import { PropertyAttributeFields } from "@/components/properties/property-attribute-fields";
+import { ListingPhotoUploadGrid } from "@/components/properties/listing-photo-upload-grid";
 import {
   PropertyLocationFields,
   emptyPropertyLocation,
@@ -77,6 +78,9 @@ export default function LandlordPropertiesPage() {
   );
   const [addSurveyPlan, setAddSurveyPlan] = useState<File | null>(null);
   const [editSurveyPlan, setEditSurveyPlan] = useState<File | null>(null);
+  const [removedImageIds, setRemovedImageIds] = useState<string[]>([]);
+
+  const MAX_LISTING_PHOTOS = 10;
 
   const optionalNumberField = {
     setValueAs: (value: string) => {
@@ -272,35 +276,30 @@ export default function LandlordPropertiesPage() {
     };
   }, [addImagePreviews, editImagePreviews]);
 
-  const handleImagesChange = (files: FileList | null) => {
-    if (!files) {
-      setImages([]);
+  const countListingPhotos = useCallback(
+    (existingCount: number, newCount: number) => existingCount + newCount,
+    []
+  );
+
+  const appendPhotos = (
+    incoming: File[],
+    existingVisibleCount: number,
+    currentFiles: File[],
+    setFiles: (files: File[]) => void,
+    setError: (message: string | null) => void
+  ) => {
+    const remaining = MAX_LISTING_PHOTOS - countListingPhotos(existingVisibleCount, currentFiles.length);
+    if (remaining <= 0) {
+      setError(`Maximum ${MAX_LISTING_PHOTOS} photos allowed.`);
       return;
     }
-
-    const selected = Array.from(files).slice(0, 10);
-    if (files.length > 10) {
-      setFileError("Maximum 10 images allowed.");
-    } else {
-      setFileError(null);
-    }
-    setImages(selected);
+    const next = [...currentFiles, ...incoming.slice(0, remaining)];
+    setFiles(next);
+    setError(next.length >= MAX_LISTING_PHOTOS ? `Maximum ${MAX_LISTING_PHOTOS} photos allowed.` : null);
   };
 
-  const handleEditImagesChange = (files: FileList | null) => {
-    if (!files) {
-      setEditImages([]);
-      return;
-    }
-
-    const selected = Array.from(files).slice(0, 10);
-    if (files.length > 10) {
-      setEditFileError("Maximum 10 images allowed.");
-    } else {
-      setEditFileError(null);
-    }
-    setEditImages(selected);
-  };
+  const appendAddPhotos = (incoming: File[]) =>
+    appendPhotos(incoming, 0, images, setImages, setFileError);
 
   const createProperty = useMutation({
     mutationFn: async (data: LandlordPropertyInput) => {
@@ -371,7 +370,10 @@ export default function LandlordPropertiesPage() {
       if (!isSale && editMapUrl) {
         formData.append("googleMapUrl", editMapUrl);
       }
-      editImages.slice(0, 10).forEach((file) => formData.append("images", file));
+      editImages.slice(0, MAX_LISTING_PHOTOS).forEach((file) => formData.append("images", file));
+      if (removedImageIds.length) {
+        formData.append("removeImageIds", JSON.stringify(removedImageIds));
+      }
 
       const res = await fetch(`/api/properties/${data.id}`, {
         method: "PATCH",
@@ -390,6 +392,7 @@ export default function LandlordPropertiesPage() {
       toast.success("Property listing updated");
       setEditingPropertyId(null);
       setEditImages([]);
+      setRemovedImageIds([]);
       setEditMapUrl("");
       setEditLocation(emptyPropertyLocation());
       setEditAmenities([]);
@@ -441,10 +444,44 @@ export default function LandlordPropertiesPage() {
 
   const editingProperty = landlordProperties?.find((property: any) => property.id === editingPropertyId);
 
+  const appendEditPhotos = (incoming: File[]) => {
+    const existingVisibleCount =
+      (editingProperty?.images?.length ?? 0) - removedImageIds.length;
+    appendPhotos(incoming, existingVisibleCount, editImages, setEditImages, setEditFileError);
+  };
+
+  const replaceExistingPhoto = (imageId: string, file: File) => {
+    setRemovedImageIds((current) => (current.includes(imageId) ? current : [...current, imageId]));
+    appendEditPhotos([file]);
+  };
+
+  const replaceNewPhoto = (index: number, file: File) => {
+    setEditImages((current) => current.map((item, itemIndex) => (itemIndex === index ? file : item)));
+  };
+
+  const replaceAddPhoto = (index: number, file: File) => {
+    setImages((current) => current.map((item, itemIndex) => (itemIndex === index ? file : item)));
+  };
+
+  const removeAddPhoto = (index: number) => {
+    setImages((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    setFileError(null);
+  };
+
+  const removeEditNewPhoto = (index: number) => {
+    setEditImages((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    setEditFileError(null);
+  };
+
+  const removeExistingPhoto = (imageId: string) => {
+    setRemovedImageIds((current) => (current.includes(imageId) ? current : [...current, imageId]));
+  };
+
   const beginEdit = (property: any) => {
     setEditingPropertyId(property.id);
     setShowForm(false);
     setEditImages([]);
+    setRemovedImageIds([]);
     setEditMapUrl("");
     const propertyType = property.propertyType as PropertyType;
     setEditCategory(getCategoryForType(propertyType));
@@ -486,6 +523,7 @@ export default function LandlordPropertiesPage() {
   const cancelEdit = () => {
     setEditingPropertyId(null);
     setEditImages([]);
+    setRemovedImageIds([]);
     setEditMapUrl("");
     setEditLocation(emptyPropertyLocation());
     setEditAmenities([]);
@@ -695,49 +733,19 @@ export default function LandlordPropertiesPage() {
               </div>
               <div className="sm:col-span-2">
                 <Label>Photos</Label>
-                {editingProperty.images?.length ? (
-                  <div className="mt-3 grid gap-3 sm:grid-cols-4">
-                    {editingProperty.images.map((image: any) => (
-                      <div key={image.id} className="relative h-24 overflow-hidden border border-slate-200 bg-white">
-                        <Image
-                          src={image.url}
-                          alt={image.alt ?? "Property image"}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">No existing images uploaded.</p>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(event) => handleEditImagesChange(event.target.files)}
-                  className="mt-2"
+                <ListingPhotoUploadGrid
+                  existingPhotos={editingProperty.images ?? []}
+                  newFiles={editImages}
+                  newPreviews={editImagePreviews}
+                  removedExistingIds={removedImageIds}
+                  onRemoveExisting={removeExistingPhoto}
+                  onReplaceExisting={replaceExistingPhoto}
+                  onAddFiles={appendEditPhotos}
+                  onRemoveNewFile={removeEditNewPhoto}
+                  onReplaceNewFile={replaceNewPhoto}
+                  helperText="Remove, replace, or add photos before updating the listing."
+                  errorMessage={editFileError}
                 />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Upload up to 10 additional photos to the listing.
-                </p>
-                {editFileError && <p className="text-xs text-destructive">{editFileError}</p>}
-                {editImagePreviews.length > 0 && (
-                  <div className="mt-3 grid gap-3 sm:grid-cols-4">
-                    {editImagePreviews.map((src, index) => (
-                      <div key={index} className="relative h-24 overflow-hidden border border-slate-200 bg-white">
-                        <Image
-                          src={src}
-                          alt={`New property preview ${index + 1}`}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
               <div className="sm:col-span-2 flex items-center gap-3">
                 <Button type="submit" disabled={updateProperty.isPending} className="bg-emerald-600 hover:bg-emerald-700">
@@ -895,32 +903,15 @@ export default function LandlordPropertiesPage() {
               </div>
               <div className="sm:col-span-2">
                 <Label>Photos</Label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(event) => handleImagesChange(event.target.files)}
-                  className="mt-2"
+                <ListingPhotoUploadGrid
+                  newFiles={images}
+                  newPreviews={addImagePreviews}
+                  onAddFiles={appendAddPhotos}
+                  onRemoveNewFile={removeAddPhoto}
+                  onReplaceNewFile={replaceAddPhoto}
+                  helperText="Upload up to 10 photos for admin review. You can remove or replace any photo before submitting."
+                  errorMessage={fileError}
                 />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Upload up to 10 photos for admin review.
-                </p>
-                {fileError && <p className="text-xs text-destructive">{fileError}</p>}
-                {addImagePreviews.length > 0 && (
-                  <div className="mt-3 grid gap-3 sm:grid-cols-4">
-                    {addImagePreviews.map((src: string, index: number) => (
-                      <div key={index} className="relative h-24 overflow-hidden border border-slate-200 bg-white">
-                        <Image
-                          src={src}
-                          alt={`Property preview ${index + 1}`}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
               <div className="sm:col-span-2">
                 <Button

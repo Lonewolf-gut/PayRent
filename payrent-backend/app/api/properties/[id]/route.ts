@@ -22,7 +22,12 @@ import { firstZodIssueMessage } from "@/lib/validations/auth";
 export const GET = withPublicHandler(async (req, context) => {
   const { id } = await context.params;
   const session = await resolveAppSession(req);
-  const property = await propertyDetailService.getDetail(id, session?.user?.id ?? null);
+  const property = await propertyDetailService.getDetail(
+    id,
+    session?.user
+      ? { userId: session.user.id, role: session.user.role }
+      : null
+  );
   if (!property) return apiError(new AppError("Property not found", 404));
   return apiResponse(property);
 });

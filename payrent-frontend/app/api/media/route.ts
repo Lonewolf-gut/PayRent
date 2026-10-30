@@ -2,14 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerApiOrigin } from "@/lib/api/client";
 
 export async function GET(req: NextRequest) {
-  const ref = req.nextUrl.searchParams.get("ref");
-  if (!ref?.trim()) {
+  const ref = req.nextUrl.searchParams.get("ref")?.trim();
+  const key = req.nextUrl.searchParams.get("key")?.trim();
+  const path = req.nextUrl.searchParams.get("path")?.trim();
+
+  if (!ref && !key && !path) {
     return NextResponse.json({ success: false, message: "Missing ref." }, { status: 400 });
   }
 
-  const encodedRef = encodeURIComponent(ref.trim());
-  const backendUrl = `${getServerApiOrigin()}/api/files/public?ref=${encodedRef}`;
-  const backendResponse = await fetch(backendUrl, { redirect: "manual" });
+  const backendUrl = new URL(`${getServerApiOrigin()}/api/files/public`);
+  if (ref) backendUrl.searchParams.set("ref", ref);
+  if (key) backendUrl.searchParams.set("key", key);
+  if (path) backendUrl.searchParams.set("path", path);
+
+  const backendResponse = await fetch(backendUrl.toString(), { redirect: "manual" });
 
   if (backendResponse.status === 307 || backendResponse.status === 302) {
     const location = backendResponse.headers.get("location");
