@@ -12,6 +12,10 @@ export function resolveAssetUrl(url: string | null | undefined): string {
   const trimmed = url.trim();
   if (!trimmed) return "";
 
+  if (trimmed.startsWith("/api/files/public")) {
+    return trimmed;
+  }
+
   if (isPropertyImageReference(trimmed)) {
     return `/api/media?ref=${encodeURIComponent(trimmed)}`;
   }
@@ -29,7 +33,7 @@ export function resolveAssetUrl(url: string | null | undefined): string {
   }
 
   if (trimmed.startsWith("/uploads/")) {
-    return trimmed;
+    return `/api/media?ref=${encodeURIComponent(trimmed)}`;
   }
 
   if (trimmed.includes("/uploads/")) {

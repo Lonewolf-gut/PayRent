@@ -8,6 +8,7 @@ import { propertyFilterSchema, propertySchema, normalizePropertyPayload, parseOp
 import { parsePropertyFormData } from "@/lib/utils/property-form-payload";
 import { cleanAttributesForDb } from "@/lib/utils/property-form";
 import { propertyRepository } from "@/lib/repositories/property.repository";
+import { withResolvedPropertyListImages } from "@/lib/utils/property-media";
 import { prisma } from "@/lib/db/prisma";
 import { auth } from "@/lib/auth";
 import { apiResponse, withAuth, withPublicHandler } from "@/lib/api/handler";
@@ -106,9 +107,11 @@ async function fetchLimitedProperties(
     }),
   ]);
 
-  const items = [...residential, ...cars, ...appliances].slice(
-    (filters.page - 1) * filters.limit,
-    filters.page * filters.limit
+  const items = withResolvedPropertyListImages(
+    [...residential, ...cars, ...appliances].slice(
+      (filters.page - 1) * filters.limit,
+      filters.page * filters.limit
+    )
   );
 
   return {

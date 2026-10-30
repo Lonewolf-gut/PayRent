@@ -25,46 +25,51 @@ function formatWidgetBadge(count: number) {
   return count > 9 ? "9+" : String(count);
 }
 
-function MessageLauncher({
+function MessageFab({
   badge,
-  isExpanded,
   onClick,
-  displayName,
-  avatarSrc,
-  variant,
+  className,
 }: {
   badge: string | null;
-  isExpanded: boolean;
   onClick: () => void;
-  displayName: string;
-  avatarSrc?: string | null;
-  variant: "fab" | "bar";
+  className?: string;
 }) {
-  if (variant === "fab") {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        aria-label={isExpanded ? "Close messaging" : "Open messaging"}
-        aria-expanded={isExpanded}
-        className="relative mb-3 flex size-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700"
-      >
-        <MessagesSquare className="size-6" strokeWidth={1.75} />
-        {badge ? (
-          <span className="absolute -right-0.5 -top-0.5 flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
-            {badge}
-          </span>
-        ) : null}
-      </button>
-    );
-  }
-
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-expanded={isExpanded}
-      aria-label={isExpanded ? "Close messaging" : "Open messaging"}
+      aria-label="Open messaging"
+      className={cn(
+        "relative mb-3 flex size-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700",
+        className
+      )}
+    >
+      <MessagesSquare className="size-6" strokeWidth={1.75} />
+      {badge ? (
+        <span className="absolute -right-0.5 -top-0.5 flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+          {badge}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+function MessageBarLauncher({
+  badge,
+  onClick,
+  displayName,
+  avatarSrc,
+}: {
+  badge: string | null;
+  onClick: () => void;
+  displayName: string;
+  avatarSrc?: string | null;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Open messaging"
       className="mb-0 flex w-[min(100vw-1rem,360px)] items-center gap-3 rounded-t-xl border border-b-0 bg-card px-3 py-2.5 shadow-xl transition hover:bg-muted/40"
     >
       <div className="relative">
@@ -131,7 +136,7 @@ export function MessagesWidget() {
   const badge = formatWidgetBadge(unread);
   const isExpanded = state !== "collapsed";
   const inChat = state === "chat" && !!activeId;
-  const hasConversations = conversations.length > 0;
+  const hasUnread = unread > 0;
 
   function openWidget() {
     setState("list");
@@ -158,7 +163,12 @@ export function MessagesWidget() {
             )}
           >
             <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2.5">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                onClick={toggleWidget}
+                aria-label="Minimize messaging"
+              >
                 <Avatar className="size-8">
                   {avatarSrc ? <AvatarImage src={avatarSrc} alt={displayName} /> : null}
                   <AvatarFallback className="text-xs">{getInitials(displayName)}</AvatarFallback>
@@ -166,7 +176,7 @@ export function MessagesWidget() {
                 <p className="min-w-0 flex-1 truncate text-sm font-semibold">
                   {inChat ? title : "Messaging"}
                 </p>
-              </div>
+              </button>
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -229,25 +239,18 @@ export function MessagesWidget() {
           </div>
         ) : (
           <>
-            <div className="md:hidden">
-              <MessageLauncher
-                variant="fab"
-                badge={badge}
-                isExpanded={false}
-                onClick={openWidget}
-                displayName={displayName}
-                avatarSrc={avatarSrc}
-              />
-            </div>
+            <MessageFab badge={badge} onClick={openWidget} className="md:hidden" />
             <div className="hidden md:block">
-              <MessageLauncher
-                variant={hasConversations ? "bar" : "fab"}
-                badge={badge}
-                isExpanded={false}
-                onClick={toggleWidget}
-                displayName={displayName}
-                avatarSrc={avatarSrc}
-              />
+              {hasUnread ? (
+                <MessageBarLauncher
+                  badge={badge}
+                  onClick={openWidget}
+                  displayName={displayName}
+                  avatarSrc={avatarSrc}
+                />
+              ) : (
+                <MessageFab badge={badge} onClick={openWidget} />
+              )}
             </div>
           </>
         )}

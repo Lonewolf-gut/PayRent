@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { Bell, CheckCheck, Sparkles, Trash2, X } from "lucide-react";
+import { Bell, CheckCheck, ChevronLeft, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -187,7 +187,7 @@ export function NotificationsPopover() {
           "flex max-h-[min(32rem,85vh)] flex-col overflow-hidden border-border bg-popover p-0 text-popover-foreground transition-[width] duration-200",
           showingDetail
             ? "w-[min(100vw-2rem,44rem)]"
-            : "w-[min(100vw-2rem,24rem)]",
+            : "w-[min(100vw-2rem,24rem)] max-sm:w-[min(100vw-1rem,24rem)]",
           isDark && "dark"
         )}
       >
@@ -224,11 +224,12 @@ export function NotificationsPopover() {
           </PopoverHeader>
         </div>
 
-        <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
           <div
             className={cn(
               "flex min-h-0 flex-col border-border",
-              showingDetail ? "w-[min(100%,14rem)] border-r sm:w-56" : "w-full"
+              showingDetail ? "hidden sm:flex sm:w-56 sm:border-r" : "w-full flex-1",
+              !showingDetail && "sm:w-56 sm:flex-none sm:border-r"
             )}
           >
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-popover">
@@ -325,13 +326,25 @@ export function NotificationsPopover() {
           {selectedNotification ? (
             <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-popover">
               <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">
-                    {selectedNotification.title}
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {new Date(selectedNotification.createdAt).toLocaleString()}
-                  </p>
+                <div className="flex min-w-0 items-start gap-2">
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="shrink-0 sm:hidden"
+                    onClick={closeDetail}
+                    aria-label="Back to notification list"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      {selectedNotification.title}
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {new Date(selectedNotification.createdAt).toLocaleString()}
+                    </p>
+                  </div>
                 </div>
                 <Button
                   type="button"
