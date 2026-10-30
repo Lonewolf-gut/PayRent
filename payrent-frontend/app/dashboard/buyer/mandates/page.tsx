@@ -6,13 +6,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MandateAccordionList } from "@/components/mandates/mandate-accordion-list";
-import { FinancingFlowCarousel } from "@/components/financing/financing-flow-carousel";
 import { fetchMandatePreviews } from "@/lib/mandates/fetch-mandate-previews";
 import type { MandatePreviewData } from "@/lib/utils/mandate-preview";
-import { getFinancingActiveStep } from "@/lib/financing/status-flow";
-import { MANDATE_PREVIEW_STATUS_LABELS } from "@/lib/mandates/preview-status-labels";
-import { Upload } from "lucide-react";
+import { Upload, Camera } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type MandateRecord = {
   id: string;
@@ -25,7 +29,9 @@ type MandateRecord = {
 export default function TenantMandatesPage() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFinancingRequestId, setSelectedFinancingRequestId] = useState<string | null>(
     null
   );
@@ -144,6 +150,7 @@ export default function TenantMandatesPage() {
 
       toast.success("Mandate uploaded");
       if (fileInputRef.current) fileInputRef.current.value = "";
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
       queryClient.invalidateQueries({ queryKey: ["mandates"] });
       queryClient.invalidateQueries({ queryKey: ["mandate-overview"] });
     } catch (e) {
@@ -166,12 +173,29 @@ export default function TenantMandatesPage() {
             ref={fileInputRef}
             type="file"
             accept="image/*,.pdf,application/pdf"
+            className="hidden"
+            disabled={uploading || !previews.length}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setUploadDialogOpen(false);
+                uploadFile(file);
+              }
+            }}
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
             capture="environment"
             className="hidden"
             disabled={uploading || !previews.length}
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) uploadFile(file);
+              if (file) {
+                setUploadDialogOpen(false);
+                uploadFile(file);
+              }
             }}
           />
           <Button
@@ -179,11 +203,43 @@ export default function TenantMandatesPage() {
             size="sm"
             className="bg-emerald-600 hover:bg-emerald-700"
             disabled={uploading || !previews.length}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setUploadDialogOpen(true)}
           >
             <Upload className="mr-2 h-4 w-4" />
             {uploading ? "Uploading..." : "Upload mandate"}
           </Button>
+          <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add signed mandate</DialogTitle>
+                <DialogDescription>
+                  Upload a PDF or photo from your device, or take a picture of the signed mandate
+                  with your camera.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  disabled={uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload file
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                  disabled={uploading}
+                  onClick={() => cameraInputRef.current?.click()}
+                >
+                  <Camera className="mr-2 h-4 w-4" />
+                  Take photo
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -215,55 +271,6 @@ export default function TenantMandatesPage() {
         </Card>
       ) : (
         <div className="space-y-6">
-          {previews.length > 1 ? (
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">Which request?</p>
-              <p className="text-xs text-muted-foreground">
-                The four steps below apply to the selected pay-for-me request only—not all requests
-                at once.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {previews.map((preview) => {
-                  const name = preview.propertyName.replace(/^\[Demo\]\s*/i, "");
-                  const selected = preview.financingRequestId === selectedFinancingRequestId;
-                  return (
-                    <button
-                      key={preview.financingRequestId}
-                      type="button"
-                      onClick={() => setSelectedFinancingRequestId(preview.financingRequestId)}
-                      className={`rounded-full border px-3 py-1.5 text-left text-xs transition ${
-                        selected
-                          ? "border-emerald-600 bg-emerald-50 text-emerald-900"
-                          : "border-border bg-card hover:bg-muted/40"
-                      }`}
-                    >
-                      <span className="block max-w-[14rem] truncate font-medium">{name}</span>
-                      <span className="text-muted-foreground">
-                        {MANDATE_PREVIEW_STATUS_LABELS[preview.previewStatus]}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : selectedPreview ? (
-            <p className="text-xs text-muted-foreground">
-              Progress for{" "}
-              <span className="font-medium text-foreground">
-                {selectedPreview.propertyName.replace(/^\[Demo\]\s*/i, "")}
-              </span>
-              .
-            </p>
-          ) : null}
-
-          {selectedPreview ? (
-            <FinancingFlowCarousel
-              activeStep={getFinancingActiveStep(selectedPreview.financingStatus)}
-              propertyName={selectedPreview.propertyName.replace(/^\[Demo\]\s*/i, "")}
-              statusLabel={MANDATE_PREVIEW_STATUS_LABELS[selectedPreview.previewStatus]}
-            />
-          ) : null}
-
           <MandateAccordionList
           previews={previews}
           getMandateForPreview={getMandateForPreview}

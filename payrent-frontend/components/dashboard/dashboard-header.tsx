@@ -15,7 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NotificationsPopover } from "@/components/dashboard/notifications-popover";
-import { NavQuickActions } from "@/components/dashboard/nav-quick-actions";
 import { AccountVerificationBadge } from "@/components/dashboard/account-verification-badge";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
@@ -141,7 +140,6 @@ export function DashboardHeader({
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
-          <NavQuickActions />
           <NotificationsPopover />
           <DropdownMenu>
             <DropdownMenuTrigger

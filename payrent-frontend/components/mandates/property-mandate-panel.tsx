@@ -5,12 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { FileDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FinancingFlowCarousel } from "@/components/financing/financing-flow-carousel";
 import {
   fetchMandatePreviews,
   filterMandatePreviewsForProperty,
 } from "@/lib/mandates/fetch-mandate-previews";
-import { getFinancingActiveStep } from "@/lib/financing/status-flow";
 import { MANDATE_PREVIEW_STATUS_LABELS } from "@/lib/mandates/preview-status-labels";
 import { downloadMandatePdf } from "@/lib/utils/mandate-pdf";
 import { toast } from "sonner";
@@ -72,8 +70,6 @@ export function PropertyMandatePanel({
     );
   }
 
-  const activeStep = getFinancingActiveStep(preview.financingStatus);
-
   return (
     <Card className="rounded-none border-emerald-600/30">
       <CardHeader>
@@ -83,11 +79,12 @@ export function PropertyMandatePanel({
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <FinancingFlowCarousel
-          activeStep={activeStep}
-          propertyName={preview.propertyName.replace(/^\[Demo\]\s*/i, "")}
-          statusLabel={MANDATE_PREVIEW_STATUS_LABELS[preview.previewStatus]}
-        />
+        <p className="text-sm text-foreground">
+          Status:{" "}
+          <span className="font-medium text-amber-700 dark:text-amber-400">
+            {MANDATE_PREVIEW_STATUS_LABELS[preview.previewStatus]}
+          </span>
+        </p>
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"

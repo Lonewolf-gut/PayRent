@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/sheet";
 import { PROFILE_MENU_ITEMS } from "@/lib/nav/profile-menu";
 import { getRoleSignOutPath } from "@/lib/auth/route-guards";
-import { NavQuickActions } from "@/components/dashboard/nav-quick-actions";
 import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
 import { isPaidPlan, normalizeSubscriptionPlan } from "@/lib/subscription/plans";
 import { roleRequiresSubscription } from "@/lib/subscription/roles";
@@ -156,7 +155,6 @@ export function Navbar() {
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {session?.user ? (
             <>
-              <NavQuickActions />
               <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
               <DropdownMenuTrigger
                 className="rounded-full outline-none ring-emerald-600 focus-visible:ring-2"

@@ -32,6 +32,15 @@ export function resolveAssetUrl(url: string | null | undefined): string {
     return trimmed;
   }
 
+  if (trimmed.includes("/uploads/")) {
+    const uploadsIndex = trimmed.indexOf("/uploads/");
+    return trimmed.slice(uploadsIndex);
+  }
+
+  if (!trimmed.startsWith("http") && !trimmed.startsWith("/") && trimmed.includes("/")) {
+    return `/api/media?ref=${encodeURIComponent(trimmed)}`;
+  }
+
   if (trimmed.startsWith("public/")) {
     return `/api/media?ref=${encodeURIComponent(trimmed)}`;
   }
