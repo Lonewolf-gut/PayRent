@@ -70,11 +70,18 @@ export default function AgentPromotePage() {
     }
   }, [preselectedPropertyId]);
 
-  const { data: browseListings, isLoading: browseLoading } = useQuery({
+  const {
+    data: browseListings,
+    isLoading: browseLoading,
+    error: browseError,
+  } = useQuery({
     queryKey: ["agent-browse-listings"],
     queryFn: async () => {
       const res = await fetch("/api/marketer/properties/browse");
       const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message ?? "Unable to load listings to promote");
+      }
       return (json.data ?? []) as BrowseListing[];
     },
   });
@@ -181,6 +188,10 @@ export default function AgentPromotePage() {
         <CardContent className="max-h-[520px] space-y-4 overflow-y-auto pr-1">
           {browseLoading ? (
             <p className="text-muted-foreground">Loading listings...</p>
+          ) : browseError ? (
+            <p className="text-sm text-destructive">
+              {(browseError as Error).message}
+            </p>
           ) : !browseListings?.length ? (
             <p className="text-muted-foreground">No active listings right now.</p>
           ) : (
@@ -254,7 +265,7 @@ export default function AgentPromotePage() {
 
       <Accordion type="multiple" defaultValue={["create-link", "your-links"]} className="space-y-4">
         <AccordionItem value="create-link" className="rounded-lg border bg-card px-4">
-          <AccordionTrigger className="py-4 text-base font-semibold hover:no-underline">
+          <AccordionTrigger className="py-4 text-base font-semibold text-foreground dark:text-white hover:no-underline">
             Create promotion link
           </AccordionTrigger>
           <AccordionContent className="space-y-4 pb-4">
@@ -301,7 +312,7 @@ export default function AgentPromotePage() {
         </AccordionItem>
 
         <AccordionItem value="your-links" className="rounded-lg border bg-card px-4">
-          <AccordionTrigger className="py-4 text-base font-semibold hover:no-underline">
+          <AccordionTrigger className="py-4 text-base font-semibold text-foreground dark:text-white hover:no-underline">
             Your promotion links
           </AccordionTrigger>
           <AccordionContent className="space-y-3 pb-4">

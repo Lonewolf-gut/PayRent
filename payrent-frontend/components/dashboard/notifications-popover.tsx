@@ -224,12 +224,13 @@ export function NotificationsPopover() {
           </PopoverHeader>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
+        <div className={cn("flex min-h-0 flex-1 flex-col", showingDetail && "sm:flex-row")}>
           <div
             className={cn(
               "flex min-h-0 flex-col border-border",
-              showingDetail ? "hidden sm:flex sm:w-56 sm:border-r" : "w-full flex-1",
-              !showingDetail && "sm:w-56 sm:flex-none sm:border-r"
+              showingDetail
+                ? "hidden w-full flex-1 sm:flex sm:w-56 sm:flex-none sm:border-r"
+                : "w-full flex-1"
             )}
           >
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-popover">
