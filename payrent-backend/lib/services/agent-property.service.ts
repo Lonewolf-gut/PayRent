@@ -34,9 +34,7 @@ export class AgentPropertyService {
       where: { userId: agentUserId },
     });
 
-    // Listing browse is read-only; claim still enforces KYC, photo, and limits.
-    await assertPlatformAccess(agentUserId, "browse listings to promote");
-
+    // Browse is always allowed; claim/promote still require subscription + eligibility.
     const listings = await prisma.property.findMany({
       where: { status: "ACTIVE" },
       include: {

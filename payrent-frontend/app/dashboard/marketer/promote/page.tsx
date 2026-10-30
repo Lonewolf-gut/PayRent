@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/accordion";
 import { PropertyListingImage } from "@/components/properties/property-listing-image";
 import { toast } from "sonner";
+import Link from "next/link";
 import { PROPERTY_TYPE_LABELS } from "@/lib/subscription-limits";
 import type { PropertyType } from "@prisma/client";
 
@@ -71,9 +72,8 @@ export default function AgentPromotePage() {
   }, [preselectedPropertyId]);
 
   const {
-    data: browseListings,
+    data: browseData,
     isLoading: browseLoading,
-    error: browseError,
   } = useQuery({
     queryKey: ["agent-browse-listings"],
     queryFn: async () => {
@@ -82,9 +82,26 @@ export default function AgentPromotePage() {
       if (!res.ok || !json.success) {
         throw new Error(json.message ?? "Unable to load listings to promote");
       }
-      return (json.data ?? []) as BrowseListing[];
+      const payload = json.data;
+      if (Array.isArray(payload)) {
+        return {
+          listings: payload as BrowseListing[],
+          promotionAccess: { canPromote: true, message: null as string | null },
+        };
+      }
+      return {
+        listings: (payload?.listings ?? []) as BrowseListing[],
+        promotionAccess: (payload?.promotionAccess ?? {
+          canPromote: true,
+          message: null,
+        }) as { canPromote: boolean; message: string | null },
+      };
     },
   });
+
+  const browseListings = browseData?.listings;
+  const canPromoteListings = browseData?.promotionAccess?.canPromote ?? true;
+  const promotionAccessMessage = browseData?.promotionAccess?.message;
 
   const { data: myListings } = useQuery({
     queryKey: ["agent-listings"],
@@ -124,6 +141,7 @@ export default function AgentPromotePage() {
   const commissionRate = assignmentLimits?.agentCommissionPercent ?? 2.5;
   const atPromotionLimit =
     !assignmentLimits?.unlimited && promotionUsed >= promotionLimit;
+  const promoteActionsDisabled = !canPromoteListings || atPromotionLimit;
 
   const claimMutation = useMutation({
     mutationFn: async (propertyId: string) => {
@@ -186,12 +204,16 @@ export default function AgentPromotePage() {
           <CardTitle className="text-base">All active listings</CardTitle>
         </CardHeader>
         <CardContent className="max-h-[520px] space-y-4 overflow-y-auto pr-1">
+          {!canPromoteListings && promotionAccessMessage ? (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100">
+              {promotionAccessMessage}{" "}
+              <Link href="/pricing" className="font-medium text-emerald-700 underline dark:text-emerald-300">
+                Upgrade now
+              </Link>
+            </div>
+          ) : null}
           {browseLoading ? (
             <p className="text-muted-foreground">Loading listings...</p>
-          ) : browseError ? (
-            <p className="text-sm text-destructive">
-              {(browseError as Error).message}
-            </p>
           ) : !browseListings?.length ? (
             <p className="text-muted-foreground">No active listings right now.</p>
           ) : (
@@ -239,6 +261,7 @@ export default function AgentPromotePage() {
                 {status === "yours" ? (
                   <Button
                     variant="outline"
+                    disabled={!canPromoteListings}
                     onClick={() => setSelectedPropertyId(listing.id)}
                   >
                     Create link
@@ -250,10 +273,14 @@ export default function AgentPromotePage() {
                 ) : (
                   <Button
                     onClick={() => claimMutation.mutate(listing.id)}
-                    disabled={claimMutation.isPending || atPromotionLimit}
-                    className="bg-emerald-600 hover:bg-emerald-700"
+                    disabled={claimMutation.isPending || promoteActionsDisabled}
+                    className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
                   >
-                    {atPromotionLimit ? "Upgrade to claim more" : "Claim to promote"}
+                    {!canPromoteListings
+                      ? "Upgrade to promote"
+                      : atPromotionLimit
+                        ? "Upgrade to claim more"
+                        : "Claim to promote"}
                   </Button>
                 )}
               </div>
@@ -303,7 +330,7 @@ export default function AgentPromotePage() {
           </div>
           <Button
             onClick={() => createLinkMutation.mutate()}
-            disabled={createLinkMutation.isPending || !selectedPropertyId}
+            disabled={createLinkMutation.isPending || !selectedPropertyId || !canPromoteListings}
             className="bg-emerald-600 hover:bg-emerald-700"
           >
             Generate link

@@ -22,6 +22,12 @@ import { TwoFactorSetupPanel } from "@/components/dashboard/two-factor-setup-pan
 import { getApiErrorMessage, readApiJson } from "@/lib/utils/api-message";
 import { toast } from "sonner";
 
+const GHANA_MOMO_PROVIDERS = [
+  { code: "MTN", name: "MTN Mobile Money" },
+  { code: "VOD", name: "Telecel Cash (Vodafone)" },
+  { code: "ATL", name: "AirtelTigo Money" },
+] as const;
+
 type BankAccount = {
   id: string;
   accountType: string;
@@ -138,6 +144,15 @@ export default function UserSettingsForm({
     setAccountName("");
     setResolveError(null);
     setAccountVerified(false);
+
+    if (accountType === "MOMO") {
+      setProviders([...GHANA_MOMO_PROVIDERS]);
+      setPayoutVerificationConfigured(true);
+      setProvidersLoading(false);
+      return;
+    }
+
+    setProviders([]);
 
     async function loadProviders() {
       setProvidersLoading(true);
@@ -726,7 +741,10 @@ export default function UserSettingsForm({
                 <Label>Account type</Label>
                 <NativeSelect
                   value={accountType}
-                  onChange={(e) => setAccountType(e.target.value)}
+                  onChange={(e) => {
+                    setAccountType(e.target.value);
+                    setProviders(e.target.value === "MOMO" ? [...GHANA_MOMO_PROVIDERS] : []);
+                  }}
                 >
                   <option value="BANK">Bank</option>
                   <option value="MOMO">MoMo</option>
@@ -735,24 +753,26 @@ export default function UserSettingsForm({
 
               <div className="grid gap-2">
                 <Label>{accountType === "MOMO" ? "Mobile money network" : "Bank"}</Label>
-                {providers.length > 0 ? (
+                {accountType === "MOMO" || providers.length > 0 ? (
                 <NativeSelect
                   value={bankCode}
                   onChange={(e) => {
-                    const selected = providers.find((item) => item.code === e.target.value);
+                    const source =
+                      accountType === "MOMO" ? GHANA_MOMO_PROVIDERS : providers;
+                    const selected = source.find((item) => item.code === e.target.value);
                     setBankCode(e.target.value);
                     setBankName(selected?.name ?? "");
                   }}
-                  disabled={providersLoading}
+                  disabled={providersLoading && accountType !== "MOMO"}
                 >
                   <option value="">
-                    {providersLoading
+                    {providersLoading && accountType !== "MOMO"
                       ? "Loading providers…"
                       : accountType === "MOMO"
                         ? "Select MTN, Telecel, or AirtelTigo"
                         : "Select your bank"}
                   </option>
-                  {providers.map((provider) => (
+                  {(accountType === "MOMO" ? GHANA_MOMO_PROVIDERS : providers).map((provider) => (
                     <option key={provider.code} value={provider.code}>
                       {provider.name}
                     </option>
