@@ -14,12 +14,14 @@ import {
   createLocalAccessToken,
   deleteFromLocal,
   getLocalPublicUrl,
+  readLocalFile,
   uploadToLocal,
 } from "@/lib/storage/local-storage";
 import {
   deleteFromS3,
   getS3PublicUrl,
   getS3SignedUrl,
+  readS3Object,
   uploadToS3,
 } from "@/lib/storage/s3-storage";
 import { extensionForMime, validateUploadFile, type UploadKind } from "@/lib/storage/validation";
@@ -118,8 +120,18 @@ export function getPublicFileUrl(storageKey: string) {
   return getLocalPublicUrl(storageKey);
 }
 
-export function getStoredFileReference(stored: StoredFile) {
-  return stored.key;
+export async function readPublicStoredFile(storageKey: string) {
+  if (!storageKey.startsWith("public/")) {
+    throw new Error("Expected a public storage key.");
+  }
+
+  const driver = resolveDriver();
+  if (driver === "s3" && isS3StorageConfigured()) {
+    return readS3Object(storageKey);
+  }
+
+  const body = await readLocalFile(storageKey);
+  return { body, contentType: undefined as string | undefined };
 }
 
 // Backward-compatible helpers for integrations
@@ -139,7 +151,11 @@ export async function saveMandateUpload(file: File, ownerId: string) {
 
 export async function savePropertyImageUpload(file: File, ownerId: string) {
   const stored = await storeUploadedFile({ file, category: "properties/images", ownerId, kind: "image" });
-  return getPublicFileUrl(stored.key) ?? stored.key;
+  return stored.key;
+}
+
+export function getStoredFileReference(stored: StoredFile) {
+  return stored.key;
 }
 
 export async function savePropertyDocumentUpload(file: File, ownerId: string) {

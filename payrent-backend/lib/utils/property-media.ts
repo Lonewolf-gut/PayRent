@@ -3,13 +3,18 @@ import {
   isStorageKey,
   legacyPathToStorageKey,
   normalizeStoredFileReference,
+  storageKeyFromPublicUrl,
 } from "@/lib/storage/keys";
 import { getPublicFileUrl } from "@/lib/storage/index";
 
+function publicMediaApiUrl(storageKey: string) {
+  return `/api/files/public?key=${encodeURIComponent(storageKey)}`;
+}
+
 /**
- * Turn a stored file reference (storage key, /uploads path, or absolute URL)
+ * Turn a stored file reference (storage key, /uploads path, S3 URL, or absolute URL)
  * into a browser-loadable URL. Uses /api/files/public so split-repo frontends
- * can proxy file reads to PayRent-Backend.
+ * can proxy file reads to PayRent-Backend (works with private S3 buckets).
  */
 export function resolvePublicMediaUrl(
   storedUrl: string | null | undefined
@@ -18,38 +23,51 @@ export function resolvePublicMediaUrl(
 
   const trimmed = storedUrl.trim();
 
+  if (trimmed.startsWith("/api/files/public") || trimmed.startsWith("/api/media")) {
+    return trimmed;
+  }
+
+  const storageKey =
+    storageKeyFromPublicUrl(trimmed) ??
+    (isStorageKey(trimmed) && trimmed.startsWith("public/")
+      ? trimmed
+      : isLegacyPublicUploadPath(trimmed)
+        ? legacyPathToStorageKey(trimmed)
+        : null);
+
+  if (storageKey?.startsWith("public/")) {
+    return publicMediaApiUrl(storageKey);
+  }
+
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
     return trimmed;
   }
 
-  if (trimmed.startsWith("/api/files/public")) {
-    return trimmed;
+  const normalized = normalizeStoredFileReference(trimmed);
+  if (isStorageKey(normalized) && normalized.startsWith("public/")) {
+    return publicMediaApiUrl(normalized);
   }
-
-  let uploadPath: string | null = null;
 
   if (isLegacyPublicUploadPath(trimmed)) {
-    uploadPath = trimmed;
-  } else if (trimmed.startsWith("uploads/")) {
-    uploadPath = `/${trimmed}`;
-  } else if (isStorageKey(trimmed) || trimmed.includes("/")) {
-    uploadPath = getPublicFileUrl(normalizeStoredFileReference(trimmed));
-  } else {
-    uploadPath = getPublicFileUrl(normalizeStoredFileReference(trimmed));
+    return `/api/files/public?path=${encodeURIComponent(trimmed)}`;
   }
 
-  if (!uploadPath) {
-    if (isStorageKey(trimmed) && trimmed.startsWith("public/")) {
-      return `/api/files/public?key=${encodeURIComponent(trimmed)}`;
-    }
-    return null;
+  if (trimmed.startsWith("uploads/")) {
+    return `/api/files/public?path=${encodeURIComponent(`/${trimmed}`)}`;
   }
 
-  if (uploadPath.startsWith("http://") || uploadPath.startsWith("https://")) {
+  const uploadPath = getPublicFileUrl(normalized);
+  if (uploadPath?.startsWith("/uploads/")) {
+    return `/api/files/public?path=${encodeURIComponent(uploadPath)}`;
+  }
+
+  if (uploadPath?.startsWith("http://") || uploadPath?.startsWith("https://")) {
+    const key = storageKeyFromPublicUrl(uploadPath);
+    if (key?.startsWith("public/")) return publicMediaApiUrl(key);
     return uploadPath;
   }
 
-  return `/api/files/public?path=${encodeURIComponent(uploadPath)}`;
+  return null;
 }
 
 export function withResolvedPropertyImages<
@@ -79,17 +97,13 @@ export function resolvePublicStorageKeyFromRequest(
 ): string | null {
   const ref = refParam?.trim();
   if (ref) {
-    if (ref.startsWith("public/")) {
-      return ref;
-    }
+    const fromRef = storageKeyFromPublicUrl(ref);
+    if (fromRef?.startsWith("public/")) return fromRef;
+    if (ref.startsWith("public/")) return ref;
     if (isLegacyPublicUploadPath(ref) || ref.startsWith("uploads/")) {
       const normalizedPath = ref.startsWith("/") ? ref : `/${ref}`;
       if (!isLegacyPublicUploadPath(normalizedPath)) return null;
       const key = legacyPathToStorageKey(normalizedPath);
-      return key.startsWith("public/") ? key : null;
-    }
-    if (ref.includes("properties/images/") || ref.includes("profiles/")) {
-      const key = normalizeStoredFileReference(ref);
       return key.startsWith("public/") ? key : null;
     }
   }
@@ -99,7 +113,8 @@ export function resolvePublicStorageKeyFromRequest(
 
   if (keyParam?.trim()) {
     const key = normalizeStoredFileReference(keyParam.trim());
-    return key.startsWith("public/") ? key : null;
+    if (key.startsWith("public/")) return key;
+    return storageKeyFromPublicUrl(keyParam.trim());
   }
 
   const normalizedPath = pathParam!.startsWith("/")

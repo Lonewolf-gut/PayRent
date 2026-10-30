@@ -7,7 +7,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, message: "Missing ref." }, { status: 400 });
   }
 
-  const backendUrl = `${getServerApiOrigin()}/api/files/public?ref=${encodeURIComponent(ref.trim())}`;
+  const encodedRef = encodeURIComponent(ref.trim());
+  const backendUrl = `${getServerApiOrigin()}/api/files/public?ref=${encodedRef}`;
   const backendResponse = await fetch(backendUrl, { redirect: "manual" });
 
   if (backendResponse.status === 307 || backendResponse.status === 302) {
