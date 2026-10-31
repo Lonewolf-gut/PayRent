@@ -22,26 +22,74 @@ PAYSTACK_SECRET_KEY=sk_...
 PAYSTACK_PUBLIC_KEY=pk_...
 ```
 
-## Webhook
+## Webhook (production / staging)
 
-In the Redde developer portal (**PAYBRIDGE MARKETPLACE** app), set **Callback URL** to:
+Redde’s servers must reach your **backend** (port **3001** in dev), not the Next.js UI port.
 
-`https://<your-api-host>/api/webhooks/payments/redde`
+**Callback URL:**
 
-Example production: `https://api.payforme.example/api/webhooks/payments/redde`
+```text
+https://<your-public-api-host>/api/webhooks/payments/redde
+```
 
-Local dev: use a tunnel (ngrok, Cloudflare Tunnel) pointing to port `3001`.
+Example: `https://api.yourdomain.com/api/webhooks/payments/redde`
 
-Subscription and wallet deposits create a **PaymentInvoice** (`PFM-YYYY-000001`) and complete when Redde posts a successful callback.
+In the Redde app (**PAYBRIDGE MARKETPLACE**), replace the old Wigal USSD callback with this URL.
+
+---
+
+## Localhost (`localhost:3001`)
+
+Redde **cannot** POST to `http://localhost:3001/...` from the internet. Use one of these:
+
+### Option A — Tunnel (recommended for real MoMo tests)
+
+1. Start backend: `npm run dev` in `payrent-backend` (listens on **3001**).
+2. Expose it, e.g. [ngrok](https://ngrok.com/):
+
+   ```bash
+   ngrok http 3001
+   ```
+
+3. Copy the HTTPS URL, e.g. `https://a1b2c3.ngrok-free.app`.
+4. In Redde portal set **Callback URL** to:
+
+   ```text
+   https://a1b2c3.ngrok-free.app/api/webhooks/payments/redde
+   ```
+
+5. Keep ngrok running while testing payments.
+
+Same pattern works with Cloudflare Tunnel, localtunnel, etc.
+
+### Option B — Dev simulate (no tunnel)
+
+After starting a payment, note the **`reference`** from the API response (e.g. `SUB-AB12CD34`).
+
+```bash
+curl -X POST http://localhost:3001/api/dev/redde/simulate-callback \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_CRON_SECRET" \
+  -d '{"clientReference":"SUB-AB12CD34","amount":199,"status":"SUCCESS"}'
+```
+
+This runs the same completion logic as a real Redde callback. **Disabled in production.**
+
+---
 
 ## Database
 
-Apply migration:
-
-`psql $DATABASE_URL -f prisma/sql/payment-invoices-migration.sql`
-
-Then `npx prisma generate`.
+```bash
+psql $DATABASE_URL -f prisma/sql/payment-invoices-migration.sql
+npx prisma generate
+```
 
 ## Settlement
 
-Subscription collections settle to your **Redde merchant bank account** (platform company account on Redde). Property purchases (next phase) will target each listing merchant’s verified payout account.
+- **Subscriptions** → your Redde merchant bank (platform account).
+- **Property sales** → buyer pays via Redde; invoice records merchant beneficiary; funds settle per your Redde merchant bank setup (confirm split/settlement rules with Wigal if payee-specific routing is required).
+- **Payouts** (affiliate/lender withdrawals) → Redde cashout API.
+
+## Invoices
+
+Each collection creates `PaymentInvoice` with number `PFM-YYYY-000001`. List via `GET /api/payments/invoices` (authenticated).

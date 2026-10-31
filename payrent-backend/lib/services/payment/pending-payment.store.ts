@@ -1,7 +1,10 @@
 import type { BillingCycle, SubscriptionPlan, UserRole, WalletType } from "@prisma/client";
 import { cacheDel, cacheGet, cacheSet } from "@/lib/redis/client";
 
-export type PendingPaymentPurpose = "WALLET_DEPOSIT" | "SUBSCRIPTION";
+export type PendingPaymentPurpose =
+  | "WALLET_DEPOSIT"
+  | "SUBSCRIPTION"
+  | "PROPERTY_PURCHASE";
 export type PendingPaymentMethod = "MOMO" | "BANK";
 
 type PendingPaymentBase = {
@@ -26,7 +29,17 @@ export type SubscriptionPendingSession = PendingPaymentBase & {
   role: UserRole;
 };
 
-export type PendingPaymentSession = WalletDepositPendingSession | SubscriptionPendingSession;
+export type PropertyPurchasePendingSession = PendingPaymentBase & {
+  purpose: "PROPERTY_PURCHASE";
+  propertyId: string;
+  referredAgentProfileId?: string | null;
+  bankAccountId: string;
+};
+
+export type PendingPaymentSession =
+  | WalletDepositPendingSession
+  | SubscriptionPendingSession
+  | PropertyPurchasePendingSession;
 
 const PREFIX = "payment:pending:";
 

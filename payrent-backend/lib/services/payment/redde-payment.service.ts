@@ -240,6 +240,54 @@ export class ReddePaymentService {
     });
   }
 
+  async requestPropertyPurchasePayment(input: {
+    userId: string;
+    propertyId: string;
+    bankAccountId: string;
+    referredAgentProfileId?: string | null;
+  }) {
+    const { propertyPurchaseService } = await import(
+      "@/lib/services/property-purchase.service"
+    );
+    const preview = await propertyPurchaseService.validatePurchase(
+      input.userId,
+      input.propertyId
+    );
+
+    const account = await getVerifiedUserBankAccount(input.userId, input.bankAccountId);
+    const user = await prisma.user.findUnique({
+      where: { id: input.userId },
+      select: { phone: true },
+    });
+
+    const reference = this.buildReference("BUY");
+    const clientTransId = this.buildClientTransId();
+
+    return this.initiateCollection({
+      userId: input.userId,
+      amount: preview.price,
+      reference,
+      clientTransId,
+      description: `Purchase: ${preview.propertyName}`,
+      account,
+      userPhone: user?.phone,
+      invoiceKind: "PROPERTY_PURCHASE",
+      invoiceExtras: {
+        propertyId: input.propertyId,
+        beneficiaryUserId: preview.landlordUserId,
+      },
+      pendingSession: {
+        purpose: "PROPERTY_PURCHASE",
+        userId: input.userId,
+        amount: preview.price,
+        provider: "redde",
+        propertyId: input.propertyId,
+        referredAgentProfileId: input.referredAgentProfileId ?? null,
+        bankAccountId: account.id,
+      },
+    });
+  }
+
   async disburseToMobileMoney(params: {
     amount: number;
     phone: string;

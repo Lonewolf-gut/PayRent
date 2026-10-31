@@ -72,6 +72,14 @@ export async function processReddePaymentCallback(payload: Record<string, unknow
         clientTransId: parsed.clientTransId,
       },
     });
+  } else if (session.purpose === "PROPERTY_PURCHASE") {
+    const { propertyPurchaseService } = await import(
+      "@/lib/services/property-purchase.service"
+    );
+    await propertyPurchaseService.completeReddePurchase({
+      clientReference: parsed.clientReference,
+      amount,
+    });
   }
 
   await markPaymentInvoiceStatus(parsed.clientReference, "PAID", {

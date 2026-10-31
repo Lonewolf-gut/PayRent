@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
-import { Wallet, CreditCard, MessageSquare, ShieldAlert } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Wallet, CreditCard, MessageSquare, ShieldAlert, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,14 @@ import { StatusBadge } from "@/components/dashboard/status-badge";
 import { FinancingRequestDialog } from "@/components/financing/financing-request-dialog";
 import { APPLICATION_STATUS_LABELS } from "@/constants/platform";
 import { toast } from "sonner";
+
+type BankAccount = {
+  id: string;
+  accountType?: string;
+  bankName: string;
+  accountNumberMasked?: string | null;
+  isVerified: boolean;
+};
 
 type PropertyActionPanelProps = {
   propertyId: string;
@@ -68,6 +76,18 @@ export function PropertyActionPanel({
 }: PropertyActionPanelProps) {
   const router = useRouter();
   const [financingOpen, setFinancingOpen] = useState(false);
+  const [payAccountId, setPayAccountId] = useState("");
+
+  const { data: bankAccounts = [] } = useQuery({
+    queryKey: ["settings-bank-accounts"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings");
+      const json = await res.json();
+      return (json.data?.bankAccounts ?? []) as BankAccount[];
+    },
+  });
+
+  const verifiedPayAccounts = bankAccounts.filter((a) => a.isVerified);
 
   const defaultFinancingAmount =
     annualRent && annualRent > 0 ? annualRent : monthlyRent > 0 ? monthlyRent * 12 : 0;
@@ -95,24 +115,27 @@ export function PropertyActionPanel({
 
   const purchaseMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/properties/${propertyId}/purchase`, { method: "POST" });
+      if (!payAccountId) throw new Error("Select a payment account");
+      const res = await fetch(`/api/properties/${propertyId}/purchase`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bankAccountId: payAccountId }),
+      });
       const json = await res.json();
       if (!json.success) {
-        if (json.data?.code === "INSUFFICIENT_FUNDS") {
-          onDepositPrompt();
-          throw new Error("Insufficient wallet balance");
-        }
         throw new Error(json.message ?? json.data?.error ?? "Purchase failed");
       }
-      return json.data;
+      return json.data?.checkout as { invoiceNumber?: string; reference?: string; message?: string };
     },
-    onSuccess: () => {
-      toast.success("Purchase completed successfully");
+    onSuccess: (checkout) => {
+      toast.success(
+        checkout?.invoiceNumber
+          ? `Invoice ${checkout.invoiceNumber}: complete Redde payment to finish purchase.`
+          : "Redde payment started — complete the prompt to finish purchase."
+      );
       router.refresh();
     },
-    onError: (e: Error) => {
-      if (e.message !== "Insufficient wallet balance") toast.error(e.message);
-    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const rentPaymentMutation = useMutation({
@@ -144,7 +167,7 @@ export function PropertyActionPanel({
   });
 
   const payAmount = isSale ? purchasePrice : monthlyRent;
-  const canPay = walletBalance >= payAmount;
+  const canPayRent = walletBalance >= payAmount;
   const hasFinancingRequest = Boolean(approvedApplication?.financingRequests?.length);
 
   return (
@@ -154,41 +177,88 @@ export function PropertyActionPanel({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Wallet className="size-5" />
-              {isSale ? "Buy with wallet" : "Pay for this property"}
+              {isSale ? "Buy with Redde" : "Pay for this property"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {isSale
-                ? `Pay GHS ${purchasePrice.toLocaleString()} directly from your wallet.`
-                : `Pay GHS ${monthlyRent.toLocaleString()} rent from your wallet.`}
-            </p>
-            <p className="text-sm">
-              Balance:{" "}
-              <span className="font-semibold text-emerald-700">
-                GHS {walletBalance.toLocaleString()}
-              </span>
-            </p>
-            <Button
-              className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
-              disabled={isSale ? purchaseMutation.isPending : rentPaymentMutation.isPending}
-              onClick={() =>
-                isSale ? purchaseMutation.mutate() : rentPaymentMutation.mutate()
-              }
-            >
-              {isSale
-                ? purchaseMutation.isPending
-                  ? "Processing..."
-                  : "Pay now"
-                : rentPaymentMutation.isPending
-                  ? "Processing..."
-                  : "Pay now"}
-            </Button>
-            {!canPay ? (
-              <Button variant="outline" className="w-full rounded-none" onClick={onDepositPrompt}>
-                Deposit funds
-              </Button>
-            ) : null}
+            {isSale ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Pay GHS {purchasePrice.toLocaleString()} via Redde (Mobile Money or bank). Funds
+                  settle to the merchant per your Redde configuration. You receive a numbered
+                  invoice.
+                </p>
+                {!verifiedPayAccounts.length ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                    Add a verified MoMo or bank account in Settings to pay.
+                    <div className="mt-3">
+                      <Button asChild variant="outline" className="rounded-none">
+                        <Link href="/dashboard/buyer/settings">Go to Settings</Link>
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {verifiedPayAccounts.map((account) => (
+                      <label
+                        key={account.id}
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${
+                          payAccountId === account.id ? "border-emerald-500 bg-emerald-50/50" : ""
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="payAccountId"
+                          checked={payAccountId === account.id}
+                          onChange={() => setPayAccountId(account.id)}
+                          className="mt-1"
+                        />
+                        <div>
+                          <p className="flex items-center gap-2 text-sm font-medium">
+                            <Smartphone className="size-4" />
+                            {account.bankName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {account.accountNumberMasked ?? account.accountType}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <Button
+                  className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
+                  disabled={purchaseMutation.isPending || !payAccountId}
+                  onClick={() => purchaseMutation.mutate()}
+                >
+                  {purchaseMutation.isPending ? "Starting payment…" : "Pay with Redde"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Pay GHS {monthlyRent.toLocaleString()} rent from your wallet.
+                </p>
+                <p className="text-sm">
+                  Balance:{" "}
+                  <span className="font-semibold text-emerald-700">
+                    GHS {walletBalance.toLocaleString()}
+                  </span>
+                </p>
+                <Button
+                  className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
+                  disabled={rentPaymentMutation.isPending}
+                  onClick={() => rentPaymentMutation.mutate()}
+                >
+                  {rentPaymentMutation.isPending ? "Processing..." : "Pay now"}
+                </Button>
+                {!canPayRent ? (
+                  <Button variant="outline" className="w-full rounded-none" onClick={onDepositPrompt}>
+                    Deposit funds
+                  </Button>
+                ) : null}
+              </>
+            )}
           </CardContent>
         </Card>
       ) : null}
