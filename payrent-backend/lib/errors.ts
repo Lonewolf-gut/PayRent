@@ -1,3 +1,5 @@
+import { getDatabaseUnavailableHint } from "@/lib/db/database-url";
+
 export class AppError extends Error {
   constructor(
     message: string,
@@ -59,8 +61,7 @@ export function handleApiError(error: unknown): {
     prismaCode === "P1017"
   ) {
     return {
-      message:
-        "The database is not available right now. Start Docker Desktop, then run: docker compose up -d postgres redis",
+      message: `The database is not available right now. ${getDatabaseUnavailableHint()}`,
       statusCode: 503,
       code: "DATABASE_UNAVAILABLE",
     };

@@ -188,7 +188,7 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
           /failed to fetch|network|fetch/i.test(error.message));
       toast.error(
         isNetworkError
-          ? "Cannot reach PayRent-Backend. Start Docker (postgres redis), run npm run dev in PayRent-Backend on port 3001, and set API_URL=http://localhost:3001 in PayRent-Frontend .env."
+          ? "Cannot reach PayRent-Backend. Run npm run dev in PayRent-Backend (port 3001) and set API_URL=http://localhost:3001 in PayRent-Frontend .env."
           : "Something went wrong while signing in. Please try again.",
         { id: toastId }
       );

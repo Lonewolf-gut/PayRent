@@ -17,7 +17,7 @@ const SIGN_IN_MESSAGES: Record<string, string> = {
   wrong_role:
     "This email is registered under a different role. Go back and choose the correct sign-in option.",
   database_unavailable:
-    "We can't reach the database. Start Docker Desktop, then run: docker compose up -d postgres redis",
+    "We can't reach the database. Check DATABASE_URL and DIRECT_URL in .env (Supabase: pooler + direct URLs). See docs/supabase-database.md.",
 };
 
 const REGISTER_MESSAGES: Record<string, string> = {
@@ -25,7 +25,7 @@ const REGISTER_MESSAGES: Record<string, string> = {
     "This email is already registered. Sign in instead or use a different email address.",
   RATE_LIMIT: "Too many attempts. Please wait a moment and try again.",
   DATABASE_UNAVAILABLE:
-    "We can't reach the database. Start Docker Desktop, then run: docker compose up -d postgres redis",
+    "We can't reach the database. Check DATABASE_URL and DIRECT_URL in .env (Supabase: pooler + direct URLs).",
 };
 
 export function getSignInErrorMessage(

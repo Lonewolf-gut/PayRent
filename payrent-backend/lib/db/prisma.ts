@@ -1,11 +1,19 @@
 import { PrismaClient } from "@prisma/client";
+import { getRuntimeDatabaseUrl } from "@/lib/db/database-url";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
 function createPrismaClient() {
-  return new PrismaClient();
+  const url = getRuntimeDatabaseUrl();
+  if (!url) {
+    throw new Error("DATABASE_URL is not set in the environment.");
+  }
+
+  return new PrismaClient({
+    datasources: { db: { url } },
+  });
 }
 
 export const prisma: PrismaClient = globalForPrisma.prisma ?? createPrismaClient();
@@ -24,7 +32,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Retry DB connect on cold Docker Desktop / dropped connections. */
+/** Retry DB connect (local Docker cold start or transient Supabase/network blips). */
 export async function ensureDbConnection(retries = 3): Promise<void> {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
