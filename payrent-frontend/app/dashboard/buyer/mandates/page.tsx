@@ -1,38 +1,66 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { StatusBadge } from "@/components/dashboard/status-badge";
-import { MANDATE_STATUS_LABELS } from "@/constants/platform";
-import { SecureFileLink } from "@/components/shared/secure-file-link";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { MandateAccordionList } from "@/components/mandates/mandate-accordion-list";
+import { fetchMandatePreviews } from "@/lib/mandates/fetch-mandate-previews";
+import type { MandatePreviewData } from "@/lib/utils/mandate-preview";
+import { Upload, Camera } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-type Mandate = {
+type MandateRecord = {
   id: string;
   status: string;
-  mandateType: string;
   mandateSource: string;
   documentUrl?: string | null;
-  financingRequest?: { property?: { name: string } };
-  bankAccount?: { bankName: string; accountNumberMasked?: string };
+  financingRequest?: { id: string; property?: { name: string } };
 };
 
 export default function TenantMandatesPage() {
   const queryClient = useQueryClient();
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [selectedFinancingRequestId, setSelectedFinancingRequestId] = useState<string | null>(
+    null
+  );
 
-  const { data: mandates, isLoading } = useQuery({
+  const {
+    data: previews = [],
+    isLoading: previewsLoading,
+    isError: previewsError,
+    error: previewsErrorMessage,
+  } = useQuery({
+    queryKey: ["mandate-overview"],
+    queryFn: fetchMandatePreviews,
+    retry: 1,
+  });
+
+  const { data: mandates = [] } = useQuery({
     queryKey: ["mandates"],
     queryFn: async () => {
       const res = await fetch("/api/mandates");
       const json = await res.json();
-      return (json.data ?? []) as Mandate[];
+      return (json.data ?? []) as MandateRecord[];
     },
   });
+
+  useEffect(() => {
+    if (previewsError && previewsErrorMessage instanceof Error) {
+      toast.error(previewsErrorMessage.message);
+    }
+  }, [previewsError, previewsErrorMessage]);
 
   const submitMutation = useMutation({
     mutationFn: async (mandateId: string) => {
@@ -47,6 +75,7 @@ export default function TenantMandatesPage() {
     onSuccess: () => {
       toast.success("Mandate submitted for review");
       queryClient.invalidateQueries({ queryKey: ["mandates"] });
+      queryClient.invalidateQueries({ queryKey: ["mandate-overview"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -56,19 +85,60 @@ export default function TenantMandatesPage() {
       const res = await fetch(`/api/mandates/${mandateId}/status`);
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
-      return json.data as Mandate;
     },
-    onSuccess: (data) => {
-      toast.success(`Status: ${MANDATE_STATUS_LABELS[data.status] ?? data.status}`);
+    onSuccess: () => {
+      toast.success("Bank status refreshed");
       queryClient.invalidateQueries({ queryKey: ["mandates"] });
+      queryClient.invalidateQueries({ queryKey: ["mandate-overview"] });
       queryClient.invalidateQueries({ queryKey: ["financing"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const handleUpload = async (mandateId: string, file: File) => {
-    setUploadingId(mandateId);
+  const ensureDraftMandate = async (financingRequestId: string) => {
+    const res = await fetch("/api/mandates/ensure-draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ financingRequestId }),
+    });
+    const json = await res.json();
+    if (!json.success) {
+      throw new Error(json.message ?? "Could not prepare mandate for upload");
+    }
+    return json.data?.mandateId as string;
+  };
+
+  useEffect(() => {
+    if (!previews.length) return;
+    setSelectedFinancingRequestId((current) => {
+      if (current && previews.some((preview) => preview.financingRequestId === current)) {
+        return current;
+      }
+      return previews[0]?.financingRequestId ?? null;
+    });
+  }, [previews]);
+
+  const selectedPreview =
+    previews.find((preview) => preview.financingRequestId === selectedFinancingRequestId) ??
+    previews[0];
+
+  const uploadFile = async (file: File) => {
+    const targetPreview = selectedPreview ?? previews[0];
+    if (!targetPreview) {
+      toast.error("Submit a Pay-for-Me request first");
+      return;
+    }
+
+    setUploading(true);
     try {
+      let mandateId = targetPreview.mandateId;
+      if (!mandateId) {
+        mandateId = await ensureDraftMandate(targetPreview.financingRequestId);
+      }
+      if (!mandateId) {
+        throw new Error("Could not prepare a mandate for this request");
+      }
+
       const formData = new FormData();
       formData.append("document", file);
       const res = await fetch(`/api/mandates/${mandateId}/upload`, {
@@ -77,111 +147,141 @@ export default function TenantMandatesPage() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
-      toast.success("Document uploaded");
+
+      toast.success("Mandate uploaded");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
       queryClient.invalidateQueries({ queryKey: ["mandates"] });
+      queryClient.invalidateQueries({ queryKey: ["mandate-overview"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
-      setUploadingId(null);
+      setUploading(false);
     }
   };
 
+  const getMandateForPreview = (preview: MandatePreviewData) =>
+    mandates.find((mandate) => mandate.id === preview.mandateId);
+
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Repayment mandates</h1>
-        <p className="text-muted-foreground">
-          Upload scanned mandate forms or track platform-generated mandates through bank activation.
-        </p>
+
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,application/pdf"
+            className="hidden"
+            disabled={uploading || !previews.length}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setUploadDialogOpen(false);
+                uploadFile(file);
+              }
+            }}
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            disabled={uploading || !previews.length}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setUploadDialogOpen(false);
+                uploadFile(file);
+              }
+            }}
+          />
+          <Button
+            type="button"
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700"
+            disabled={uploading || !previews.length}
+            onClick={() => setUploadDialogOpen(true)}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            {uploading ? "Uploading..." : "Upload mandate"}
+          </Button>
+          <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add signed mandate</DialogTitle>
+                <DialogDescription>
+                  Upload a PDF or photo from your device, or take a picture of the signed mandate
+                  with your camera.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  disabled={uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload file
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                  disabled={uploading}
+                  onClick={() => cameraInputRef.current?.click()}
+                >
+                  <Camera className="mr-2 h-4 w-4" />
+                  Take photo
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      {isLoading ? (
+      {previewsLoading ? (
         <p className="text-muted-foreground">Loading mandates...</p>
-      ) : !mandates?.length ? (
+      ) : previewsError ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            No mandates yet. Create one from your financing request after approval.
+          <CardContent className="space-y-3 py-12 text-center">
+            <p className="text-muted-foreground">
+              Could not load mandates. Make sure PayRent-Backend is running on port 3001.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["mandate-overview"] })}
+            >
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
+      ) : !previews.length ? (
+        <Card>
+          <CardContent className="space-y-3 py-12 text-center text-muted-foreground">
+            <p>No mandates yet. Submit a Pay-for-Me request from a listing first.</p>
+            <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+              <Link href="/properties">Browse listings</Link>
+            </Button>
           </CardContent>
         </Card>
       ) : (
-        mandates.map((mandate) => (
-          <Card key={mandate.id}>
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle className="text-base">
-                  {mandate.financingRequest?.property?.name ?? "Financing mandate"}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {mandate.mandateType.replace("_", " ")} ·{" "}
-                  {mandate.mandateSource.replace("_", " ")} · {mandate.bankAccount?.bankName}
-                </p>
-              </div>
-              <StatusBadge status={mandate.status} label={MANDATE_STATUS_LABELS[mandate.status]} />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Account {mandate.bankAccount?.accountNumberMasked ?? "—"}
-              </p>
-
-              {mandate.documentUrl && (
-                <Button asChild size="sm" variant="outline">
-                  <SecureFileLink request={{ scope: "mandate", mandateId: mandate.id }}>
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    View mandate document
-                  </SecureFileLink>
-                </Button>
-              )}
-
-              {mandate.mandateSource === "SCANNED_UPLOAD" &&
-                ["PENDING_SUBMISSION", "DRAFT", "REJECTED"].includes(mandate.status) && (
-                  <div className="space-y-2 rounded-lg border p-4">
-                    <Label htmlFor={`upload-${mandate.id}`}>Scanned mandate form (PDF or image)</Label>
-                    <Input
-                      id={`upload-${mandate.id}`}
-                      type="file"
-                      accept=".pdf,image/*"
-                      disabled={uploadingId === mandate.id}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleUpload(mandate.id, file);
-                      }}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Upload your signed bank mandate form, then submit for admin review.
-                    </p>
-                  </div>
-                )}
-
-              <div className="flex flex-wrap gap-2">
-                {["PENDING_SUBMISSION", "DRAFT"].includes(mandate.status) && (
-                  <Button
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                    disabled={
-                      submitMutation.isPending ||
-                      (mandate.mandateSource === "SCANNED_UPLOAD" && !mandate.documentUrl)
-                    }
-                    onClick={() => submitMutation.mutate(mandate.id)}
-                  >
-                    Submit for review
-                  </Button>
-                )}
-
-                {["BANK_PROCESSING", "PENDING_MANUAL_RESOLUTION"].includes(mandate.status) && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={syncMutation.isPending}
-                    onClick={() => syncMutation.mutate(mandate.id)}
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Refresh bank status
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))
+        <div className="space-y-6">
+          <MandateAccordionList
+          previews={previews}
+          getMandateForPreview={getMandateForPreview}
+          onSubmitScanned={(mandateId) => submitMutation.mutate(mandateId)}
+          onRefreshStatus={(mandateId) => syncMutation.mutate(mandateId)}
+          submitPending={submitMutation.isPending}
+          syncPending={syncMutation.isPending}
+          selectedFinancingRequestId={selectedFinancingRequestId ?? undefined}
+          onSelectedFinancingRequestIdChange={setSelectedFinancingRequestId}
+        />
+        </div>
       )}
     </div>
   );

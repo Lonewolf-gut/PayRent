@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { AppProviders } from "@/components/providers/app-providers";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "RentForMe | Rental Financing & Investment Platform",
   description:
