@@ -2,6 +2,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
+require("./ensure-direct-url.js");
+
 const projectRoot = path.join(__dirname, "..");
 const workspaceRoot = path.join(projectRoot, "..");
 

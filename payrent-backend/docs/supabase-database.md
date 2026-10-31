@@ -35,6 +35,8 @@ npm run db:seed
 
 For one-off SQL (e.g. payment invoices), use **Supabase → SQL Editor** and run `prisma/sql/payment-invoices-migration.sql`.
 
+If `db:push` fails with pooler errors, set **`DIRECT_URL`** explicitly to the **5432 direct** string (not the 6543 pooler). The CLI auto-falls back to `DATABASE_URL` when `DIRECT_URL` is omitted (fine for direct-only URLs).
+
 ## 3. Verify
 
 ```bash
