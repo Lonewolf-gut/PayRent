@@ -91,15 +91,21 @@ export const authConfig: NextAuthConfig = {
           throw new MissingCredentialsError();
         }
 
-        const response = await fetch(apiUrl("/api/auth/login"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: credentials.email,
-            password: credentials.password,
-            otp: credentials.otp,
-          }),
-        });
+        let response: Response;
+        try {
+          response = await fetch(apiUrl("/api/auth/login"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password,
+              otp: credentials.otp,
+            }),
+            signal: AbortSignal.timeout(25_000),
+          });
+        } catch {
+          throw new DatabaseUnavailableError();
+        }
 
         const payload = (await response.json().catch(() => ({}))) as {
           success?: boolean;
@@ -118,6 +124,9 @@ export const authConfig: NextAuthConfig = {
         };
 
         if (!response.ok || !payload.success || !payload.data?.user) {
+          if (response.status === 503) {
+            throw new DatabaseUnavailableError();
+          }
           throwForCode(payload.errors?.[0]?.code ?? "invalid_password");
         }
 
