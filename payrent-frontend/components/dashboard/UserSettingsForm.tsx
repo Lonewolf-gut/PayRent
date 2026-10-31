@@ -137,6 +137,9 @@ export default function UserSettingsForm({
     return () => URL.revokeObjectURL(url);
   }, [selectedFile]);
 
+  const isMomoAccount = accountType === "MOMO";
+  const providerOptions = isMomoAccount ? GHANA_MOMO_PROVIDERS : providers;
+
   useEffect(() => {
     setBankName("");
     setBankCode("");
@@ -145,8 +148,8 @@ export default function UserSettingsForm({
     setResolveError(null);
     setAccountVerified(false);
 
-    if (accountType === "MOMO") {
-      setProviders([...GHANA_MOMO_PROVIDERS]);
+    if (isMomoAccount) {
+      setProviders([]);
       setPayoutVerificationConfigured(true);
       setProvidersLoading(false);
       return;
@@ -157,7 +160,7 @@ export default function UserSettingsForm({
     async function loadProviders() {
       setProvidersLoading(true);
       try {
-        const res = await fetch(`/api/bank-accounts/providers?accountType=${accountType}`);
+        const res = await fetch(`/api/bank-accounts/providers?accountType=BANK`);
         const json = await readApiJson(res);
         if (json.success) {
           const data = json.data as {
@@ -179,7 +182,7 @@ export default function UserSettingsForm({
     }
 
     loadProviders();
-  }, [accountType]);
+  }, [accountType, isMomoAccount]);
 
   useEffect(() => {
     if (!payoutVerificationConfigured) {
@@ -742,8 +745,13 @@ export default function UserSettingsForm({
                 <NativeSelect
                   value={accountType}
                   onChange={(e) => {
-                    setAccountType(e.target.value);
-                    setProviders(e.target.value === "MOMO" ? [...GHANA_MOMO_PROVIDERS] : []);
+                    const nextType = e.target.value === "MOMO" ? "MOMO" : "BANK";
+                    setAccountType(nextType);
+                    setBankCode("");
+                    setBankName("");
+                    if (nextType === "MOMO") {
+                      setProviders([]);
+                    }
                   }}
                 >
                   <option value="BANK">Bank</option>
@@ -752,27 +760,26 @@ export default function UserSettingsForm({
               </div>
 
               <div className="grid gap-2">
-                <Label>{accountType === "MOMO" ? "Mobile money network" : "Bank"}</Label>
-                {accountType === "MOMO" || providers.length > 0 ? (
+                <Label>{isMomoAccount ? "Mobile money network" : "Bank"}</Label>
+                {isMomoAccount || providerOptions.length > 0 ? (
                 <NativeSelect
+                  key={`payout-provider-${accountType}`}
                   value={bankCode}
                   onChange={(e) => {
-                    const source =
-                      accountType === "MOMO" ? GHANA_MOMO_PROVIDERS : providers;
-                    const selected = source.find((item) => item.code === e.target.value);
+                    const selected = providerOptions.find((item) => item.code === e.target.value);
                     setBankCode(e.target.value);
                     setBankName(selected?.name ?? "");
                   }}
-                  disabled={providersLoading && accountType !== "MOMO"}
+                  disabled={providersLoading && !isMomoAccount}
                 >
                   <option value="">
-                    {providersLoading && accountType !== "MOMO"
+                    {providersLoading && !isMomoAccount
                       ? "Loading providers…"
-                      : accountType === "MOMO"
+                      : isMomoAccount
                         ? "Select MTN, Telecel, or AirtelTigo"
                         : "Select your bank"}
                   </option>
-                  {(accountType === "MOMO" ? GHANA_MOMO_PROVIDERS : providers).map((provider) => (
+                  {providerOptions.map((provider) => (
                     <option key={provider.code} value={provider.code}>
                       {provider.name}
                     </option>
