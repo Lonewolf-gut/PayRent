@@ -834,16 +834,7 @@ export class FinancingService {
     });
   }
 
-  async getPendingForLender(lenderUserId?: string) {
-    let take: number | undefined;
-    if (lenderUserId) {
-      const { getLenderFinancingAccess } = await import(
-        "@/lib/subscription/lender-access"
-      );
-      const access = await getLenderFinancingAccess(lenderUserId);
-      if (access.limit != null) take = access.limit;
-    }
-
+  async getPendingForLender(_lenderUserId?: string) {
     return prisma.financingRequest.findMany({
       where: { status: { in: ["PENDING", "UNDER_REVIEW", "READY_FOR_LENDER_REVIEW"] } },
       include: {
@@ -852,12 +843,22 @@ export class FinancingService {
             user: { select: { email: true, image: true } },
           },
         },
-        property: { include: { images: { take: 1 } } },
+        property: {
+          include: {
+            images: { take: 1 },
+            landlord: {
+              select: {
+                fullName: true,
+                identityVerified: true,
+                companyName: true,
+              },
+            },
+          },
+        },
         mandate: true,
         application: true,
       },
       orderBy: { createdAt: "desc" },
-      ...(take != null ? { take } : {}),
     });
   }
 
