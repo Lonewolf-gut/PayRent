@@ -256,6 +256,21 @@ enum AgentEarningType {
   FINANCING
 }
 
+enum PaymentInvoiceKind {
+  SUBSCRIPTION
+  PROPERTY_PURCHASE
+  PRODUCT_PURCHASE
+  WALLET_DEPOSIT
+  PAYOUT
+}
+
+enum PaymentInvoiceStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
 enum TransactionStatus {
   PENDING
   PROCESSING
@@ -347,6 +362,7 @@ model User {
   sessions          Session[]
   accounts          Account[]
   subscriptions     Subscription[]
+  paymentInvoices   PaymentInvoice[]
   dataConsents      DataConsent[]
   feeDisclosuresAsTenant FeeDisclosureRecord[] @relation("FeeDisclosureTenant")
   feeDisclosuresAsLender FeeDisclosureRecord[] @relation("FeeDisclosureLender")
@@ -545,6 +561,7 @@ model Property {
   views             PropertyView[]
   referralLinks     AgentReferralLink[]
   agentEarnings     AgentEarning[]
+  paymentInvoices   PaymentInvoice[]
 
   @@index([landlordId])
   @@index([agentUserId])
@@ -1255,6 +1272,37 @@ enum BankPartnerTransactionType {
 enum BankPartnerDirection {
   INBOUND
   OUTBOUND
+}
+
+model PaymentInvoice {
+  id                   String               @id @default(cuid())
+  invoiceNumber        String               @unique
+  kind                 PaymentInvoiceKind
+  status               PaymentInvoiceStatus @default(PENDING)
+  amount               Decimal              @db.Decimal(14, 2)
+  currency             String               @default("GHS")
+  userId               String
+  propertyId           String?
+  beneficiaryUserId    String?
+  subscriptionPlan     SubscriptionPlan?
+  billingCycle         BillingCycle?
+  paymentMethod        String?
+  reddeClientReference String?              @unique
+  reddeClientTransId   String?
+  reddeTransactionId   String?
+  provider             String               @default("redde")
+  description          String?
+  paidAt               DateTime?
+  metadata             Json?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([kind, status])
+  @@index([propertyId])
 }
 
 model PlatformSettlementAccount {

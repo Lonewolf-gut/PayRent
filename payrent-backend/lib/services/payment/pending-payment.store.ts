@@ -7,7 +7,7 @@ export type PendingPaymentMethod = "MOMO" | "BANK";
 type PendingPaymentBase = {
   userId: string;
   amount: number;
-  provider: "hubtel" | "paystack" | "momo";
+  provider: "hubtel" | "paystack" | "momo" | "redde";
   momoReferenceId?: string;
 };
 
