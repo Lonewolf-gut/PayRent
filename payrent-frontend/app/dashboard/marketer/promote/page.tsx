@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,8 +18,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { PropertyListingImage } from "@/components/properties/property-listing-image";
+import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
 import { toast } from "sonner";
-import Link from "next/link";
 import { PROPERTY_TYPE_LABELS } from "@/lib/subscription-limits";
 import type { PropertyType } from "@prisma/client";
 
@@ -60,10 +62,25 @@ type ReferralLink = {
 
 export default function AgentPromotePage() {
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
+  const { openUpgrade } = useSubscriptionUpgrade();
   const preselectedPropertyId = searchParams.get("propertyId");
   const queryClient = useQueryClient();
   const [label, setLabel] = useState("");
   const [selectedPropertyId, setSelectedPropertyId] = useState(preselectedPropertyId ?? "");
+  const [upgradeBannerDismissed, setUpgradeBannerDismissed] = useState(false);
+
+  const upgradeBannerDismissKey = session?.user?.id
+    ? `affiliate-promote-upgrade-banner:${session.user.id}`
+    : null;
+
+  useEffect(() => {
+    if (!upgradeBannerDismissKey) {
+      setUpgradeBannerDismissed(false);
+      return;
+    }
+    setUpgradeBannerDismissed(sessionStorage.getItem(upgradeBannerDismissKey) === "true");
+  }, [upgradeBannerDismissKey]);
 
   useEffect(() => {
     if (preselectedPropertyId) {
@@ -141,7 +158,12 @@ export default function AgentPromotePage() {
   const commissionRate = assignmentLimits?.agentCommissionPercent ?? 2.5;
   const atPromotionLimit =
     !assignmentLimits?.unlimited && promotionUsed >= promotionLimit;
-  const promoteActionsDisabled = !canPromoteListings || atPromotionLimit;
+
+  const dismissUpgradeBanner = () => {
+    if (!upgradeBannerDismissKey) return;
+    sessionStorage.setItem(upgradeBannerDismissKey, "true");
+    setUpgradeBannerDismissed(true);
+  };
 
   const claimMutation = useMutation({
     mutationFn: async (propertyId: string) => {
@@ -204,12 +226,28 @@ export default function AgentPromotePage() {
           <CardTitle className="text-base">All active listings</CardTitle>
         </CardHeader>
         <CardContent className="max-h-[520px] space-y-4 overflow-y-auto pr-1">
-          {!canPromoteListings && promotionAccessMessage ? (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100">
-              {promotionAccessMessage}{" "}
-              <Link href="/pricing" className="font-medium text-emerald-700 underline dark:text-emerald-300">
-                Upgrade now
-              </Link>
+          {!canPromoteListings && promotionAccessMessage && !upgradeBannerDismissed ? (
+            <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100">
+              <p className="min-w-0 flex-1">
+                {promotionAccessMessage}{" "}
+                <button
+                  type="button"
+                  onClick={() => openUpgrade()}
+                  className="font-medium text-emerald-700 underline underline-offset-2 dark:text-emerald-300"
+                >
+                  Upgrade now
+                </button>
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-amber-900 hover:bg-amber-100 hover:text-amber-950 dark:text-amber-200 dark:hover:bg-amber-900/60"
+                onClick={dismissUpgradeBanner}
+                aria-label="Dismiss upgrade reminder"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
           ) : null}
           {browseLoading ? (
@@ -261,8 +299,13 @@ export default function AgentPromotePage() {
                 {status === "yours" ? (
                   <Button
                     variant="outline"
-                    disabled={!canPromoteListings}
-                    onClick={() => setSelectedPropertyId(listing.id)}
+                    onClick={() => {
+                      if (!canPromoteListings) {
+                        openUpgrade();
+                        return;
+                      }
+                      setSelectedPropertyId(listing.id);
+                    }}
                   >
                     Create link
                   </Button>
@@ -272,8 +315,14 @@ export default function AgentPromotePage() {
                   </Button>
                 ) : (
                   <Button
-                    onClick={() => claimMutation.mutate(listing.id)}
-                    disabled={claimMutation.isPending || promoteActionsDisabled}
+                    onClick={() => {
+                      if (!canPromoteListings || atPromotionLimit) {
+                        openUpgrade();
+                        return;
+                      }
+                      claimMutation.mutate(listing.id);
+                    }}
+                    disabled={claimMutation.isPending}
                     className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
                   >
                     {!canPromoteListings
@@ -329,8 +378,14 @@ export default function AgentPromotePage() {
             />
           </div>
           <Button
-            onClick={() => createLinkMutation.mutate()}
-            disabled={createLinkMutation.isPending || !selectedPropertyId || !canPromoteListings}
+            onClick={() => {
+              if (!canPromoteListings) {
+                openUpgrade();
+                return;
+              }
+              createLinkMutation.mutate();
+            }}
+            disabled={createLinkMutation.isPending || !selectedPropertyId}
             className="bg-emerald-600 hover:bg-emerald-700"
           >
             Generate link
