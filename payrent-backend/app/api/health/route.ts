@@ -1,7 +1,23 @@
 import { NextResponse } from "next/server";
-import { getDatabaseUnavailableHint, getRawDatabaseUrl, isSupabaseDatabaseUrl } from "@/lib/db/database-url";
+import {
+  getDatabaseUnavailableHint,
+  getRawDatabaseUrl,
+  isSupabaseDatabaseUrl,
+} from "@/lib/db/database-url";
 import { ensureDbConnection } from "@/lib/db/prisma";
 import { redis } from "@/lib/redis/client";
+
+function describeDatabaseTarget(): string | undefined {
+  const raw = getRawDatabaseUrl();
+  if (!raw) return undefined;
+  try {
+    const normalized = raw.replace(/^postgresql:/, "postgres:");
+    const u = new URL(normalized);
+    return `${u.hostname}:${u.port || "5432"}`;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function GET() {
   const hints: string[] = [];

@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
+import { normalizeEmail } from "@/lib/auth/normalize-email";
 import { logLoginAttempt } from "@/lib/auth/login-log";
 import {
   AccountLockedError,
@@ -33,11 +34,16 @@ export async function authenticateCredentials(
     throw new MissingCredentialsError();
   }
 
-  const email = emailInput.trim().toLowerCase();
+  const email = normalizeEmail(emailInput);
 
   let user;
   try {
     user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      user = await prisma.user.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+      });
+    }
   } catch {
     throw new DatabaseUnavailableError();
   }
