@@ -267,7 +267,7 @@ export function WalletPanel({
         </CardContent>
       </Card>
 
-      <Accordion type="single" collapsible defaultValue={showDeposit ? "deposit" : showWithdraw ? "withdraw" : "history"} className="border-y">
+      <Accordion type="single" collapsible defaultValue={showWithdraw ? "withdraw" : "history"} className="border-y">
         {showDeposit ? (
         <AccordionItem value="deposit" className="border-0">
           <AccordionTrigger className="rounded-none border-0 px-0 py-5 hover:no-underline">

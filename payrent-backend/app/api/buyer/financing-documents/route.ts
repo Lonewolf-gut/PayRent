@@ -16,6 +16,7 @@ export const POST = withAuth(
   async (req: NextRequest, _ctx, session) => {
     const formData = await req.formData();
     const documentType = formData.get("documentType")?.toString() as TenantFinancingDocType;
+    const financingRequestId = formData.get("financingRequestId")?.toString();
     const file = formData.get("document");
 
     if (!(file instanceof File) || !file.name) {
@@ -30,7 +31,8 @@ export const POST = withAuth(
     const doc = await tenantFinancingDocService.upload(
       session.user.id,
       parsed.data,
-      file
+      file,
+      financingRequestId || undefined
     );
     return apiResponse(doc, 201);
   },

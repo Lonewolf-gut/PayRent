@@ -15,7 +15,8 @@ const signInErrorCodes: Record<string, string> = {
   database_unavailable: "Service temporarily unavailable",
 };
 
-export const POST = withPublicHandler(async (req: NextRequest) => {
+export const POST = withPublicHandler(
+  async (req: NextRequest) => {
   const body = await req.json().catch(() => ({}));
   const email = typeof body.email === "string" ? body.email : "";
   const password = typeof body.password === "string" ? body.password : "";
@@ -27,8 +28,13 @@ export const POST = withPublicHandler(async (req: NextRequest) => {
   } catch (error) {
     if (error instanceof CredentialsSignin) {
       const code = error.code ?? "invalid_password";
-      return apiError(new AppError(signInErrorCodes[code] ?? "Sign in failed", 401, code));
+      const status = code === "database_unavailable" ? 503 : 401;
+      return apiError(
+        new AppError(signInErrorCodes[code] ?? "Sign in failed", status, code)
+      );
     }
     return apiError(error);
   }
-});
+  },
+  { ensureDatabase: false }
+);

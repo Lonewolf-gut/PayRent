@@ -32,18 +32,20 @@ async function assertKycDocumentAccess(documentId: string, userId: string, role:
 }
 
 async function assertFinancingDocumentAccess(documentId: string, userId: string, role: string) {
-  const document = await prisma.tenantFinancingDocument.findUnique({
+  const document = await prisma.financingRequestDocument.findUnique({
     where: { id: documentId },
-    select: { id: true, tenantId: true, fileUrl: true, fileName: true, documentType: true },
+    select: {
+      id: true,
+      financingRequestId: true,
+      fileUrl: true,
+      fileName: true,
+      documentType: true,
+      financingRequest: { select: { tenant: { select: { userId: true } } } },
+    },
   });
   if (!document) throw new Error("Document not found.");
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: document.tenantId },
-    select: { userId: true },
-  });
-
-  const isOwner = tenant?.userId === userId;
+  const isOwner = document.financingRequest.tenant.userId === userId;
   const isReviewer = role === "ADMIN" || role === "COMPLIANCE_OFFICER";
   if (!isOwner && !isReviewer) throw new Error("You do not have access to this document.");
 
@@ -128,7 +130,7 @@ export async function resolveProtectedFileAccess(params: {
         params.role
       );
       fileKey = normalizeStoredFileReference(document.fileUrl);
-      entity = "TenantFinancingDocument";
+      entity = "FinancingRequestDocument";
       entityId = document.id;
       fileName = document.fileName;
       break;

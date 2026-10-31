@@ -15,12 +15,22 @@ export async function rateLimit(
 
   if (redis) {
     try {
-      const multi = redis.multi();
-      multi.incr(key);
-      multi.pttl(key);
-      const results = await multi.exec();
-      const count = (results?.[0]?.[1] as number) ?? 1;
-      let ttl = (results?.[1]?.[1] as number) ?? -1;
+      const result = await Promise.race([
+        (async () => {
+          const multi = redis.multi();
+          multi.incr(key);
+          multi.pttl(key);
+          return multi.exec();
+        })(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 2_000)),
+      ]);
+
+      if (!result) {
+        throw new Error("redis_timeout");
+      }
+
+      const count = (result[0]?.[1] as number) ?? 1;
+      let ttl = (result[1]?.[1] as number) ?? -1;
 
       if (ttl === -1) {
         await redis.pexpire(key, WINDOW_MS);

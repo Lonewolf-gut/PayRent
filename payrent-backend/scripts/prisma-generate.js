@@ -2,6 +2,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
+require("./ensure-direct-url.js");
+process.env.PRISMA_GENERATE_SKIP_ENV = "1";
+
 const projectRoot = path.join(__dirname, "..");
 const workspaceRoot = path.join(projectRoot, "..");
 

@@ -1,4 +1,7 @@
-import { TenantFinancingDocType, type TenantFinancingDocument } from "@prisma/client";
+import {
+  TenantFinancingDocType,
+  type FinancingRequestDocument,
+} from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors";
 import { saveFinancingDocument } from "@/lib/integrations/documents";
@@ -11,20 +14,37 @@ import {
   notifyUserInAppAndEmail,
 } from "@/lib/services/verification-notifications";
 
+function assertFinancingRequestDocumentClient() {
+  const delegate = (
+    prisma as unknown as {
+      financingRequestDocument?: { findMany: unknown };
+    }
+  ).financingRequestDocument;
+  if (!delegate?.findMany) {
+    throw new AppError(
+      "Prisma client is out of date. In PayRent-Backend run npm run db:generate, then restart npm run dev.",
+      503,
+      "PRISMA_CLIENT_STALE"
+    );
+  }
+}
+
 export class TenantFinancingDocService {
   async listForTenant(userId: string) {
+    assertFinancingRequestDocumentClient();
     const tenant = await prisma.tenant.findUnique({ where: { userId } });
     if (!tenant) throw new AppError("Customer profile required", 403);
 
     const requiredTypes = getRequiredFinancingDocTypes(tenant.entityType);
-    const docs = await prisma.tenantFinancingDocument.findMany({
-      where: { tenantId: tenant.id },
-      orderBy: { documentType: "asc" },
+    const docs = await prisma.financingRequestDocument.findMany({
+      where: { financingRequest: { tenantId: tenant.id } },
+      include: { financingRequest: { select: { id: true, status: true, propertyId: true } } },
+      orderBy: { updatedAt: "desc" },
     });
 
     const approved = requiredTypes.every((type) =>
       docs.some(
-        (doc: TenantFinancingDocument) =>
+        (doc: FinancingRequestDocument) =>
           doc.documentType === type && doc.status === "APPROVED"
       )
     );
@@ -38,7 +58,12 @@ export class TenantFinancingDocService {
     };
   }
 
-  async upload(userId: string, documentType: TenantFinancingDocType, file: File) {
+  async upload(
+    userId: string,
+    documentType: TenantFinancingDocType,
+    file: File,
+    financingRequestId?: string
+  ) {
     const tenant = await prisma.tenant.findUnique({
       where: { userId },
       include: { user: { select: { email: true } } },
@@ -58,13 +83,33 @@ export class TenantFinancingDocService {
       throw new AppError("This document is not required for your account type.", 400);
     }
 
+    const financingRequest = financingRequestId
+      ? await prisma.financingRequest.findFirst({
+          where: { id: financingRequestId, tenantId: tenant.id },
+        })
+      : await prisma.financingRequest.findFirst({
+          where: { tenantId: tenant.id },
+          orderBy: { createdAt: "desc" },
+        });
+
+    if (!financingRequest) {
+      throw new AppError(
+        "Submit or open a financing request before uploading payslip and bank statement.",
+        400,
+        "FINANCING_REQUEST_REQUIRED"
+      );
+    }
+
     const fileUrl = await saveFinancingDocument(file, userId);
-    const doc = await prisma.tenantFinancingDocument.upsert({
+    const doc = await prisma.financingRequestDocument.upsert({
       where: {
-        tenantId_documentType: { tenantId: tenant.id, documentType },
+        financingRequestId_documentType: {
+          financingRequestId: financingRequest.id,
+          documentType,
+        },
       },
       create: {
-        tenantId: tenant.id,
+        financingRequestId: financingRequest.id,
         documentType,
         fileName: file.name,
         fileUrl,
@@ -89,26 +134,32 @@ export class TenantFinancingDocService {
     await notifyAllAdminsInAppAndEmail(
       "Financing documents submitted",
       `${tenant.user.email} uploaded ${FINANCING_DOC_LABELS[documentType]} for admin review.`,
-      { tenantId: tenant.id, documentId: doc.id }
+      { tenantId: tenant.id, documentId: doc.id, financingRequestId: financingRequest.id }
     );
 
     return doc;
   }
 
   async listForAdmin(status?: "PENDING" | "APPROVED" | "REJECTED") {
-    const docs = await prisma.tenantFinancingDocument.findMany({
+    const docs = await prisma.financingRequestDocument.findMany({
       where: status ? { status } : undefined,
       include: {
-        tenant: {
+        financingRequest: {
           include: {
-            user: { select: { id: true, email: true, phone: true } },
+            tenant: {
+              include: {
+                user: { select: { id: true, email: true, phone: true } },
+              },
+            },
           },
         },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    const userIds = [...new Set(docs.map((doc) => doc.tenant.userId))];
+    const userIds = [
+      ...new Set(docs.map((doc) => doc.financingRequest.tenant.userId)),
+    ];
     const [kycDocs, verifications] = await Promise.all([
       userIds.length
         ? prisma.kycDocument.findMany({
@@ -126,16 +177,22 @@ export class TenantFinancingDocService {
 
     return docs.map((doc) => ({
       ...doc,
+      tenantId: doc.financingRequest.tenantId,
+      tenant: doc.financingRequest.tenant,
       kycSummary: {
-        fullName: doc.tenant.fullName,
-        kycVerified: doc.tenant.kycVerified,
-        employmentVerified: doc.tenant.employmentVerified,
-        addressVerified: doc.tenant.addressVerified,
-        entityType: doc.tenant.entityType,
-        email: doc.tenant.user.email,
-        phone: doc.tenant.user.phone,
-        kycDocuments: kycDocs.filter((item) => item.userId === doc.tenant.userId),
-        verifications: verifications.filter((item) => item.userId === doc.tenant.userId),
+        fullName: doc.financingRequest.tenant.fullName,
+        kycVerified: doc.financingRequest.tenant.kycVerified,
+        employmentVerified: doc.financingRequest.tenant.employmentVerified,
+        addressVerified: doc.financingRequest.tenant.addressVerified,
+        entityType: doc.financingRequest.tenant.entityType,
+        email: doc.financingRequest.tenant.user.email,
+        phone: doc.financingRequest.tenant.user.phone,
+        kycDocuments: kycDocs.filter(
+          (item) => item.userId === doc.financingRequest.tenant.userId
+        ),
+        verifications: verifications.filter(
+          (item) => item.userId === doc.financingRequest.tenant.userId
+        ),
       },
     }));
   }
@@ -146,7 +203,7 @@ export class TenantFinancingDocService {
     status: "APPROVED" | "REJECTED",
     reviewNotes?: string
   ) {
-    const doc = await prisma.tenantFinancingDocument.update({
+    const doc = await prisma.financingRequestDocument.update({
       where: { id: documentId },
       data: {
         status,
@@ -155,12 +212,16 @@ export class TenantFinancingDocService {
         reviewedBy: adminUserId,
       },
       include: {
-        tenant: { include: { user: { select: { id: true, email: true } } } },
+        financingRequest: {
+          include: {
+            tenant: { include: { user: { select: { id: true, email: true } } } },
+          },
+        },
       },
     });
 
     await notifyUserInAppAndEmail(
-      doc.tenant.user.id,
+      doc.financingRequest.tenant.user.id,
       status === "APPROVED"
         ? "Financing document approved"
         : "Financing document needs attention",
@@ -172,19 +233,22 @@ export class TenantFinancingDocService {
     return doc;
   }
 
-  async assertFinancingDocsApproved(tenantId: string) {
-    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant) throw new AppError("Customer profile required", 403);
+  async assertFinancingDocsApproved(financingRequestId: string) {
+    const request = await prisma.financingRequest.findUnique({
+      where: { id: financingRequestId },
+      include: { tenant: true },
+    });
+    if (!request) throw new AppError("Financing request not found", 404);
 
-    const requiredTypes = getRequiredFinancingDocTypes(tenant.entityType);
-    const docs = await prisma.tenantFinancingDocument.findMany({
-      where: { tenantId },
+    const requiredTypes = getRequiredFinancingDocTypes(request.tenant.entityType);
+    const docs = await prisma.financingRequestDocument.findMany({
+      where: { financingRequestId },
     });
 
     const missing = requiredTypes.filter(
       (type) =>
         !docs.some(
-          (doc: TenantFinancingDocument) =>
+          (doc: FinancingRequestDocument) =>
             doc.documentType === type && doc.status === "APPROVED"
         )
     );

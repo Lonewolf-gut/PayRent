@@ -1,1 +1,5 @@
-export { default } from "../../merchant/applications/page";
+import { redirect } from "next/navigation";
+
+export default function MarketerApplicationsRedirect() {
+  redirect("/dashboard/marketer/promote");
+}

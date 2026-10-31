@@ -66,8 +66,66 @@ export function legacyPathToStorageKey(fileUrl: string) {
 export function normalizeStoredFileReference(fileUrl: string) {
   if (isStorageKey(fileUrl)) return fileUrl;
   if (isLegacyPublicUploadPath(fileUrl)) return legacyPathToStorageKey(fileUrl);
-  if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) return fileUrl;
+  if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) {
+    const fromUrl = storageKeyFromPublicUrl(fileUrl);
+    if (fromUrl) return fromUrl;
+    return fileUrl;
+  }
   return legacyPathToStorageKey(`/${fileUrl}`);
+}
+
+/** Extract `public/...` storage key from CDN/S3 URLs and legacy paths. */
+export function storageKeyFromPublicUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (isStorageKey(trimmed) && trimmed.startsWith("public/")) return trimmed;
+  if (isLegacyPublicUploadPath(trimmed)) {
+    const key = legacyPathToStorageKey(trimmed);
+    return key.startsWith("public/") ? key : null;
+  }
+  if (trimmed.startsWith("uploads/")) {
+    const key = legacyPathToStorageKey(`/${trimmed}`);
+    return key.startsWith("public/") ? key : null;
+  }
+
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+    if (trimmed.startsWith("public/")) return trimmed;
+    if (trimmed.includes("properties/images/") || trimmed.includes("profiles/")) {
+      const key = legacyPathToStorageKey(
+        trimmed.startsWith("/") ? trimmed : `/${trimmed.replace(/^public\//, "uploads/")}`
+      );
+      return key.startsWith("public/") ? key : `public/${trimmed.replace(/^\/+/, "")}`;
+    }
+    return null;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    const pathname = decodeURIComponent(url.pathname).replace(/^\/+/, "");
+
+    const publicMarker = "public/";
+    const publicIndex = pathname.indexOf(publicMarker);
+    if (publicIndex >= 0) {
+      const key = pathname.slice(publicIndex);
+      return key.startsWith("public/") ? key : null;
+    }
+
+    const propertiesMarker = "properties/images/";
+    const propertiesIndex = pathname.indexOf(propertiesMarker);
+    if (propertiesIndex >= 0) {
+      return `public/${pathname.slice(propertiesIndex)}`;
+    }
+
+    const profilesMarker = "profiles/";
+    const profilesIndex = pathname.indexOf(profilesMarker);
+    if (profilesIndex >= 0) {
+      return `public/${pathname.slice(profilesIndex)}`;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 export function fileNameFromKey(storageKey: string) {

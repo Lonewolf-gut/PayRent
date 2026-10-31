@@ -1,10 +1,18 @@
 import { prisma } from "@/lib/db/prisma";
+import { normalizeEmail } from "@/lib/auth/normalize-email";
 import type { UserRole, Prisma } from "@prisma/client";
 
 export class UserRepository {
   async findByEmail(email: string) {
-    return prisma.user.findUnique({
-      where: { email },
+    const normalized = normalizeEmail(email);
+    const exact = await prisma.user.findUnique({
+      where: { email: normalized },
+      include: { tenant: true, landlord: true, lender: true },
+    });
+    if (exact) return exact;
+
+    return prisma.user.findFirst({
+      where: { email: { equals: normalized, mode: "insensitive" } },
       include: { tenant: true, landlord: true, lender: true },
     });
   }

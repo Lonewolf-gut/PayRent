@@ -35,3 +35,7 @@ export class WrongRoleError extends CredentialsSignin {
 export class DatabaseUnavailableError extends CredentialsSignin {
   code = "database_unavailable";
 }
+
+export class BackendUnreachableError extends CredentialsSignin {
+  code = "backend_unreachable";
+}

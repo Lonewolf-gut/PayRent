@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getPostAuthRoute } from "@/lib/auth/post-auth-route";
+import { waitForClientSession } from "@/lib/auth/wait-for-session";
 import { ADMIN_HOME_PATH, COMPLIANCE_HOME_PATH } from "@/lib/auth/route-guards";
 import { stripSensitiveQueryParams } from "@/lib/utils/api-message";
 import { getSignInErrorMessage } from "@/lib/utils/auth-toast-messages";
@@ -129,11 +130,10 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
         return;
       }
 
-      const session = await getSession();
+      const session = (await waitForClientSession()) ?? (await getSession());
       if (!session?.user) {
-        toast.error("Signed in, but the session could not be loaded. Please try again.", {
-          id: toastId,
-        });
+        toast.info("Finishing sign-in…", { id: toastId });
+        window.location.assign(callbackUrl.startsWith("/") ? callbackUrl : "/dashboard");
         return;
       }
 
@@ -188,7 +188,7 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
           /failed to fetch|network|fetch/i.test(error.message));
       toast.error(
         isNetworkError
-          ? "Cannot reach the server. Confirm `npm run dev:webpack` is running and Docker (Postgres) is started, then try again."
+          ? "Cannot reach PayRent-Backend. Run npm run dev in PayRent-Backend (port 3001) and set API_URL=http://localhost:3001 in PayRent-Frontend .env."
           : "Something went wrong while signing in. Please try again.",
         { id: toastId }
       );

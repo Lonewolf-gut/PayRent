@@ -15,7 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NotificationsPopover } from "@/components/dashboard/notifications-popover";
-import { NavQuickActions } from "@/components/dashboard/nav-quick-actions";
 import { AccountVerificationBadge } from "@/components/dashboard/account-verification-badge";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
@@ -65,6 +64,7 @@ export function DashboardHeader({
   const greeting = getTimeGreeting();
   const [menuOpen, setMenuOpen] = useState(false);
   const role = session?.user?.role;
+  const signOutPath = getRoleSignOutPath(role);
 
   const { data: profile } = useSettingsProfile(!!session?.user?.id);
 
@@ -140,7 +140,6 @@ export function DashboardHeader({
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
-          <NavQuickActions />
           <NotificationsPopover />
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -184,7 +183,7 @@ export function DashboardHeader({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="cursor-pointer rounded-none"
-                onClick={() => signOut({ callbackUrl: "/" })}
+                onClick={() => signOut({ callbackUrl: signOutPath })}
               >
                 <LogOut className="size-4" />
                 Sign out
@@ -195,7 +194,7 @@ export function DashboardHeader({
             variant="outline"
             size="sm"
             className="hidden sm:inline-flex"
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={() => signOut({ callbackUrl: signOutPath })}
           >
             Sign out
           </Button>
@@ -204,7 +203,7 @@ export function DashboardHeader({
             size="icon-sm"
             className="sm:hidden"
             aria-label="Sign out"
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={() => signOut({ callbackUrl: signOutPath })}
           >
             <LogOut className="h-4 w-4" />
           </Button>

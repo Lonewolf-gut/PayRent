@@ -2,10 +2,14 @@ import { prisma } from "@/lib/db/prisma";
 import type { Prisma, PropertyStatus, PropertyType } from "@prisma/client";
 import type { PropertyFilterInput } from "@/lib/validations/property";
 import { RESIDENTIAL_TYPES } from "@/lib/subscription-limits";
+import {
+  withResolvedPropertyImages,
+  withResolvedPropertyListImages,
+} from "@/lib/utils/property-media";
 
 export class PropertyRepository {
   async findById(id: string) {
-    return prisma.property.findUnique({
+    const property = await prisma.property.findUnique({
       where: { id },
       include: {
         images: { orderBy: { order: "asc" } },
@@ -23,6 +27,8 @@ export class PropertyRepository {
         },
       },
     });
+
+    return property ? withResolvedPropertyImages(property) : null;
   }
 
   async findMany(filters: PropertyFilterInput) {
@@ -82,7 +88,12 @@ export class PropertyRepository {
       prisma.property.count({ where }),
     ]);
 
-    return { items, total, page, limit };
+    return {
+      items: withResolvedPropertyListImages(items),
+      total,
+      page,
+      limit,
+    };
   }
 
   async create(data: Prisma.PropertyCreateInput) {

@@ -17,7 +17,9 @@ const SIGN_IN_MESSAGES: Record<string, string> = {
   wrong_role:
     "This email is registered under a different role. Go back and choose the correct sign-in option.",
   database_unavailable:
-    "We can't reach the database. Start Docker Desktop, then run: docker compose up -d postgres redis",
+    "We can't reach the database. Check PayRent-Backend .env: Supabase DATABASE_URL (pooler, port 6543) and DIRECT_URL (direct, port 5432), then run npm run db:push. See docs/supabase-database.md.",
+  backend_unreachable:
+    "PayRent-Backend is not responding on port 3001. In a second terminal run: cd PayRent-Backend && npm run dev. Confirm http://localhost:3001/api/live returns {\"ok\":true}. In PayRent-Frontend/.env use exactly API_URL=http://localhost:3001 (not api-url), then restart npm run dev.",
 };
 
 const REGISTER_MESSAGES: Record<string, string> = {
@@ -25,7 +27,7 @@ const REGISTER_MESSAGES: Record<string, string> = {
     "This email is already registered. Sign in instead or use a different email address.",
   RATE_LIMIT: "Too many attempts. Please wait a moment and try again.",
   DATABASE_UNAVAILABLE:
-    "We can't reach the database. Start Docker Desktop, then run: docker compose up -d postgres redis",
+    "We can't reach the database. Check Supabase DATABASE_URL and DIRECT_URL in PayRent-Backend .env, then npm run db:push.",
 };
 
 export function getSignInErrorMessage(
@@ -77,7 +79,7 @@ export function getRegisterErrorMessage(
     return REGISTER_MESSAGES.DATABASE_UNAVAILABLE;
   }
 
-  if (status === 503 && /database|5432|postgres|docker/i.test(apiMessage)) {
+  if (status === 503 && /database|5432|postgres|supabase|docker/i.test(apiMessage)) {
     return REGISTER_MESSAGES.DATABASE_UNAVAILABLE;
   }
 

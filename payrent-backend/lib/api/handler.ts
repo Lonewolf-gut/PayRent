@@ -111,8 +111,14 @@ export function withAuth(
   };
 }
 
+type PublicHandlerOptions = {
+  /** When false, skip the pre-handler DB ping (login already talks to Prisma directly). */
+  ensureDatabase?: boolean;
+};
+
 export function withPublicHandler(
-  handler: (req: NextRequest, context: RouteContext) => Promise<NextResponse>
+  handler: (req: NextRequest, context: RouteContext) => Promise<NextResponse>,
+  options?: PublicHandlerOptions
 ) {
   return async (req: NextRequest, context: RouteContext) => {
     try {
@@ -125,7 +131,9 @@ export function withPublicHandler(
           { status: 429 }
         );
       }
-      await ensureDbConnection();
+      if (options?.ensureDatabase !== false) {
+        await ensureDbConnection();
+      }
       return await handler(req, context);
     } catch (error) {
       return apiError(error);

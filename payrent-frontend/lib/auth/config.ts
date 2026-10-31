@@ -5,6 +5,7 @@ import { apiUrl } from "@/lib/api/client";
 import {
   AccountLockedError,
   AccountSuspendedError,
+  BackendUnreachableError,
   DatabaseUnavailableError,
   EmailNotFoundError,
   InvalidPasswordError,
@@ -43,6 +44,29 @@ declare module "@auth/core/jwt" {
     phoneVerified: boolean;
     picture?: string | null;
   }
+}
+
+function classifyLoginFetchError(error: unknown): never {
+  const code =
+    error instanceof Error && "cause" in error && error.cause instanceof Error
+      ? (error.cause as NodeJS.ErrnoException).code
+      : undefined;
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (
+    code === "ECONNREFUSED" ||
+    code === "ECONNRESET" ||
+    code === "EHOSTUNREACH" ||
+    /fetch failed|socket hang up|network/i.test(message)
+  ) {
+    throw new BackendUnreachableError();
+  }
+
+  if (error instanceof DOMException && error.name === "TimeoutError") {
+    throw new BackendUnreachableError();
+  }
+
+  throw new DatabaseUnavailableError();
 }
 
 function throwForCode(code: string): never {
@@ -91,15 +115,21 @@ export const authConfig: NextAuthConfig = {
           throw new MissingCredentialsError();
         }
 
-        const response = await fetch(apiUrl("/api/auth/login"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: credentials.email,
-            password: credentials.password,
-            otp: credentials.otp,
-          }),
-        });
+        let response: Response;
+        try {
+          response = await fetch(apiUrl("/api/auth/login"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password,
+              otp: credentials.otp,
+            }),
+            signal: AbortSignal.timeout(60_000),
+          });
+        } catch (error) {
+          classifyLoginFetchError(error);
+        }
 
         const payload = (await response.json().catch(() => ({}))) as {
           success?: boolean;
@@ -118,6 +148,9 @@ export const authConfig: NextAuthConfig = {
         };
 
         if (!response.ok || !payload.success || !payload.data?.user) {
+          if (response.status === 503) {
+            throw new DatabaseUnavailableError();
+          }
           throwForCode(payload.errors?.[0]?.code ?? "invalid_password");
         }
 

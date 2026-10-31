@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/sheet";
 import { PROFILE_MENU_ITEMS } from "@/lib/nav/profile-menu";
 import { getRoleSignOutPath } from "@/lib/auth/route-guards";
-import { NavQuickActions } from "@/components/dashboard/nav-quick-actions";
 import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
 import { isPaidPlan, normalizeSubscriptionPlan } from "@/lib/subscription/plans";
 import { roleRequiresSubscription } from "@/lib/subscription/roles";
@@ -38,7 +37,6 @@ import type { UserRole } from "@prisma/client";
 const MARKETING_LINKS = [
   { href: "/properties", label: "Properties" },
   { href: "/#how-it-works", label: "How it works" },
-  { href: "/pricing", label: "Pricing" },
   { href: "/contact", label: "Contact" },
 ] as const;
 
@@ -98,9 +96,7 @@ export function Navbar() {
   );
   const showUpgradeInMenu =
     !!role && roleRequiresSubscription(role) && !isPaidPlan(currentPlan);
-  const marketingLinks = MARKETING_LINKS.filter(
-    (link) => !(link.href === "/pricing" && pathname === "/pricing")
-  );
+  const marketingLinks = MARKETING_LINKS;
 
   return (
     <header className="sticky top-0 z-50 border-b border-emerald-100 bg-white/95 backdrop-blur-md">
@@ -159,7 +155,6 @@ export function Navbar() {
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {session?.user ? (
             <>
-              <NavQuickActions />
               <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
               <DropdownMenuTrigger
                 className="rounded-full outline-none ring-emerald-600 focus-visible:ring-2"

@@ -1,34 +1,33 @@
-import { isHubtelPaymentsConfigured } from "@/lib/integrations/hubtel/config";
+import { isReddeConfigured } from "@/lib/integrations/redde/config";
 import { isPaystackConfigured } from "@/lib/integrations/paystack/config";
 
-export type PaymentProviderName = "hubtel" | "paystack" | "momo" | "log";
+export type PaymentProviderName = "redde" | "log";
 
 export function getPaymentProvider(): PaymentProviderName {
-  const value = (process.env.PAYMENT_PROVIDER || "momo").trim().toLowerCase();
-  if (value === "paystack" || value === "hubtel" || value === "momo" || value === "log") {
-    return value;
-  }
-  return "momo";
+  const value = (process.env.PAYMENT_PROVIDER || "redde").trim().toLowerCase();
+  if (value === "log") return "log";
+  return "redde";
 }
 
 export function isPaymentCollectionConfigured() {
-  const provider = getPaymentProvider();
-  if (provider === "paystack") return isPaystackConfigured();
-  if (provider === "hubtel") return isHubtelPaymentsConfigured();
-  if (provider === "momo") {
-    return Boolean(
-      process.env.MOMO_API_KEY?.trim() &&
-        process.env.MOMO_SUBSCRIPTION_KEY?.trim() &&
-        process.env.MOMO_API_USER?.trim()
-    );
+  if (getPaymentProvider() === "log") {
+    return process.env.NODE_ENV === "development";
   }
-  return false;
+  return isReddeConfigured();
 }
 
 export function isPayoutConfigured() {
-  return Boolean(process.env.BANK_API_KEY?.trim()) || isPaystackConfigured() || isHubtelPaymentsConfigured();
+  if (getPaymentProvider() === "log") {
+    return process.env.NODE_ENV === "development";
+  }
+  return isReddeConfigured() || Boolean(process.env.BANK_API_KEY?.trim());
+}
+
+/** Paystack remains enabled for bank list / account resolve only — not collections. */
+export function isPaystackLookupEnabled() {
+  return isPaystackConfigured();
 }
 
 export function isPaystackLookupOnly() {
-  return getPaymentProvider() === "momo" || getPaymentProvider() === "log";
+  return true;
 }

@@ -1,14 +1,19 @@
 import type { NextConfig } from "next";
+import { parseAllowedDevOrigins } from "./lib/parse-allowed-dev-origins";
 
 const lifecycle = process.env.npm_lifecycle_event ?? "";
 const isDevServer = lifecycle === "dev" || lifecycle === "dev:turbo";
 const useStandaloneOutput = process.env.STANDALONE_BUILD === "1";
 const frontendOrigin =
   process.env.FRONTEND_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
+const allowedDevOrigins = parseAllowedDevOrigins();
 
 const nextConfig: NextConfig = {
   distDir: isDevServer ? ".next-dev" : ".next",
   ...(useStandaloneOutput ? { output: "standalone" as const } : {}),
+  ...(isDevServer && allowedDevOrigins.length > 0
+    ? { allowedDevOrigins }
+    : {}),
   typescript: {
     ignoreBuildErrors: true,
   },

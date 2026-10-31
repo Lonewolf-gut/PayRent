@@ -1,14 +1,11 @@
-import { isHubtelPaymentsConfigured } from "@/lib/integrations/hubtel/config";
-import { isPaystackConfigured } from "@/lib/integrations/paystack/config";
-import { hubtelPaymentService } from "@/lib/services/payment/hubtel-payment.service";
-import { paystackPaymentService } from "@/lib/services/payment/paystack-payment.service";
+import { reddePaymentService } from "@/lib/services/payment/redde-payment.service";
 import { getPaymentProvider } from "@/lib/services/payment/provider";
+import { isReddeConfigured } from "@/lib/integrations/redde/config";
 
-export function isPayoutConfigured() {
+export function isPayoutConfiguredForProvider() {
   const provider = getPaymentProvider();
-  if (provider === "paystack") return isPaystackConfigured();
-  if (provider === "hubtel") return isHubtelPaymentsConfigured();
-  return isPaystackConfigured() || isHubtelPaymentsConfigured();
+  if (provider === "log") return process.env.NODE_ENV === "development";
+  return isReddeConfigured();
 }
 
 export async function disburseToBankAccount(params: {
@@ -20,25 +17,18 @@ export async function disburseToBankAccount(params: {
   description: string;
   reference?: string;
 }) {
-  const provider = getPaymentProvider();
-
-  if (provider === "paystack" || (provider !== "hubtel" && isPaystackConfigured())) {
-    return paystackPaymentService.disburseToBankAccount(params);
+  if (!isPayoutConfiguredForProvider()) {
+    if (process.env.NODE_ENV === "development") {
+      return {
+        provider: "sandbox" as const,
+        reference: params.reference ?? `PAY-${Date.now()}`,
+        status: "SUCCESSFUL" as const,
+      };
+    }
+    throw new Error("Redde payouts are not configured.");
   }
 
-  if (provider === "hubtel" || isHubtelPaymentsConfigured()) {
-    return hubtelPaymentService.disburseToBankAccount(params);
-  }
-
-  if (process.env.NODE_ENV === "development") {
-    return {
-      provider: "sandbox" as const,
-      reference: params.reference ?? `PAY-${Date.now()}`,
-      status: "SUCCESSFUL" as const,
-    };
-  }
-
-  throw new Error("No payout provider configured.");
+  return reddePaymentService.disburseToBankAccount(params);
 }
 
 export async function disburseToMobileMoney(params: {
@@ -50,29 +40,19 @@ export async function disburseToMobileMoney(params: {
   description: string;
   reference?: string;
 }) {
-  const provider = getPaymentProvider();
-
-  if (provider === "paystack" || (provider !== "hubtel" && isPaystackConfigured())) {
-    return paystackPaymentService.disburseToMobileMoney(params);
+  if (!isPayoutConfiguredForProvider()) {
+    if (process.env.NODE_ENV === "development") {
+      return {
+        provider: "sandbox" as const,
+        reference: params.reference ?? `PAY-${Date.now()}`,
+        status: "SUCCESSFUL" as const,
+      };
+    }
+    throw new Error("Redde payouts are not configured.");
   }
 
-  if (provider === "hubtel" || isHubtelPaymentsConfigured()) {
-    return hubtelPaymentService.disburseToMobileMoney({
-      amount: params.amount,
-      phone: params.phone,
-      recipientName: params.recipientName,
-      description: params.description,
-      reference: params.reference,
-    });
-  }
-
-  if (process.env.NODE_ENV === "development") {
-    return {
-      provider: "sandbox" as const,
-      reference: params.reference ?? `PAY-${Date.now()}`,
-      status: "SUCCESSFUL" as const,
-    };
-  }
-
-  throw new Error("No payout provider configured.");
+  return reddePaymentService.disburseToMobileMoney(params);
 }
+
+// Re-export for legacy imports
+export { isPayoutConfiguredForProvider as isPayoutConfigured };

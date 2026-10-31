@@ -1,3 +1,5 @@
+import { getDatabaseUnavailableHint } from "@/lib/db/database-url";
+
 export class AppError extends Error {
   constructor(
     message: string,
@@ -59,8 +61,7 @@ export function handleApiError(error: unknown): {
     prismaCode === "P1017"
   ) {
     return {
-      message:
-        "The database is not available right now. Start Docker Desktop, then run: docker compose up -d postgres redis",
+      message: `The database is not available right now. ${getDatabaseUnavailableHint()}`,
       statusCode: 503,
       code: "DATABASE_UNAVAILABLE",
     };
@@ -72,6 +73,33 @@ export function handleApiError(error: unknown): {
         "Your listing could not be saved because the database is missing a required column. Please run database migrations and try again.",
       statusCode: 503,
       code: "SCHEMA_MISMATCH",
+    };
+  }
+
+  if (prismaCode === "P2021") {
+    const table =
+      error &&
+      typeof error === "object" &&
+      "meta" in error &&
+      typeof (error as { meta?: { table?: string } }).meta?.table === "string"
+        ? (error as { meta: { table: string } }).meta.table
+        : "a required table";
+    return {
+      message:
+        `Database table missing (${table}). In PayRent-Backend run npm run db:push with DIRECT_URL set, ` +
+        "or run prisma/sql/financing-request-document-table.sql in the Supabase SQL Editor. See docs/supabase-database.md.",
+      statusCode: 503,
+      code: "SCHEMA_MISMATCH",
+    };
+  }
+
+  if (prismaCode === "P2024") {
+    return {
+      message:
+        "Database connection pool busy (too many parallel requests). Wait a few seconds and refresh. " +
+        "If this persists on Supabase, use the pooler URL on port 6543 for DATABASE_URL and avoid running multiple dev servers against the same database.",
+      statusCode: 503,
+      code: "DATABASE_POOL_BUSY",
     };
   }
 
