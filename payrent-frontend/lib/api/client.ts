@@ -3,16 +3,14 @@
  * Browser: relative /api/* when NEXT_PUBLIC_API_URL is unset (Next.js rewrites).
  * Server: must use an absolute URL (API_URL or http://localhost:3001).
  */
+import { resolveBackendApiOrigin } from "@/lib/api/resolve-backend-url";
+
 function trimTrailingSlash(value: string) {
   return value.replace(/\/$/, "");
 }
 
 export function getServerApiOrigin(): string {
-  return trimTrailingSlash(
-    process.env.API_URL?.trim() ||
-      process.env.NEXT_PUBLIC_API_URL?.trim() ||
-      "http://localhost:3001"
-  );
+  return resolveBackendApiOrigin();
 }
 
 export function getApiBaseUrl(): string {

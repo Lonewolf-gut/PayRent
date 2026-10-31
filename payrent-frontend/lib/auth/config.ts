@@ -125,7 +125,7 @@ export const authConfig: NextAuthConfig = {
               password: credentials.password,
               otp: credentials.otp,
             }),
-            signal: AbortSignal.timeout(25_000),
+            signal: AbortSignal.timeout(60_000),
           });
         } catch (error) {
           classifyLoginFetchError(error);

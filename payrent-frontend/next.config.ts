@@ -1,11 +1,13 @@
 import type { NextConfig } from "next";
+import { resolveBackendApiOrigin, warnMisconfiguredBackendUrl } from "@/lib/api/resolve-backend-url";
 
 const lifecycle = process.env.npm_lifecycle_event ?? "";
 const isDevServer = lifecycle === "dev" || lifecycle === "dev:turbo";
 const useStandaloneOutput = process.env.STANDALONE_BUILD === "1";
 const isWindowsDev = process.platform === "win32" && isDevServer;
 const turboFsCacheEnabled = process.env.TURBOPACK_FS_CACHE === "1";
-const apiOrigin = (process.env.API_URL ?? "http://localhost:3001").replace(/\/$/, "");
+warnMisconfiguredBackendUrl();
+const apiOrigin = resolveBackendApiOrigin();
 
 const nextConfig: NextConfig = {
   distDir: isDevServer ? ".next-dev" : ".next",

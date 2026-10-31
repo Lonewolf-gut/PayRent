@@ -161,6 +161,7 @@ export class TenantFinancingDocService {
 
     return docs.map((doc) => ({
       ...doc,
+      tenantId: doc.financingRequest.tenantId,
       tenant: doc.financingRequest.tenant,
       kycSummary: {
         fullName: doc.financingRequest.tenant.fullName,

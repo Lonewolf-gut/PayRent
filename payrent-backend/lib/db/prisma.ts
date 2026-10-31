@@ -33,7 +33,7 @@ function sleep(ms: number) {
 }
 
 /** Retry DB connect (local Docker cold start or transient Supabase/network blips). */
-export async function ensureDbConnection(retries = 3): Promise<void> {
+export async function ensureDbConnection(retries = 2): Promise<void> {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       await prisma.$queryRaw`SELECT 1`;
@@ -47,7 +47,7 @@ export async function ensureDbConnection(retries = 3): Promise<void> {
         if (attempt === retries) {
           throw error;
         }
-        await sleep(Math.min(attempt * 800, 2000));
+        await sleep(Math.min(attempt * 400, 800));
       }
     }
   }

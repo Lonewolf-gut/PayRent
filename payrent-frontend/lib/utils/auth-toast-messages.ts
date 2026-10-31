@@ -19,7 +19,7 @@ const SIGN_IN_MESSAGES: Record<string, string> = {
   database_unavailable:
     "We can't reach the database. Check PayRent-Backend .env: Supabase DATABASE_URL (pooler, port 6543) and DIRECT_URL (direct, port 5432), then run npm run db:push. See docs/supabase-database.md.",
   backend_unreachable:
-    "We can't reach PayRent-Backend on port 3001. Run npm run dev in PayRent-Backend and set API_URL=http://localhost:3001 in the frontend .env.",
+    "PayRent-Backend is not responding on port 3001. In a second terminal run: cd PayRent-Backend && npm run dev. Confirm http://localhost:3001/api/live returns {\"ok\":true}. In PayRent-Frontend/.env use exactly API_URL=http://localhost:3001 (not api-url), then restart npm run dev.",
 };
 
 const REGISTER_MESSAGES: Record<string, string> = {

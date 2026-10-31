@@ -8,7 +8,8 @@ const bodySchema = z.object({
   email: z.string().email(),
 });
 
-export const POST = withPublicHandler(async (req: NextRequest) => {
+export const POST = withPublicHandler(
+  async (req: NextRequest) => {
   const json = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);
 

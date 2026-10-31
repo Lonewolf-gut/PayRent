@@ -15,7 +15,8 @@ const signInErrorCodes: Record<string, string> = {
   database_unavailable: "Service temporarily unavailable",
 };
 
-export const POST = withPublicHandler(async (req: NextRequest) => {
+export const POST = withPublicHandler(
+  async (req: NextRequest) => {
   const body = await req.json().catch(() => ({}));
   const email = typeof body.email === "string" ? body.email : "";
   const password = typeof body.password === "string" ? body.password : "";
@@ -34,4 +35,6 @@ export const POST = withPublicHandler(async (req: NextRequest) => {
     }
     return apiError(error);
   }
-});
+  },
+  { ensureDatabase: false }
+);

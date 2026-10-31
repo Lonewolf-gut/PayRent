@@ -28,10 +28,16 @@ export async function GET() {
 
   if (redis) {
     try {
-      if (redis.status === "wait") {
-        await redis.connect();
-      }
-      redisOk = (await redis.ping()) === "PONG";
+      const ping = Promise.race([
+        (async () => {
+          if (redis.status === "wait") {
+            await redis.connect();
+          }
+          return (await redis.ping()) === "PONG";
+        })(),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2_000)),
+      ]);
+      redisOk = await ping;
     } catch {
       hints.push(
         "Redis is optional for sign-in. Set REDIS_URL or use Upstash; local dev: docker compose up -d redis"
