@@ -1,0 +1,37 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/.next-dev/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# private uploaded files
+/storage/private/
+/public/uploads/
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# env files
+.env*
+!.env.example
+
+# generated
+/prisma/supabase-bootstrap.sql
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
