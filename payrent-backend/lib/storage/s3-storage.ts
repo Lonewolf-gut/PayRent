@@ -70,6 +70,25 @@ export async function getS3SignedUrl(key: string) {
   });
 }
 
+export async function readS3Object(key: string) {
+  const response = await getS3Client().send(
+    new GetObjectCommand({
+      Bucket: getBucket(),
+      Key: key,
+    })
+  );
+
+  if (!response.Body) {
+    throw new Error("Empty S3 object body.");
+  }
+
+  const bytes = await response.Body.transformToByteArray();
+  return {
+    body: Buffer.from(bytes),
+    contentType: response.ContentType ?? "application/octet-stream",
+  };
+}
+
 export function getS3PublicUrl(key: string) {
   const base = getPublicAssetBaseUrl();
   if (!base) return null;

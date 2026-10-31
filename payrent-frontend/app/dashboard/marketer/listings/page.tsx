@@ -1,13 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PropertyListingImage } from "@/components/properties/property-listing-image";
 import { PROPERTY_TYPE_LABELS } from "@/lib/subscription-limits";
 import type { PropertyType } from "@prisma/client";
+
+function formatCurrency(amount: number) {
+  return `GHS ${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
+function estimateCommission(price: number, ratePercent: number) {
+  return Math.round(price * (ratePercent / 100) * 100) / 100;
+}
 
 type Listing = {
   id: string;
@@ -16,7 +24,7 @@ type Listing = {
   monthlyRent: string | number;
   location: string;
   status: string;
-  images?: { url: string }[];
+  images?: { id?: string; url: string; displayUrl?: string | null; src?: string | null }[];
   landlord?: { fullName: string };
   _count?: { applications: number };
 };
@@ -30,6 +38,17 @@ export default function AgentListingsPage() {
       return (json.data ?? []) as Listing[];
     },
   });
+
+  const { data: assignmentLimits } = useQuery({
+    queryKey: ["listing-limits"],
+    queryFn: async () => {
+      const res = await fetch("/api/properties/listing-limits");
+      const json = await res.json();
+      return json.data as { agentCommissionPercent?: number };
+    },
+  });
+
+  const commissionRate = assignmentLimits?.agentCommissionPercent ?? 2.5;
 
   return (
     <div className="space-y-6">
@@ -62,13 +81,11 @@ export default function AgentListingsPage() {
             <Card key={listing.id}>
               <CardContent className="flex gap-4 pt-6">
                 <div className="relative h-20 w-28 shrink-0 overflow-hidden border bg-muted">
-                  {listing.images?.[0]?.url ? (
-                    <Image
-                      src={listing.images[0].url}
+                  {listing.images?.[0] ? (
+                    <PropertyListingImage
+                      image={listing.images[0]}
                       alt={listing.name}
-                      fill
-                      className="object-cover"
-                      unoptimized
+                      className="h-full w-full object-cover"
                     />
                   ) : null}
                 </div>
@@ -80,9 +97,15 @@ export default function AgentListingsPage() {
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">{listing.location}</p>
-                  <p className="text-sm">
-                    GHS {Number(listing.monthlyRent).toLocaleString()}
-                    <span className="text-muted-foreground"> / month</span>
+                  <p className="text-sm font-medium">
+                    {formatCurrency(Number(listing.monthlyRent))}
+                    <span className="ml-2 text-xs font-normal text-emerald-700 dark:text-emerald-400">
+                      Est. commission{" "}
+                      {formatCurrency(
+                        estimateCommission(Number(listing.monthlyRent), commissionRate)
+                      )}{" "}
+                      ({commissionRate}%)
+                    </span>
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {listing._count?.applications ?? 0} application(s)

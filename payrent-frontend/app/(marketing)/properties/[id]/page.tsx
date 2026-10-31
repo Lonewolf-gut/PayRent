@@ -20,11 +20,13 @@ import {
 } from "@/components/ui/dialog";
 import { Eye, Bookmark, Phone, Mail } from "lucide-react";
 import { PropertySaveButton } from "@/components/properties/property-save-button";
+import { PropertyPromoteButton } from "@/components/properties/property-promote-button";
 import { PropertyImageGallery } from "@/components/properties/property-image-gallery";
 import { PropertyLocationSheet, PropertyLocationTrigger } from "@/components/properties/property-location-sheet";
 import { PropertySpecsGrid } from "@/components/properties/property-specs-grid";
 import { SimilarPropertiesSection } from "@/components/properties/similar-properties";
 import { PropertyActionPanel } from "@/components/properties/property-action-panel";
+import { PropertyMandatePanel } from "@/components/mandates/property-mandate-panel";
 import { AgentReferralTracker } from "@/components/properties/agent-referral-tracker";
 import { buildPropertySpecs } from "@/lib/utils/property-specs";
 import { isEmploymentRecorded } from "@/lib/constants/employment-status";
@@ -159,6 +161,10 @@ export default function PropertyDetailPage() {
       app.propertyId === id && app.status === "APPROVED"
   );
 
+  const propertyApplication = applications?.find(
+    (app: { propertyId: string }) => app.propertyId === id
+  );
+
   const profileComplete = ["PROFILE_COMPLETED", "KYC_PENDING", "KYC_VERIFIED"].includes(
     kycStatus?.profileStatus ?? ""
   );
@@ -174,6 +180,13 @@ export default function PropertyDetailPage() {
 
   const displayAgent = property.contacts?.agent ?? property.agent;
   const displayLandlord = property.contacts?.landlord;
+  const isMarketer = session?.user?.role === "MARKETER";
+  const promotionStatus = property.promotionStatus as
+    | "available"
+    | "yours"
+    | "claimed_by_other"
+    | null
+    | undefined;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
@@ -332,7 +345,10 @@ export default function PropertyDetailPage() {
         <div className="space-y-4">
           <PropertySaveButton propertyId={id} variant="button" />
           {session ? (
-            session.user.role === "BUYER" ? (
+            isMarketer ? (
+              <PropertyPromoteButton propertyId={id} promotionStatus={promotionStatus} />
+            ) : session.user.role === "BUYER" ? (
+              <>
               <PropertyActionPanel
                 propertyId={id}
                 propertyName={property.name}
@@ -340,18 +356,15 @@ export default function PropertyDetailPage() {
                 purchasePrice={purchasePrice}
                 walletBalance={walletBalance}
                 monthlyRent={listPrice}
+                annualRent={property.annualRent ? Number(property.annualRent) : undefined}
                 propertyStatus={property.status}
-                kycVerified={financingReady}
-                financingDocsApproved={Boolean(financingDocs?.allApproved)}
+                fullyVerified={financingReady}
                 approvedApplication={approvedApplication}
+                propertyApplication={propertyApplication}
                 moveInDate={moveInDate}
                 setMoveInDate={setMoveInDate}
                 notes={notes}
                 setNotes={setNotes}
-                amount={amount}
-                setAmount={setAmount}
-                months={months}
-                setMonths={setMonths}
                 onDepositPrompt={() => setDepositPromptOpen(true)}
                 onChat={(recipientUserId, label) =>
                   chatMutation.mutate({ recipientUserId, label })
@@ -365,6 +378,8 @@ export default function PropertyDetailPage() {
                     : null,
                 }}
               />
+              <PropertyMandatePanel propertyId={id} propertyName={property.name} enabled />
+              </>
             ) : null
           ) : (
             <Card className="rounded-none">

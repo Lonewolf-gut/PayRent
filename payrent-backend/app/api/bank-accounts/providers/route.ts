@@ -5,11 +5,7 @@ import {
   getAllowedPayoutBankProviders,
   ALLOWED_PAYOUT_BANK_FALLBACKS,
 } from "@/lib/constants/allowed-payout-banks";
-import {
-  filterPaystackMomoProviders,
-  GHANA_MOMO_NETWORKS,
-  listPaystackBanks,
-} from "@/lib/integrations/paystack/banks";
+import { GHANA_MOMO_NETWORKS } from "@/lib/integrations/paystack/banks";
 import { apiError, apiResponse, withAuth } from "@/lib/api/handler";
 
 export const GET = withAuth(async (req: NextRequest) => {
@@ -28,32 +24,10 @@ export const GET = withAuth(async (req: NextRequest) => {
   const paystackReady = isPaystackConfigured();
 
   if (parsed.data.accountType === "MOMO") {
-    if (!paystackReady) {
-      return apiResponse({
-        configured: false,
-        providers: GHANA_MOMO_NETWORKS,
-      });
-    }
-
-    try {
-      const paystackProviders = await listPaystackBanks({
-        type: "mobile_money",
-        country: "ghana",
-      });
-      return apiResponse({
-        configured: true,
-        providers: filterPaystackMomoProviders(paystackProviders),
-      });
-    } catch (error) {
-      return apiResponse({
-        configured: true,
-        providers: GHANA_MOMO_NETWORKS,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Could not refresh MoMo providers from Paystack.",
-      });
-    }
+    return apiResponse({
+      configured: paystackReady,
+      providers: [...GHANA_MOMO_NETWORKS],
+    });
   }
 
   if (!paystackReady) {
