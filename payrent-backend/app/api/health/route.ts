@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db/prisma";
+import { prisma, ensureDbConnection } from "@/lib/db/prisma";
 import { redis } from "@/lib/redis/client";
 
 export async function GET() {
@@ -8,11 +8,11 @@ export async function GET() {
   let redisOk = false;
 
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    await ensureDbConnection();
     postgres = true;
   } catch {
     hints.push(
-      "Postgres is not reachable. Open Docker Desktop, then run: npm run bring-up"
+      "Postgres is not reachable. Open Docker Desktop, then run: docker compose up -d postgres redis"
     );
   }
 

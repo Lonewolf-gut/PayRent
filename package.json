@@ -23,6 +23,7 @@
     "db:studio": "npm run db:studio -w payrent-backend",
     "docker:up": "docker compose up -d postgres redis",
     "docker:down": "docker compose down",
+    "bring-up": "npm run docker:up && npm run db:push",
     "postinstall": "npm run db:generate -w payrent-backend && npm run copy-prisma-client -w payrent-backend && npm run db:generate -w payrent-frontend"
   },
   "devDependencies": {

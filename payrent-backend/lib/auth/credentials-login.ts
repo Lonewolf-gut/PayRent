@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
-import { prisma, ensureDbConnection } from "@/lib/db/prisma";
+import { prisma } from "@/lib/db/prisma";
 import { logLoginAttempt } from "@/lib/auth/login-log";
 import {
   AccountLockedError,
@@ -34,12 +34,6 @@ export async function authenticateCredentials(
   }
 
   const email = emailInput.trim().toLowerCase();
-
-  try {
-    await ensureDbConnection();
-  } catch {
-    throw new DatabaseUnavailableError();
-  }
 
   let user;
   try {

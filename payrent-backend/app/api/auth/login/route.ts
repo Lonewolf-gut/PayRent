@@ -27,7 +27,10 @@ export const POST = withPublicHandler(async (req: NextRequest) => {
   } catch (error) {
     if (error instanceof CredentialsSignin) {
       const code = error.code ?? "invalid_password";
-      return apiError(new AppError(signInErrorCodes[code] ?? "Sign in failed", 401, code));
+      const status = code === "database_unavailable" ? 503 : 401;
+      return apiError(
+        new AppError(signInErrorCodes[code] ?? "Sign in failed", status, code)
+      );
     }
     return apiError(error);
   }

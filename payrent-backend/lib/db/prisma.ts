@@ -32,12 +32,6 @@ export async function ensureDbConnection(retries = 3): Promise<void> {
       return;
     } catch {
       try {
-        await prisma.$disconnect();
-      } catch {
-        // ignore disconnect errors
-      }
-
-      try {
         await prisma.$connect();
         await prisma.$queryRaw`SELECT 1`;
         return;

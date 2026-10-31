@@ -18,7 +18,8 @@
     "db:sync-docker": "node scripts/db-sync-docker.js",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:migrate": "prisma migrate dev"
+    "db:migrate": "prisma migrate dev",
+    "bring-up": "docker compose up -d postgres redis"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
