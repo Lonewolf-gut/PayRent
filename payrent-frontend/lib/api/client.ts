@@ -1,9 +1,25 @@
 /**
  * Resolve API paths for the separated backend.
- * When NEXT_PUBLIC_API_URL is unset, relative /api/* requests are proxied by Next.js rewrites.
+ * Browser: relative /api/* when NEXT_PUBLIC_API_URL is unset (Next.js rewrites).
+ * Server: must use an absolute URL (API_URL or http://localhost:3001).
  */
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/$/, "");
+}
+
+export function getServerApiOrigin(): string {
+  return trimTrailingSlash(
+    process.env.API_URL?.trim() ||
+      process.env.NEXT_PUBLIC_API_URL?.trim() ||
+      "http://localhost:3001"
+  );
+}
+
 export function getApiBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+  if (typeof window === "undefined") {
+    return getServerApiOrigin();
+  }
+  return trimTrailingSlash(process.env.NEXT_PUBLIC_API_URL ?? "");
 }
 
 export function apiUrl(path: string): string {

@@ -105,6 +105,37 @@ export class SubscriptionService {
     });
   }
 
+  async upgradeWithRedde(
+    userId: string,
+    role: UserRole,
+    plan: SubscriptionPlan,
+    billingCycle: BillingCycle,
+    bankAccountId: string
+  ) {
+    if (plan === "FREE") {
+      throw new AppError("Use cancel to return to the free plan");
+    }
+
+    assertSubscriptionEligibleRole(role);
+
+    const current = await this.getCurrent(userId);
+    if (hasActivePaidPlan(current?.plan, current?.status) && current?.plan === plan) {
+      throw new AppError(`You already have an active ${getPlanLabel(plan)} subscription`);
+    }
+
+    const { reddePaymentService } = await import(
+      "@/lib/services/payment/redde-payment.service"
+    );
+
+    return reddePaymentService.requestSubscriptionPayment({
+      userId,
+      role,
+      plan,
+      billingCycle,
+      bankAccountId,
+    });
+  }
+
   async upgradeWithPayment(
     _userId: string,
     _role: UserRole,

@@ -1,0 +1,9 @@
+# --- Wigal Frog SMS (https://frogdocs.wigal.com.gh) ---
+SMS_PROVIDER=wigal
+WIGAL_SMS_API_KEY=your_api_key_from_frog_dashboard
+WIGAL_SMS_USERNAME=your_frog_username
+WIGAL_SMS_SENDER_ID=PayForMe
+# Optional override:
+# WIGAL_SMS_API_URL=https://frogapi.wigal.com.gh/api/v3/sms/send
+
+# Use your APPROVED Sender ID from Wigal (max length per their dashboard rules).

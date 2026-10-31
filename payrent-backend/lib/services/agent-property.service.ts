@@ -7,6 +7,7 @@ import {
 import { notificationService } from "@/lib/services/notification.service";
 import { assertPlatformAccess } from "@/lib/subscription/access";
 import { assertAgentAssignmentLimit } from "@/lib/subscription/listing-access";
+import { withResolvedPropertyImages, withResolvedPropertyListImages } from "@/lib/utils/property-media";
 
 export class AgentPropertyService {
   async listAssigned(agentUserId: string) {
@@ -15,39 +16,47 @@ export class AgentPropertyService {
     });
     if (!agent) throw new AppError("Affiliate profile required", 403);
 
-    return prisma.property.findMany({
-      where: { agentUserId: agent.id },
-      include: {
-        images: { take: 1, orderBy: { order: "asc" } },
-        landlord: { select: { fullName: true } },
-        _count: { select: { applications: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    return withResolvedPropertyListImages(
+      await prisma.property.findMany({
+        where: { agentUserId: agent.id },
+        include: {
+          images: { take: 1, orderBy: { order: "asc" } },
+          landlord: { select: { fullName: true } },
+          _count: { select: { applications: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      })
+    );
   }
 
   async browseAvailable(agentUserId: string) {
-    await assertEligibleAgent(
-      (
-        await prisma.agentProfile.findUniqueOrThrow({
-          where: { userId: agentUserId },
-        })
-      ).id
-    );
-    await assertPlatformAccess(agentUserId, "browse listings to promote");
+    const agent = await prisma.agentProfile.findUniqueOrThrow({
+      where: { userId: agentUserId },
+    });
 
-    return prisma.property.findMany({
-      where: {
-        status: "ACTIVE",
-        agentUserId: null,
-      },
+    // Browse is always allowed; claim/promote still require subscription + eligibility.
+    const listings = await prisma.property.findMany({
+      where: { status: "ACTIVE" },
       include: {
         images: { take: 1, orderBy: { order: "asc" } },
         landlord: { select: { fullName: true } },
+        assignedAgent: { select: { id: true, fullName: true } },
       },
       orderBy: [{ isPremium: "desc" }, { createdAt: "desc" }],
-      take: 50,
+      take: 120,
     });
+
+    return withResolvedPropertyListImages(
+      listings.map((listing) => ({
+        ...listing,
+        promotionStatus:
+          listing.agentUserId === agent.id
+            ? ("yours" as const)
+            : listing.agentUserId
+              ? ("claimed_by_other" as const)
+              : ("available" as const),
+      }))
+    );
   }
 
   async claimListing(agentUserId: string, propertyId: string) {
@@ -97,13 +106,15 @@ export class AgentPropertyService {
       metadata: { propertyId, agentProfileId: agent.id },
     });
 
-    return prisma.property.findUnique({
+    const claimed = await prisma.property.findUnique({
       where: { id: propertyId },
       include: {
         images: { take: 1, orderBy: { order: "asc" } },
         landlord: { select: { fullName: true } },
       },
     });
+
+    return claimed ? withResolvedPropertyImages(claimed) : null;
   }
 }
 

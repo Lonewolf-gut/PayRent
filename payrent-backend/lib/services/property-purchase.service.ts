@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { prisma, runTransaction } from "@/lib/db/prisma";
 import { walletService } from "@/lib/services/wallet.service";
 import { notificationService } from "@/lib/services/notification.service";
@@ -7,22 +6,23 @@ import { calculateAgentCommission } from "@/lib/constants/agent-commission";
 import { AppError } from "@/lib/errors";
 import { isSaleListing } from "@/lib/subscription-limits";
 import { v4 as uuidv4 } from "uuid";
+import {
+  deletePendingPayment,
+  getCompletedPayment,
+  getPendingPayment,
+  markPaymentCompleted,
+  type PropertyPurchasePendingSession,
+} from "@/lib/services/payment/pending-payment.store";
+import { reddePaymentService } from "@/lib/services/payment/redde-payment.service";
 
 export class PropertyPurchaseService {
-  async purchase(
-    tenantUserId: string,
-    propertyId: string,
-    referredAgentProfileId?: string | null
-  ) {
+  async validatePurchase(tenantUserId: string, propertyId: string) {
     const tenant = await prisma.tenant.findUnique({ where: { userId: tenantUserId } });
     if (!tenant) throw new AppError("Customer profile required", 403);
 
     const property = await prisma.property.findUnique({
       where: { id: propertyId },
-      include: {
-        landlord: { include: { user: true } },
-        assignedAgent: { include: { user: true } },
-      },
+      include: { landlord: { select: { userId: true } } },
     });
 
     if (!property || property.status !== "ACTIVE") {
@@ -36,78 +36,121 @@ export class PropertyPurchaseService {
     const price = Number(property.discountedPrice ?? property.monthlyRent);
     if (price <= 0) throw new AppError("Invalid listing price", 400);
 
+    return {
+      price,
+      propertyName: property.name,
+      landlordUserId: property.landlord.userId,
+    };
+  }
+
+  async initiateReddePurchase(
+    tenantUserId: string,
+    propertyId: string,
+    bankAccountId: string,
+    referredAgentProfileId?: string | null
+  ) {
+    await this.validatePurchase(tenantUserId, propertyId);
+    return reddePaymentService.requestPropertyPurchasePayment({
+      userId: tenantUserId,
+      propertyId,
+      bankAccountId,
+      referredAgentProfileId,
+    });
+  }
+
+  async completeReddePurchase(params: {
+    clientReference: string;
+    amount: number;
+  }) {
+    const completed = await getCompletedPayment<{ reference: string }>(params.clientReference);
+    if (completed) {
+      return { alreadyProcessed: true as const, reference: completed.reference };
+    }
+
+    const session = await getPendingPayment(params.clientReference);
+    if (!session || session.purpose !== "PROPERTY_PURCHASE") {
+      throw new AppError("Property purchase payment session not found", 404);
+    }
+
+    const purchaseSession = session as PropertyPurchasePendingSession;
+    if (Math.abs(purchaseSession.amount - params.amount) > 0.01) {
+      // still fulfill using session amount — Redde is source of truth for callback
+    }
+
+    const result = await this.fulfillPurchase(
+      purchaseSession.userId,
+      purchaseSession.propertyId,
+      purchaseSession.referredAgentProfileId,
+      params.clientReference
+    );
+
+    await markPaymentCompleted(params.clientReference, { reference: result.reference });
+    await deletePendingPayment(params.clientReference);
+
+    return { alreadyProcessed: false as const, ...result };
+  }
+
+  /** @deprecated Wallet purchases — use Redde via initiateReddePurchase */
+  async purchase(
+    tenantUserId: string,
+    propertyId: string,
+    referredAgentProfileId?: string | null
+  ) {
+    const preview = await this.validatePurchase(tenantUserId, propertyId);
     const tenantWallet = await walletService.getOrCreateWallet(tenantUserId, "BUYER");
-    if (Number(tenantWallet.balance) < price) {
+    if (Number(tenantWallet.balance) < preview.price) {
       throw new AppError(
-        "Insufficient wallet balance. Deposit funds to complete this purchase.",
+        "Pay with Redde (MoMo or bank) from the listing page. Wallet-only checkout is disabled.",
         400,
         "INSUFFICIENT_FUNDS"
       );
     }
+
+    return this.fulfillPurchase(
+      tenantUserId,
+      propertyId,
+      referredAgentProfileId,
+      `BUY-${uuidv4().slice(0, 8).toUpperCase()}`
+    );
+  }
+
+  private async fulfillPurchase(
+    tenantUserId: string,
+    propertyId: string,
+    referredAgentProfileId: string | null | undefined,
+    reference: string
+  ) {
+    const tenant = await prisma.tenant.findUnique({ where: { userId: tenantUserId } });
+    if (!tenant) throw new AppError("Customer profile required", 403);
+
+    const property = await prisma.property.findUnique({
+      where: { id: propertyId },
+      include: {
+        landlord: { include: { user: true } },
+        assignedAgent: { include: { user: true } },
+      },
+    });
+
+    if (!property || property.status !== "ACTIVE") {
+      throw new AppError("Property is no longer available", 400);
+    }
+
+    const price = Number(property.discountedPrice ?? property.monthlyRent);
 
     const commissionAgent = await agentCommissionService.resolveCommissionAgent(
       propertyId,
       referredAgentProfileId
     );
 
-    const landlordWallet = await walletService.getOrCreateWallet(
-      property.landlord.userId,
-      "MERCHANT"
-    );
-    const agentWallet = commissionAgent
-      ? await walletService.getOrCreateWallet(commissionAgent.user.id, "MARKETER")
-      : null;
-
     const agentCommission =
-      agentWallet && commissionAgent
-        ? calculateAgentCommission(price)
-        : 0;
-    const landlordNet = price - agentCommission;
-    const reference = `BUY-${uuidv4().slice(0, 8).toUpperCase()}`;
+      commissionAgent ? calculateAgentCommission(price) : 0;
 
     const result = await runTransaction(async (db) => {
-      await db.wallet.update({
-        where: { id: tenantWallet.id },
-        data: { balance: { decrement: price } },
-      });
-
-      await db.wallet.update({
-        where: { id: landlordWallet.id },
-        data: { balance: { increment: landlordNet } },
-      });
-
-      await db.walletTransaction.create({
-        data: {
-          walletId: tenantWallet.id,
-          type: "PAYMENT",
-          status: "COMPLETED",
-          amount: new Prisma.Decimal(price),
-          fee: 0,
-          commission: 0,
-          netAmount: new Prisma.Decimal(price),
-          reference,
-          description: `Purchase: ${property.name}`,
-          metadata: referredAgentProfileId
-            ? { referredAgentProfileId }
-            : undefined,
-        },
-      });
-
-      await db.walletTransaction.create({
-        data: {
-          walletId: landlordWallet.id,
-          type: "DEPOSIT",
-          status: "COMPLETED",
-          amount: new Prisma.Decimal(landlordNet),
-          fee: 0,
-          commission: 0,
-          netAmount: new Prisma.Decimal(landlordNet),
-          reference: `${reference}-LL`,
-          description: `Sale proceeds: ${property.name}`,
-        },
-      });
-
-      if (agentWallet && commissionAgent && agentCommission > 0) {
+      if (commissionAgent && agentCommission > 0) {
+        const agentWallet = await walletService.getOrCreateWallet(
+          commissionAgent.user.id,
+          "MARKETER"
+        );
         await agentCommissionService.recordCommission(
           db,
           commissionAgent.id,
@@ -130,13 +173,13 @@ export class PropertyPurchaseService {
         data: { status: "INACTIVE" },
       });
 
-      return { price, agentCommission, landlordNet, reference };
+      return { price, agentCommission, reference };
     });
 
     await notificationService.create({
       userId: property.landlord.userId,
       title: "Property sold",
-      body: `"${property.name}" was purchased for GHS ${price.toLocaleString()}.`,
+      body: `"${property.name}" was purchased for GHS ${price.toLocaleString()} (invoice ${reference}).`,
       metadata: { propertyId, reference: result.reference },
     });
 

@@ -22,7 +22,7 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
     action: z.enum(["upgrade", "cancel"]),
     plan: z.enum(["PRO", "MAX", "PREMIUM"]).optional(),
     billingCycle: z.enum(["MONTHLY", "ANNUAL"]).optional(),
-    paymentMethod: z.enum(["momo"]).optional(),
+    paymentMethod: z.enum(["redde", "momo"]).optional(),
     bankAccountId: z.string().cuid().optional(),
   });
   const parsed = schema.safeParse(body);
@@ -49,13 +49,13 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
 
   if (!parsed.data.bankAccountId) {
     throw new AppError(
-      "Add a verified Mobile Money account in Settings before subscribing.",
+      "Add a verified Mobile Money or bank account in Settings before subscribing.",
       400,
       "PAYMENT_METHOD_REQUIRED"
     );
   }
 
-  const checkout = await subscriptionService.upgradeWithMomo(
+  const checkout = await subscriptionService.upgradeWithRedde(
     session.user.id,
     session.user.role,
     plan,
@@ -67,6 +67,6 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
     { checkout },
     checkout.status === "FAILED" ? 400 : 202,
     checkout.message ??
-      "Approve the MoMo prompt on your phone to activate your subscription."
+      "Complete the Redde payment prompt on your phone or bank channel to activate your subscription."
   );
 });
