@@ -60,6 +60,16 @@ Redde **cannot** POST to `http://localhost:3001/...` from the internet. Use one 
 
 5. Keep ngrok running while testing payments.
 
+**Important:** Tunnel **port 3001** (backend API) only. Do not use the ngrok URL in the browser to use PayForMe — open **http://localhost:3000** for the UI. Ngrok is only so Redde can POST the webhook.
+
+Optional backend `.env` (stops the dev “Blocked cross-origin request” warning):
+
+```env
+ALLOWED_DEV_ORIGINS=your-subdomain.ngrok-free.dev
+```
+
+Same hostname works if you set `REDDE_CALLBACK_PUBLIC_ORIGIN=https://your-subdomain.ngrok-free.dev`.
+
 Same pattern works with Cloudflare Tunnel, localtunnel, etc.
 
 ### Option B — Dev simulate (no tunnel)
