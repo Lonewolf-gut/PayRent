@@ -6,7 +6,6 @@ import { notificationService } from "@/lib/services/notification.service";
 import { settlementService } from "@/lib/services/settlement.service";
 import { AppError } from "@/lib/errors";
 import type { ApproveFinancingInput } from "@/lib/validations/financing";
-import { tenantFinancingDocService } from "@/lib/services/tenant-financing-doc.service";
 import { agentCommissionService } from "@/lib/services/agent-commission.service";
 import { calculateAgentCommission } from "@/lib/constants/agent-commission";
 import { auditService } from "@/lib/services/audit.service";
@@ -51,7 +50,6 @@ export class FinancingService {
     monthlyIncome?: number
   ) {
     await this.assertEligibility(tenantId);
-    await tenantFinancingDocService.assertFinancingDocsApproved(tenantId);
 
     if (!applicationId) {
       throw new AppError("An approved property application is required", 400);

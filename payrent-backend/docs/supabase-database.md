@@ -67,7 +67,7 @@ Your PC cannot open a TCP connection to Supabase (firewall, ISP, or **Database â
 
 For one-off SQL (e.g. payment invoices), use **Supabase â†’ SQL Editor** and run `prisma/sql/payment-invoices-migration.sql`.
 
-**Legacy `FinancingRequestDocument` rows:** before `db push`, run `prisma/sql/migrate-financing-request-documents-to-tenant.sql` in the SQL Editor to copy into `TenantFinancingDocument` and archive the old table.
+Financing documents are stored on **`FinancingRequestDocument`** (linked to each financing request). Your existing Supabase rows keep that table name after `db push`.
 
 ## 3. Verify
 

@@ -26,6 +26,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# generated
+/prisma/supabase-bootstrap.sql
+
 # vercel
 .vercel
 

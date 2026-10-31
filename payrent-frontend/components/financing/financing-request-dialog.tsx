@@ -135,10 +135,15 @@ export function FinancingRequestDialog({
   const selectedBank = verifiedBankAccounts.find((account) => account.id === selectedBankAccountId);
   const accountHolderName = kyc?.fullName ?? kyc?.contactName ?? "Your name";
 
-  const uploadFinancingDocument = async (file: File, documentType: string) => {
+  const uploadFinancingDocument = async (
+    file: File,
+    documentType: string,
+    requestId: string
+  ) => {
     const formData = new FormData();
     formData.append("document", file);
     formData.append("documentType", documentType);
+    formData.append("financingRequestId", requestId);
     const res = await fetch("/api/buyer/financing-documents", {
       method: "POST",
       body: formData,
@@ -189,9 +194,6 @@ export function FinancingRequestDialog({
         throw new Error("You must consent to automatic repayment deductions via bank mandate.");
       }
 
-      if (payslip) await uploadFinancingDocument(payslip, "PAYSLIP");
-      if (bankStatement) await uploadFinancingDocument(bankStatement, "BANK_STATEMENT");
-
       const payload = {
         ...buildPayload(amount, duration),
         propertyId,
@@ -215,6 +217,16 @@ export function FinancingRequestDialog({
             `Unable to ${isEdit ? "update" : "submit"} financing request.`
         );
       }
+
+      const requestId =
+        (isEdit && financingRequestId ? financingRequestId : json.data?.id) as string | undefined;
+      if (!requestId) {
+        throw new Error("Financing request was saved but no request id was returned.");
+      }
+
+      if (payslip) await uploadFinancingDocument(payslip, "PAYSLIP", requestId);
+      if (bankStatement) await uploadFinancingDocument(bankStatement, "BANK_STATEMENT", requestId);
+
       return json.data;
     },
     onSuccess: () => {
