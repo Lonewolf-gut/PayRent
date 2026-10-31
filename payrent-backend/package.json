@@ -14,11 +14,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "node scripts/prisma-generate.js",
-    "db:push": "prisma db push",
+    "db:push": "node scripts/ensure-direct-url.js && prisma db push",
+    "db:test-connection": "node scripts/test-supabase-connection.js",
+    "db:export-schema-sql": "node scripts/export-schema-sql.js",
     "db:sync-docker": "node scripts/db-sync-docker.js",
     "db:seed": "npx tsx prisma/seed.ts",
-    "db:studio": "prisma studio",
-    "db:migrate": "prisma migrate dev"
+    "db:studio": "node scripts/ensure-direct-url.js && prisma studio",
+    "db:migrate": "node scripts/ensure-direct-url.js && prisma migrate dev",
+    "bring-up": "docker compose up -d postgres redis"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

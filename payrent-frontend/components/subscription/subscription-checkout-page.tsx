@@ -68,9 +68,7 @@ export function SubscriptionCheckoutPage() {
     enabled: !!session?.user,
   });
 
-  const verifiedMomoAccounts = bankAccounts.filter(
-    (account) => account.isVerified && account.accountType === "MOMO"
-  );
+  const verifiedPayAccounts = bankAccounts.filter((account) => account.isVerified);
 
   const currentPlan = normalizeSubscriptionPlan(
     subscriptionData?.subscription?.plan ?? "FREE"
@@ -114,7 +112,7 @@ export function SubscriptionCheckoutPage() {
           action: "upgrade",
           plan: checkoutPlan,
           billingCycle,
-          paymentMethod: "momo",
+          paymentMethod: "redde",
           bankAccountId,
         }),
       });
@@ -126,13 +124,16 @@ export function SubscriptionCheckoutPage() {
 
       return {
         message: json.message as string | undefined,
-        checkout: json.data?.checkout,
+        checkout: json.data?.checkout as { invoiceNumber?: string } | undefined,
       };
     },
     onSuccess: (data) => {
+      const invoice = data?.checkout?.invoiceNumber;
       toast.success(
         data?.message ??
-          "MoMo payment initiated — approve the prompt on your phone to activate your subscription."
+          (invoice
+            ? `Invoice ${invoice}: complete the Redde payment to activate your subscription.`
+            : "Redde payment started — complete the prompt to activate your subscription.")
       );
       queryClient.invalidateQueries({ queryKey: ["subscription"] });
       router.push("/dashboard");
@@ -227,7 +228,7 @@ export function SubscriptionCheckoutPage() {
 
             <h2 className="font-serif text-3xl font-bold text-emerald-950">{planMeta.name} plan</h2>
             <p className="mt-2 text-emerald-900/70">
-              Choose billing, review your order, then pay from wallet or direct checkout.
+              Choose billing, review your order, then pay with Redde (Mobile Money or bank).
             </p>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -306,9 +307,9 @@ export function SubscriptionCheckoutPage() {
 
               <div className="mt-6">
                 <p className="text-sm text-emerald-900/70">Payment method</p>
-                {!verifiedMomoAccounts.length ? (
+                {!verifiedPayAccounts.length ? (
                   <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                    Add a verified MoMo account in Settings before subscribing.
+                    Add a verified MoMo or bank account in Settings before subscribing.
                     <div className="mt-3">
                       <Link href={settingsPath} className="font-medium text-emerald-700 underline">
                         Go to Settings
@@ -317,7 +318,7 @@ export function SubscriptionCheckoutPage() {
                   </div>
                 ) : (
                   <div className="mt-4 space-y-3">
-                    {verifiedMomoAccounts.map((account) => (
+                    {verifiedPayAccounts.map((account) => (
                       <label
                         key={account.id}
                         className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 ${
@@ -340,7 +341,10 @@ export function SubscriptionCheckoutPage() {
                             {account.bankName}
                           </p>
                           <p className="mt-1 text-sm text-emerald-900/65">
-                            {account.accountNumberMasked ?? "Verified MoMo account"}
+                            {account.accountNumberMasked ??
+                              (account.accountType === "MOMO"
+                                ? "Verified MoMo account"
+                                : "Verified bank account")}
                           </p>
                         </div>
                       </label>
@@ -373,7 +377,7 @@ export function SubscriptionCheckoutPage() {
                   checkoutMutation.isPending ||
                   isCurrentPaidPlan ||
                   !bankAccountId ||
-                  !verifiedMomoAccounts.length ||
+                  !verifiedPayAccounts.length ||
                   sessionStatus === "loading"
                 }
                 onClick={() => checkoutMutation.mutate()}

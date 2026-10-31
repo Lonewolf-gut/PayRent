@@ -171,6 +171,45 @@ export class MandateService {
     return mandate;
   }
 
+  async createDraftForFinancing(
+    tenantId: string,
+    userId: string,
+    financingRequestId: string,
+    bankAccountId: string
+  ) {
+    const financing = await prisma.financingRequest.findFirst({
+      where: { id: financingRequestId, tenantId },
+    });
+    if (!financing || financing.mandateId) return null;
+
+    const bankAccount = await prisma.bankAccount.findFirst({
+      where: { id: bankAccountId, userId, isVerified: true },
+    });
+    if (!bankAccount) return null;
+
+    const provider = getMandateProvider();
+
+    return runTransaction(async (db) => {
+      const created = await db.mandate.create({
+        data: {
+          tenantId,
+          bankAccountId,
+          mandateType: "DIRECT_DEBIT",
+          mandateSource: "PLATFORM_GENERATED",
+          status: "DRAFT",
+          providerName: provider.name,
+        },
+      });
+
+      await db.financingRequest.update({
+        where: { id: financingRequestId },
+        data: { mandateId: created.id },
+      });
+
+      return created;
+    });
+  }
+
   async submit(mandateId: string, tenantId: string, userId: string, input: SubmitMandateInput) {
     const mandate = await prisma.mandate.findFirst({
       where: { id: mandateId, tenantId },

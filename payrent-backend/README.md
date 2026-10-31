@@ -11,6 +11,10 @@ REST API, database, business logic, webhooks, cron jobs, and partner integration
 
 ## Quick start
 
+**Cloud (Supabase):** see [docs/supabase-database.md](./docs/supabase-database.md).
+
+**Local Docker:**
+
 ```bash
 npm run setup:env
 docker compose up -d postgres redis

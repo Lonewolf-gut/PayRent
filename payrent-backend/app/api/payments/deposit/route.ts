@@ -42,7 +42,7 @@ export const POST = withAuth(async (req: NextRequest, _ctx, session) => {
     { payment },
     202,
     payment.message ??
-      "MoMo payment initiated — approve the prompt on your phone. You will receive a notification when the deposit completes."
+      "Redde payment started — complete the prompt to fund your wallet."
   );
 });
 

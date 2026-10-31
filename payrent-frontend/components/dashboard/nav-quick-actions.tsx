@@ -12,6 +12,7 @@ import {
   SAVED_PROPERTY_COUNT_QUERY_KEY,
 } from "@/lib/nav/saved-property-views";
 import { cn } from "@/lib/utils";
+import { MandateNavStatus } from "@/components/mandates/mandate-nav-status";
 
 function formatBadgeCount(count: number) {
   if (count <= 0) return null;
@@ -82,6 +83,7 @@ export function NavQuickActions({ className }: { className?: string }) {
 
   return (
     <div className={cn("flex items-center gap-1", className)}>
+      {role === "BUYER" ? <MandateNavStatus /> : null}
       {savedPath ? (
         <NavIconButton
           href={savedPath}

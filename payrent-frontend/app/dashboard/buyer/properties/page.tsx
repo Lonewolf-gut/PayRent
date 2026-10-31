@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -7,9 +8,11 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin } from "lucide-react";
+import { resolveAssetUrl } from "@/lib/utils/asset-url";
 import {
   countUnviewedSavedProperties,
   extractSavedPropertyIds,
+  markAllSavedPropertiesViewedAndSyncCount,
   markSavedPropertyViewedAndSyncCount,
 } from "@/lib/nav/saved-property-views";
 
@@ -28,6 +31,11 @@ export default function TenantSavedPropertiesPage() {
 
   const propertyIds = extractSavedPropertyIds(saved ?? []);
   const unviewedCount = countUnviewedSavedProperties(propertyIds);
+
+  useEffect(() => {
+    if (!propertyIds.length) return;
+    markAllSavedPropertiesViewedAndSyncCount(queryClient, propertyIds);
+  }, [propertyIds, queryClient]);
 
   function handleOpenSaved(propertyId: string) {
     markSavedPropertyViewedAndSyncCount(queryClient, propertyIds, propertyId);
@@ -67,7 +75,7 @@ export default function TenantSavedPropertiesPage() {
             const itemUnviewed = countUnviewedSavedProperties([propertyId]) > 0;
 
             return (
-            <Card key={propertyId}>
+            <Card key={propertyId} className="rounded-none">
               <div className="relative aspect-video bg-muted">
                 {itemUnviewed ? (
                   <Badge className="absolute left-2 top-2 z-10 bg-emerald-600">New</Badge>
@@ -75,7 +83,7 @@ export default function TenantSavedPropertiesPage() {
                 {item.property.images?.[0]?.url && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={item.property.images[0].url}
+                    src={resolveAssetUrl(item.property.images[0].url)}
                     alt={item.property.name}
                     className="h-full w-full object-cover"
                   />

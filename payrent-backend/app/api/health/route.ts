@@ -1,19 +1,29 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db/prisma";
+import { getDatabaseUnavailableHint, getRawDatabaseUrl, isSupabaseDatabaseUrl } from "@/lib/db/database-url";
+import { ensureDbConnection } from "@/lib/db/prisma";
 import { redis } from "@/lib/redis/client";
 
 export async function GET() {
   const hints: string[] = [];
+
+  if (isSupabaseDatabaseUrl() && !process.env.DIRECT_URL?.trim()) {
+    hints.push(
+      "Supabase: set DIRECT_URL to the direct connection string (port 5432) in .env — required for Prisma alongside the pooler DATABASE_URL."
+    );
+  }
+
+  if (!getRawDatabaseUrl()) {
+    hints.push("DATABASE_URL is missing from the backend environment.");
+  }
+
   let postgres = false;
   let redisOk = false;
 
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    await ensureDbConnection();
     postgres = true;
   } catch {
-    hints.push(
-      "Postgres is not reachable. Open Docker Desktop, then run: npm run bring-up"
-    );
+    hints.push(getDatabaseUnavailableHint());
   }
 
   if (redis) {
@@ -23,7 +33,9 @@ export async function GET() {
       }
       redisOk = (await redis.ping()) === "PONG";
     } catch {
-      hints.push("Redis is not reachable. Run: docker compose up -d redis");
+      hints.push(
+        "Redis is optional for sign-in. Set REDIS_URL or use Upstash; local dev: docker compose up -d redis"
+      );
     }
   } else {
     redisOk = true;

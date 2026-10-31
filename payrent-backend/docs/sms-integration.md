@@ -45,7 +45,7 @@ SMS_API_URL=https://sms.arkesel.com/sms/api
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `SMS_PROVIDER` | Yes | `arkesel`, `hubtel`, `twilio`, or `log` |
+| `SMS_PROVIDER` | Yes | `wigal`, `arkesel`, `hubtel`, `twilio`, or `log` |
 | `SMS_API_KEY` | Yes (Arkesel) | API key from dashboard |
 | `ARKESEL_SMS_SENDER_ID` | Yes | Approved sender name (≤ 11 chars) |
 | `ARKESEL_SMS_API_VERSION` | No | `legacy` (default) or `v2` |
@@ -131,9 +131,58 @@ Messages are logged to the server console — no real SMS sent.
 
 | Provider | Env | Notes |
 |----------|-----|-------|
+| **Wigal (Frog)** | `SMS_PROVIDER=wigal` | `WIGAL_SMS_API_KEY`, `WIGAL_SMS_USERNAME`, `WIGAL_SMS_SENDER_ID` — see [Wigal section](#12-wigal-frog-api) |
 | Hubtel | `SMS_PROVIDER=hubtel` | `HUBTEL_SMS_CLIENT_ID`, `HUBTEL_SMS_CLIENT_SECRET`, `HUBTEL_SMS_SENDER_ID` |
 | Twilio | `SMS_PROVIDER=twilio` | International; `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` |
 | Log (dev) | `SMS_PROVIDER=log` | No external calls |
+
+---
+
+## 12. Wigal (Frog API)
+
+**Docs:** [Send general messages](https://frogdocs.wigal.com.gh/send_general.html) · [Getting started](https://frogdocs.wigal.com.gh/)
+
+Wigal’s **Frog API v3** queues SMS with a JSON POST. PayForMe maps it like this:
+
+| Frog documentation | PayForMe implementation |
+|--------------------|-------------------------|
+| `POST https://frogapi.wigal.com.gh/api/v3/sms/send` | Default `WIGAL_SMS_API_URL` (override optional) |
+| Header `API-KEY` | `WIGAL_SMS_API_KEY` (or `SMS_API_KEY`) |
+| Header `USERNAME` | `WIGAL_SMS_USERNAME` |
+| Body `senderid` | `WIGAL_SMS_SENDER_ID` (approved Sender ID) |
+| Body `destinations[].destination` | Ghana local format `0XXXXXXXXX` from user phone |
+| Body `destinations[].msgid` | Auto-generated `PFM-…` id per send (for your tracking) |
+| Body `message` | OTP / notification text from `sendSms()` |
+| Body `smstype` | Always `text` |
+| Success `status: "ACCEPTD"` | Treated as queued (Frog accepts for processing) |
+
+### Environment
+
+```env
+SMS_PROVIDER=wigal
+WIGAL_SMS_API_KEY=your_api_key_here
+WIGAL_SMS_USERNAME=your_username_here
+WIGAL_SMS_SENDER_ID=PayForMe
+```
+
+Copy block: [`docs/wigal-copy-to-env.txt`](./wigal-copy-to-env.txt)
+
+### Code path
+
+```
+sendSms({ to, body })
+  → lib/integrations/sms/wigal.ts
+  → POST frogapi.wigal.com.gh/api/v3/sms/send
+```
+
+### Errors (from Frog docs)
+
+| HTTP | Frog `status` | Typical cause |
+|------|---------------|---------------|
+| 401 | `UNAUTHORIZED` | Wrong API key or username |
+| 403 | `FORBIDDEN` | Account not allowed to send |
+| 404 | `SENDER_ID_NOT_FOUND` | Sender ID not approved |
+| 400 | `INVALID_REQUEST` | Bad phone or payload |
 
 ---
 
@@ -141,6 +190,7 @@ Messages are logged to the server console — no real SMS sent.
 
 | Path | Purpose |
 |------|---------|
+| `lib/integrations/sms/wigal.ts` | Wigal Frog HTTP client |
 | `lib/integrations/sms/arkesel.ts` | Arkesel HTTP client |
 | `lib/services/sms.service.ts` | Provider routing |
 | `scripts/apply-arkesel-env.ps1` | Windows env helper |

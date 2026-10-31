@@ -22,6 +22,12 @@ import { TwoFactorSetupPanel } from "@/components/dashboard/two-factor-setup-pan
 import { getApiErrorMessage, readApiJson } from "@/lib/utils/api-message";
 import { toast } from "sonner";
 
+const GHANA_MOMO_PROVIDERS = [
+  { code: "MTN", name: "MTN Mobile Money" },
+  { code: "VOD", name: "Telecel Cash (Vodafone)" },
+  { code: "ATL", name: "AirtelTigo Money" },
+] as const;
+
 type BankAccount = {
   id: string;
   accountType: string;
@@ -131,6 +137,9 @@ export default function UserSettingsForm({
     return () => URL.revokeObjectURL(url);
   }, [selectedFile]);
 
+  const isMomoAccount = accountType === "MOMO";
+  const providerOptions = isMomoAccount ? GHANA_MOMO_PROVIDERS : providers;
+
   useEffect(() => {
     setBankName("");
     setBankCode("");
@@ -139,10 +148,19 @@ export default function UserSettingsForm({
     setResolveError(null);
     setAccountVerified(false);
 
+    if (isMomoAccount) {
+      setProviders([]);
+      setPayoutVerificationConfigured(true);
+      setProvidersLoading(false);
+      return;
+    }
+
+    setProviders([]);
+
     async function loadProviders() {
       setProvidersLoading(true);
       try {
-        const res = await fetch(`/api/bank-accounts/providers?accountType=${accountType}`);
+        const res = await fetch(`/api/bank-accounts/providers?accountType=BANK`);
         const json = await readApiJson(res);
         if (json.success) {
           const data = json.data as {
@@ -164,7 +182,7 @@ export default function UserSettingsForm({
     }
 
     loadProviders();
-  }, [accountType]);
+  }, [accountType, isMomoAccount]);
 
   useEffect(() => {
     if (!payoutVerificationConfigured) {
@@ -726,7 +744,15 @@ export default function UserSettingsForm({
                 <Label>Account type</Label>
                 <NativeSelect
                   value={accountType}
-                  onChange={(e) => setAccountType(e.target.value)}
+                  onChange={(e) => {
+                    const nextType = e.target.value === "MOMO" ? "MOMO" : "BANK";
+                    setAccountType(nextType);
+                    setBankCode("");
+                    setBankName("");
+                    if (nextType === "MOMO") {
+                      setProviders([]);
+                    }
+                  }}
                 >
                   <option value="BANK">Bank</option>
                   <option value="MOMO">MoMo</option>
@@ -734,25 +760,26 @@ export default function UserSettingsForm({
               </div>
 
               <div className="grid gap-2">
-                <Label>{accountType === "MOMO" ? "Mobile money network" : "Bank"}</Label>
-                {providers.length > 0 ? (
+                <Label>{isMomoAccount ? "Mobile money network" : "Bank"}</Label>
+                {isMomoAccount || providerOptions.length > 0 ? (
                 <NativeSelect
+                  key={`payout-provider-${accountType}`}
                   value={bankCode}
                   onChange={(e) => {
-                    const selected = providers.find((item) => item.code === e.target.value);
+                    const selected = providerOptions.find((item) => item.code === e.target.value);
                     setBankCode(e.target.value);
                     setBankName(selected?.name ?? "");
                   }}
-                  disabled={providersLoading}
+                  disabled={providersLoading && !isMomoAccount}
                 >
                   <option value="">
-                    {providersLoading
+                    {providersLoading && !isMomoAccount
                       ? "Loading providers…"
-                      : accountType === "MOMO"
+                      : isMomoAccount
                         ? "Select MTN, Telecel, or AirtelTigo"
                         : "Select your bank"}
                   </option>
-                  {providers.map((provider) => (
+                  {providerOptions.map((provider) => (
                     <option key={provider.code} value={provider.code}>
                       {provider.name}
                     </option>
