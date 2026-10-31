@@ -22,5 +22,11 @@ describe("normalizeDatabaseUrl", () => {
     expect(isSupabaseDatabaseUrl("postgresql://rentvest@localhost:5432/r")).toBe(
       false
     );
+  it("adds pool_timeout for Supabase pooler URLs", () => {
+    const raw =
+      "postgresql://postgres.abc:secret@aws-0-eu-central-1.pooler.supabase.com:6543/postgres";
+    const normalized = normalizeDatabaseUrl(raw);
+    expect(normalized).toContain("pool_timeout=30");
+    expect(normalized).toContain("connection_limit=10");
   });
 });

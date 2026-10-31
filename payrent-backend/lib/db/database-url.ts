@@ -40,10 +40,16 @@ export function normalizeDatabaseUrl(raw: string): string {
 
     if (usesPooler) {
       url = appendParam(url, "pgbouncer", "true");
+      if (!/[?&]connection_limit=/i.test(url)) {
+        url = appendParam(url, "connection_limit", "10");
+      }
     }
   }
 
   url = appendParam(url, "connect_timeout", "30");
+  if (!/[?&]pool_timeout=/i.test(url)) {
+    url = appendParam(url, "pool_timeout", "30");
+  }
 
   return url;
 }

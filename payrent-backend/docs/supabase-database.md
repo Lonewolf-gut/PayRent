@@ -71,6 +71,22 @@ Financing documents are stored on **`FinancingRequestDocument`** (linked to each
 
 After every `git pull` that changes `prisma/schema.prisma`, run **`npm run db:generate`** and restart **`npm run dev`**. If admin financing docs returns 500 with `financingRequestDocument` undefined, the client was not regenerated.
 
+If you see **`The table public.FinancingRequestDocument does not exist`** (Prisma `P2021`):
+
+1. **Preferred:** from PayRent-Backend with `DATABASE_URL` and `DIRECT_URL` in `.env`:
+
+   ```bash
+   npm run db:push
+   ```
+
+   Accept creating `FinancingRequestDocument` (do **not** accept drops of tables that still hold data you need).
+
+2. **Or** in **Supabase → SQL Editor**, run the full script `prisma/sql/financing-request-document-table.sql`. It restores `FinancingRequestDocument_archive` if you renamed it, creates the table if missing, and can copy from `TenantFinancingDocument` when the new table is empty.
+
+3. Restart **`npm run dev`** on the backend.
+
+Connection pool timeouts (`P2024`) on the admin dashboard usually mean too many parallel API calls while the pool is small. Use the **transaction pooler** (`:6543`, `pgbouncer=true`) for `DATABASE_URL`, keep a single backend dev process, and refresh after a few seconds.
+
 ## 3. Verify
 
 ```bash
