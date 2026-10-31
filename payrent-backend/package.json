@@ -13,7 +13,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:generate": "node scripts/prisma-generate.js",
+    "db:generate": "node scripts/prisma-generate.js && node scripts/verify-prisma-client.js",
     "db:push": "node scripts/ensure-direct-url.js && prisma db push",
     "db:test-connection": "node scripts/test-supabase-connection.js",
     "db:export-schema-sql": "node scripts/export-schema-sql.js",

@@ -69,6 +69,8 @@ For one-off SQL (e.g. payment invoices), use **Supabase → SQL Editor** and run
 
 Financing documents are stored on **`FinancingRequestDocument`** (linked to each financing request). Your existing Supabase rows keep that table name after `db push`.
 
+After every `git pull` that changes `prisma/schema.prisma`, run **`npm run db:generate`** and restart **`npm run dev`**. If admin financing docs returns 500 with `financingRequestDocument` undefined, the client was not regenerated.
+
 ## 3. Verify
 
 ```bash

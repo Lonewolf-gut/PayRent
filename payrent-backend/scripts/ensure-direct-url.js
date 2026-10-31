@@ -51,18 +51,32 @@ try {
   // manual load above is enough
 }
 
+const generateOnly =
+  process.argv.includes("--generate-only") ||
+  process.env.PRISMA_GENERATE_SKIP_ENV === "1";
+
 const direct = process.env.DIRECT_URL?.trim();
 const database = process.env.DATABASE_URL?.trim();
 
 if (!direct && database) {
   process.env.DIRECT_URL = database;
-  console.warn(
-    "[prisma] DIRECT_URL was missing — using DATABASE_URL. " +
-      "Supabase pooler (port 6543): set DIRECT_URL to the direct connection (5432) in .env."
-  );
+  if (!generateOnly) {
+    console.warn(
+      "[prisma] DIRECT_URL was missing — using DATABASE_URL. " +
+        "Supabase pooler (port 6543): set DIRECT_URL to the direct connection (5432) in .env."
+    );
+  }
 }
 
 if (!process.env.DIRECT_URL?.trim()) {
+  if (generateOnly) {
+    process.env.DIRECT_URL =
+      database ||
+      "postgresql://prisma-generate-placeholder@127.0.0.1:5432/postgres?schema=public";
+    module.exports = { envLoaded, generateOnly: true };
+    return;
+  }
+
   if (!envLoaded) {
     console.error(
       `No .env file at ${envPath}\n` +
@@ -78,3 +92,5 @@ if (!process.env.DIRECT_URL?.trim()) {
   }
   process.exit(1);
 }
+
+module.exports = { envLoaded, generateOnly: false };

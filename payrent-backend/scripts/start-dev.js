@@ -52,8 +52,8 @@ if (bundler === "webpack") {
 }
 console.log("After Ready, open http://localhost:3000");
 if (process.platform === "win32") {
-  console.log("503 on /api/*? Run: docker compose up -d postgres redis  (or npm run bring-up from repo root)");
-  console.log("Check: http://localhost:3001/api/health");
+  console.log("Supabase: set DATABASE_URL + DIRECT_URL in .env. Check: http://localhost:3001/api/health");
+  console.log("Quick ping (no DB): http://localhost:3001/api/live");
 }
 console.log("");
 

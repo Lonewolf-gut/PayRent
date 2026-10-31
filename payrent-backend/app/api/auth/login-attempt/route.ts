@@ -49,4 +49,6 @@ export const POST = withPublicHandler(
   });
 
   return apiResponse({ recorded: true });
-});
+  },
+  { ensureDatabase: false }
+);

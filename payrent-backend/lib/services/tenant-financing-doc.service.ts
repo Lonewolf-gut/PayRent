@@ -14,8 +14,24 @@ import {
   notifyUserInAppAndEmail,
 } from "@/lib/services/verification-notifications";
 
+function assertFinancingRequestDocumentClient() {
+  const delegate = (
+    prisma as unknown as {
+      financingRequestDocument?: { findMany: unknown };
+    }
+  ).financingRequestDocument;
+  if (!delegate?.findMany) {
+    throw new AppError(
+      "Prisma client is out of date. In PayRent-Backend run npm run db:generate, then restart npm run dev.",
+      503,
+      "PRISMA_CLIENT_STALE"
+    );
+  }
+}
+
 export class TenantFinancingDocService {
   async listForTenant(userId: string) {
+    assertFinancingRequestDocumentClient();
     const tenant = await prisma.tenant.findUnique({ where: { userId } });
     if (!tenant) throw new AppError("Customer profile required", 403);
 
