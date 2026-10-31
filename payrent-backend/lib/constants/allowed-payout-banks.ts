@@ -91,14 +91,26 @@ export function isAllowedPayoutBankName(bankName: string) {
 export function filterAllowedPaystackBanks(
   banks: Array<Pick<PaystackBank, "code" | "longcode" | "name" | "slug">>
 ): PayoutBankProvider[] {
-  const providers: PayoutBankProvider[] = [];
+  return mapPaystackBanksToPayoutProviders(banks);
+}
 
-  for (const definition of ALLOWED_PAYOUT_BANK_DEFINITIONS) {
-    const match = pickAllowedPaystackBank(banks, definition);
-    if (match) providers.push(match);
-  }
+export function mapPaystackBanksToPayoutProviders(
+  banks: Array<Pick<PaystackBank, "code" | "longcode" | "name" | "slug">>
+): PayoutBankProvider[] {
+  const providers = banks
+    .map((bank) => {
+      const code = bank.code?.trim();
+      const name = bank.name?.trim();
+      if (!code || !name) return null;
+      return {
+        code,
+        name,
+        resolveCode: paystackBankResolveCode(bank),
+      } satisfies PayoutBankProvider;
+    })
+    .filter((item): item is PayoutBankProvider => item !== null);
 
-  return providers;
+  return providers.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function findAllowedPayoutBankProvider(
@@ -184,13 +196,8 @@ export function assertAllowedPayoutBank(params: {
   );
   if (byProviderName) return;
 
-  if (isAllowedPayoutBankName(bankName)) return;
-
-  const allowedNames = providers.map((provider) => provider.name).join(", ");
   throw new AppError(
-    allowedNames
-      ? `Only these banks are supported for payout accounts: ${allowedNames}.`
-      : "This bank is not supported for payout accounts.",
+    "Select a supported bank from the list, or check that the bank code matches Paystack.",
     400,
     "BANK_NOT_ALLOWED"
   );

@@ -42,8 +42,10 @@ const nextConfig: NextConfig = {
       })),
       afterFiles: [
         {
-          source: "/api/:path*",
-          destination: `${apiOrigin}/api/:path*`,
+          // Keep Auth.js session/sign-out on the frontend; proxy everything else to the API.
+          source:
+            "/api/:path((?!auth/signout|auth/session|auth/csrf|auth/providers|auth/callback).*)",
+          destination: `${apiOrigin}/api/:path`,
         },
       ],
     };

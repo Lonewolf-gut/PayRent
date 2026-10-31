@@ -18,6 +18,8 @@ const SIGN_IN_MESSAGES: Record<string, string> = {
     "This email is registered under a different role. Go back and choose the correct sign-in option.",
   database_unavailable:
     "We can't reach the database. Start Docker Desktop, then run: docker compose up -d postgres redis",
+  backend_unreachable:
+    "We can't reach PayRent-Backend on port 3001. In PayRent-Backend run: npm run dev (and keep Docker Postgres running). Check API_URL=http://localhost:3001 in frontend .env.",
 };
 
 const REGISTER_MESSAGES: Record<string, string> = {

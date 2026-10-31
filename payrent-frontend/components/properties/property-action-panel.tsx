@@ -3,21 +3,24 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
-import { Wallet, CreditCard, MessageSquare, ShieldAlert } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Wallet, CreditCard, MessageSquare, ShieldAlert, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { FinancingRequestDialog } from "@/components/financing/financing-request-dialog";
+import { APPLICATION_STATUS_LABELS } from "@/constants/platform";
 import { toast } from "sonner";
+
+type BankAccount = {
+  id: string;
+  accountType?: string;
+  bankName: string;
+  accountNumberMasked?: string | null;
+  isVerified: boolean;
+};
 
 type PropertyActionPanelProps = {
   propertyId: string;
@@ -26,18 +29,23 @@ type PropertyActionPanelProps = {
   purchasePrice: number;
   walletBalance: number;
   monthlyRent: number;
+  annualRent?: number;
   propertyStatus: string;
-  kycVerified: boolean;
-  financingDocsApproved: boolean;
-  approvedApplication?: { id: string } | null;
+  fullyVerified: boolean;
+  approvedApplication?: {
+    id: string;
+    propertyId?: string;
+    financingRequests?: { id: string; status?: string }[];
+  } | null;
+  propertyApplication?: {
+    id: string;
+    status: string;
+    financingRequests?: { id: string }[];
+  } | null;
   moveInDate: string;
   setMoveInDate: (value: string) => void;
   notes: string;
   setNotes: (value: string) => void;
-  amount: string;
-  setAmount: (value: string) => void;
-  months: string;
-  setMonths: (value: string) => void;
   onDepositPrompt: () => void;
   onChat: (recipientUserId: string, label: string) => void;
   contacts: {
@@ -53,30 +61,36 @@ export function PropertyActionPanel({
   purchasePrice,
   walletBalance,
   monthlyRent,
+  annualRent,
   propertyStatus,
-  kycVerified,
-  financingDocsApproved,
+  fullyVerified,
   approvedApplication,
+  propertyApplication,
   moveInDate,
   setMoveInDate,
   notes,
   setNotes,
-  amount,
-  setAmount,
-  months,
-  setMonths,
   onDepositPrompt,
   onChat,
   contacts,
 }: PropertyActionPanelProps) {
   const router = useRouter();
-  const [financingConsent, setFinancingConsent] = useState(false);
-  const [monthlyIncome, setMonthlyIncome] = useState("");
-  const [preferredChannel, setPreferredChannel] = useState<
-    "BANK_MANDATE" | "WALLET" | "MOBILE_MONEY"
-  >("BANK_MANDATE");
-  const [preferredPaymentDay, setPreferredPaymentDay] = useState("1");
-  const [contactPhone, setContactPhone] = useState("");
+  const [financingOpen, setFinancingOpen] = useState(false);
+  const [payAccountId, setPayAccountId] = useState("");
+
+  const { data: bankAccounts = [] } = useQuery({
+    queryKey: ["settings-bank-accounts"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings");
+      const json = await res.json();
+      return (json.data?.bankAccounts ?? []) as BankAccount[];
+    },
+  });
+
+  const verifiedPayAccounts = bankAccounts.filter((a) => a.isVerified);
+
+  const defaultFinancingAmount =
+    annualRent && annualRent > 0 ? annualRent : monthlyRent > 0 ? monthlyRent * 12 : 0;
 
   const applyMutation = useMutation({
     mutationFn: async () => {
@@ -99,53 +113,52 @@ export function PropertyActionPanel({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const financeMutation = useMutation({
+  const purchaseMutation = useMutation({
     mutationFn: async () => {
-      if (!financingConsent) {
-        throw new Error("You must consent to data collection and processing for financing.");
-      }
-      const res = await fetch("/api/financing", {
+      if (!payAccountId) throw new Error("Select a payment account");
+      const res = await fetch(`/api/properties/${propertyId}/purchase`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          propertyId,
-          applicationId: approvedApplication?.id,
-          requestedAmount: parseFloat(amount),
-          durationMonths: parseInt(months, 10),
-          monthlyIncome: monthlyIncome ? parseFloat(monthlyIncome) : undefined,
-          repaymentPreference: {
-            preferredChannel,
-            preferredPaymentDay: parseInt(preferredPaymentDay, 10),
-            contactPhone: contactPhone || undefined,
-          },
-          dataProcessingConsent: true,
-        }),
+        body: JSON.stringify({ bankAccountId: payAccountId }),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.message ?? json.errors?.[0]?.message);
+      if (!json.success) {
+        throw new Error(json.message ?? json.data?.error ?? "Purchase failed");
+      }
+      return json.data?.checkout as { invoiceNumber?: string; reference?: string; message?: string };
     },
-    onSuccess: () => {
-      toast.success("Pay-for-me request submitted");
-      router.push("/dashboard/buyer/financing");
+    onSuccess: (checkout) => {
+      toast.success(
+        checkout?.invoiceNumber
+          ? `Invoice ${checkout.invoiceNumber}: complete Redde payment to finish purchase.`
+          : "Redde payment started — complete the prompt to finish purchase."
+      );
+      router.refresh();
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const purchaseMutation = useMutation({
+  const rentPaymentMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/properties/${propertyId}/purchase`, { method: "POST" });
+      const res = await fetch(`/api/properties/${propertyId}/rent-payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          applicationId: approvedApplication?.id,
+        }),
+      });
       const json = await res.json();
       if (!json.success) {
         if (json.data?.code === "INSUFFICIENT_FUNDS") {
           onDepositPrompt();
           throw new Error("Insufficient wallet balance");
         }
-        throw new Error(json.message ?? json.data?.error ?? "Purchase failed");
+        throw new Error(json.message ?? json.data?.error ?? "Payment failed");
       }
       return json.data;
     },
     onSuccess: () => {
-      toast.success("Purchase completed successfully");
+      toast.success("Rent payment completed successfully");
       router.refresh();
     },
     onError: (e: Error) => {
@@ -153,39 +166,177 @@ export function PropertyActionPanel({
     },
   });
 
+  const payAmount = isSale ? purchasePrice : monthlyRent;
+  const canPayRent = walletBalance >= payAmount;
+  const hasFinancingRequest = Boolean(approvedApplication?.financingRequests?.length);
+
   return (
     <div className="space-y-4">
-      {isSale && propertyStatus === "ACTIVE" ? (
+      {propertyStatus === "ACTIVE" ? (
         <Card className="rounded-none">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Wallet className="size-5" />
-              Buy with wallet
+              {isSale ? "Buy with Redde" : "Pay for this property"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Pay GHS {purchasePrice.toLocaleString()} directly from your wallet.
-            </p>
-            <p className="text-sm">
-              Balance:{" "}
-              <span className="font-semibold text-emerald-700">
-                GHS {walletBalance.toLocaleString()}
-              </span>
-            </p>
-            <Button
-              className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
-              disabled={purchaseMutation.isPending}
-              onClick={() => purchaseMutation.mutate()}
-            >
-              {purchaseMutation.isPending ? "Processing..." : "Buy now"}
-            </Button>
+            {isSale ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Pay GHS {purchasePrice.toLocaleString()} via Redde (Mobile Money or bank). Funds
+                  settle to the merchant per your Redde configuration. You receive a numbered
+                  invoice.
+                </p>
+                {!verifiedPayAccounts.length ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                    Add a verified MoMo or bank account in Settings to pay.
+                    <div className="mt-3">
+                      <Button asChild variant="outline" className="rounded-none">
+                        <Link href="/dashboard/buyer/settings">Go to Settings</Link>
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {verifiedPayAccounts.map((account) => (
+                      <label
+                        key={account.id}
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${
+                          payAccountId === account.id ? "border-emerald-500 bg-emerald-50/50" : ""
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="payAccountId"
+                          checked={payAccountId === account.id}
+                          onChange={() => setPayAccountId(account.id)}
+                          className="mt-1"
+                        />
+                        <div>
+                          <p className="flex items-center gap-2 text-sm font-medium">
+                            <Smartphone className="size-4" />
+                            {account.bankName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {account.accountNumberMasked ?? account.accountType}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <Button
+                  className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
+                  disabled={purchaseMutation.isPending || !payAccountId}
+                  onClick={() => purchaseMutation.mutate()}
+                >
+                  {purchaseMutation.isPending ? "Starting payment…" : "Pay with Redde"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Pay GHS {monthlyRent.toLocaleString()} rent from your wallet.
+                </p>
+                <p className="text-sm">
+                  Balance:{" "}
+                  <span className="font-semibold text-emerald-700">
+                    GHS {walletBalance.toLocaleString()}
+                  </span>
+                </p>
+                <Button
+                  className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
+                  disabled={rentPaymentMutation.isPending}
+                  onClick={() => rentPaymentMutation.mutate()}
+                >
+                  {rentPaymentMutation.isPending ? "Processing..." : "Pay now"}
+                </Button>
+                {!canPayRent ? (
+                  <Button variant="outline" className="w-full rounded-none" onClick={onDepositPrompt}>
+                    Deposit funds
+                  </Button>
+                ) : null}
+              </>
+            )}
           </CardContent>
         </Card>
       ) : null}
 
       {!isSale ? (
         <>
+          <Card className="rounded-none border-amber-500/40">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <CreditCard className="size-5 text-amber-600" />
+                Request for financing
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!fullyVerified ? (
+                <div className="space-y-3 border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+                  <div className="flex items-start gap-2">
+                    <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                    <p className="text-foreground">
+                      Complete verification before requesting pay-for-me financing.
+                    </p>
+                  </div>
+                  <Button className="w-full rounded-none" asChild>
+                    <Link href="/dashboard/buyer/kyc">Complete verification</Link>
+                  </Button>
+                </div>
+              ) : hasFinancingRequest ? (
+                <div className="space-y-3">
+                  <StatusBadge status="APPROVED" label="Request submitted" />
+                  <p className="text-sm text-muted-foreground">
+                    Track admin, merchant, and lender approval from your applications dashboard.
+                  </p>
+                  <Button className="w-full rounded-none bg-amber-500 hover:bg-amber-600" asChild>
+                    <Link href="/dashboard/buyer/applications">View progress</Link>
+                  </Button>
+                  <Button className="w-full rounded-none" variant="outline" asChild>
+                    <Link href="/dashboard/buyer/mandates">Mandate workspace</Link>
+                  </Button>
+                </div>
+              ) : approvedApplication ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Your application is approved. Request pay-for-me financing for this listing.
+                  </p>
+                  <Button
+                    className="w-full rounded-none bg-amber-500 hover:bg-amber-600"
+                    onClick={() => setFinancingOpen(true)}
+                  >
+                    Request financing
+                  </Button>
+                </div>
+              ) : propertyApplication && propertyApplication.status !== "APPROVED" ? (
+                <div className="space-y-2">
+                  <StatusBadge
+                    status={propertyApplication.status}
+                    label={
+                      APPLICATION_STATUS_LABELS[propertyApplication.status] ??
+                      propertyApplication.status
+                    }
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Financing unlocks once the merchant approves your application for this listing.
+                  </p>
+                  <Button className="w-full rounded-none" variant="outline" asChild>
+                    <Link href="/dashboard/buyer/applications">View application status</Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Submit an application for this property first. Once approved, you can request
+                    pay-for-me financing here.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card className="rounded-none">
             <CardHeader>
               <CardTitle>Apply for this property</CardTitle>
@@ -210,147 +361,25 @@ export function PropertyActionPanel({
                 />
               </div>
               <Button
-                className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
-                disabled={applyMutation.isPending || !!approvedApplication}
+                className="w-full rounded-none"
+                variant="outline"
+                disabled={
+                  applyMutation.isPending ||
+                  propertyApplication?.status === "APPROVED" ||
+                  propertyApplication?.status === "SUBMITTED" ||
+                  propertyApplication?.status === "UNDER_REVIEW"
+                }
                 onClick={() => applyMutation.mutate()}
               >
-                {approvedApplication ? "Application approved" : "Submit application"}
+                {propertyApplication?.status === "APPROVED"
+                  ? "Application approved"
+                  : propertyApplication?.status === "SUBMITTED" ||
+                      propertyApplication?.status === "UNDER_REVIEW"
+                    ? "Application pending review"
+                    : propertyApplication?.status === "REJECTED"
+                      ? "Application not approved"
+                      : "Submit application"}
               </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-none">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="size-5" />
-                Request Pay-for-Me financing
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!kycVerified ? (
-                <div className="space-y-3 border border-amber-200 bg-amber-50 p-4 text-sm">
-                  <div className="flex items-start gap-2">
-                    <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
-                    <p className="text-amber-900">
-                      Your account must be fully verified before you can apply for financing.
-                      Complete identity, employment, and address verification on your dashboard.
-                    </p>
-                  </div>
-                  <Button className="w-full rounded-none" asChild>
-                    <Link href="/dashboard/buyer/kyc">Complete verification</Link>
-                  </Button>
-                </div>
-              ) : !approvedApplication ? (
-                <p className="text-sm text-muted-foreground">
-                  Submit and get approval for your rental application before requesting financing.
-                </p>
-              ) : !financingDocsApproved ? (
-                <div className="space-y-3 text-sm">
-                  <p className="text-muted-foreground">
-                    Upload your payslip and 6–12 month bank statement on your dashboard for admin
-                    review. Verification documents cannot be uploaded on this page.
-                  </p>
-                  <Button className="w-full rounded-none" asChild>
-                    <Link href="/dashboard/buyer/financing-documents">
-                      Upload financing documents
-                    </Link>
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <StatusBadge status="APPROVED" label="Ready for financing" />
-                  <div>
-                    <Label>Amount (GHS)</Label>
-                    <Input
-                      type="number"
-                      className="rounded-none"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      placeholder={String(monthlyRent)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Repayment period (months)</Label>
-                    <Input
-                      type="number"
-                      className="rounded-none"
-                      value={months}
-                      onChange={(e) => setMonths(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Monthly income (GHS)</Label>
-                    <Input
-                      type="number"
-                      className="rounded-none"
-                      value={monthlyIncome}
-                      onChange={(e) => setMonthlyIncome(e.target.value)}
-                      placeholder="For affordability assessment"
-                    />
-                  </div>
-                  <div>
-                    <Label>Preferred repayment channel</Label>
-                    <Select
-                      value={preferredChannel}
-                      onValueChange={(v) =>
-                        setPreferredChannel(v as typeof preferredChannel)
-                      }
-                    >
-                      <SelectTrigger className="rounded-none">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="BANK_MANDATE">Bank mandate (auto-debit)</SelectItem>
-                        <SelectItem value="WALLET">Wallet balance</SelectItem>
-                        <SelectItem value="MOBILE_MONEY">Mobile money</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Preferred payment day of month</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={28}
-                      className="rounded-none"
-                      value={preferredPaymentDay}
-                      onChange={(e) => setPreferredPaymentDay(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Contact phone</Label>
-                    <Input
-                      className="rounded-none"
-                      value={contactPhone}
-                      onChange={(e) => setContactPhone(e.target.value)}
-                      placeholder="For repayment reminders"
-                    />
-                  </div>
-                  <label className="flex items-start gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="mt-1"
-                      checked={financingConsent}
-                      onChange={(e) => setFinancingConsent(e.target.checked)}
-                    />
-                    <span>
-                      I consent to PayForMe collecting and processing my data for this financing
-                      request, including fee disclosure review. See our{" "}
-                      <Link href="/privacy" className="text-emerald-600 hover:underline">
-                        privacy policy
-                      </Link>
-                      .
-                    </span>
-                  </label>
-                  <Button
-                    className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
-                    disabled={!amount || !financingConsent || financeMutation.isPending}
-                    onClick={() => financeMutation.mutate()}
-                  >
-                    Submit pay-for-me request
-                  </Button>
-                </>
-              )}
             </CardContent>
           </Card>
         </>
@@ -369,9 +398,7 @@ export function PropertyActionPanel({
               <Button
                 variant="outline"
                 className="w-full rounded-none justify-start"
-                onClick={() =>
-                  onChat(contacts.landlord!.userId, contacts.landlord!.name)
-                }
+                onClick={() => onChat(contacts.landlord!.userId, contacts.landlord!.name)}
               >
                 Chat with merchant
               </Button>
@@ -388,6 +415,15 @@ export function PropertyActionPanel({
           </CardContent>
         </Card>
       )}
+
+      <FinancingRequestDialog
+        open={financingOpen}
+        onOpenChange={setFinancingOpen}
+        propertyId={propertyId}
+        applicationId={approvedApplication?.id}
+        propertyName={propertyName}
+        defaultAmount={defaultFinancingAmount}
+      />
     </div>
   );
 }
