@@ -6,18 +6,21 @@ PayRent uses **Prisma + PostgreSQL**. Supabase is fully supported; you do **not*
 
 In [Supabase Dashboard](https://supabase.com/dashboard) → your project → **Project Settings** → **Database**:
 
-| Variable | Supabase UI label | Typical host / port |
-|----------|-------------------|------------------------|
-| `DATABASE_URL` | **Connection pooling** → **Transaction** mode | `….pooler.supabase.com` **:6543** |
-| `DIRECT_URL` | **Direct connection** | `….supabase.co` **:5432** |
+| Variable | Supabase UI label | Host / port |
+|----------|-------------------|-------------|
+| `DATABASE_URL` | **Connection pooling** → **Transaction** | `….pooler.supabase.com` **:6543** + `pgbouncer=true` |
+| `DIRECT_URL` | **Connection pooling** → **Session** (recommended on Windows) | **Same pooler host** **:5432** (no `pgbouncer=true`) |
 
-Replace `[YOUR-PASSWORD]` with the database password (URL-encode special characters).
+**Windows / P1001 on `db.….supabase.co`:** The dashboard “Direct connection” host is often **IPv6-only**. Many PCs cannot reach it. Use **Session pooler on port 5432** (same `aws-0-….pooler.supabase.com` as Transaction) for `DIRECT_URL` instead of `db.….supabase.co`.
 
-Example (replace region, ref, password):
+Alternative: Supabase **Add-ons → IPv4** for the project, then `db.….supabase.co:5432` may work.
+
+Example for **eu-west-1** (replace password; `#` → `%23`):
 
 ```env
-DATABASE_URL="postgresql://postgres.abcdefghijklmnop:YOUR_PASSWORD@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require"
-DIRECT_URL="postgresql://postgres.abcdefghijklmnop:YOUR_PASSWORD@aws-0-eu-central-1.supabase.co:5432/postgres?sslmode=require"
+DATABASE_URL="postgresql://postgres.dfwkbgtyznbjgbupgokw:YOUR_PASSWORD@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require"
+
+DIRECT_URL="postgresql://postgres.dfwkbgtyznbjgbupgokw:YOUR_PASSWORD@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require"
 ```
 
 Paste both into **`PayRent-Backend/.env`** only (not the frontend).
