@@ -32,13 +32,40 @@ The app normalizes URLs at runtime (`sslmode=require`, `pgbouncer=true` on poole
 From `PayRent-Backend`:
 
 ```bash
+npm run db:test-connection
 npm run db:push
 npm run db:seed
 ```
 
-For one-off SQL (e.g. payment invoices), use **Supabase → SQL Editor** and run `prisma/sql/payment-invoices-migration.sql`.
+### If `db:push` fails with **P1001** (cannot reach `:5432` or pooler)
 
-If `db:push` fails with pooler errors, set **`DIRECT_URL`** explicitly to the **5432 direct** string (not the 6543 pooler). The CLI auto-falls back to `DATABASE_URL` when `DIRECT_URL` is omitted (fine for direct-only URLs).
+Your PC cannot open a TCP connection to Supabase (firewall, ISP, or **Database → Network** IP allowlist).
+
+1. **Supabase Dashboard → Project Settings → Database → Network**  
+   - Turn off “Restrict connections” for development, **or** add your [public IP](https://ifconfig.me).  
+2. Run:
+
+   ```bash
+   npm run db:test-connection
+   ```
+
+3. **Apply schema without local Postgres TCP** (works on premium Supabase from the browser):
+
+   ```bash
+   npm run db:export-schema-sql
+   ```
+
+   Open `prisma/supabase-bootstrap.sql` → copy all → **Supabase → SQL Editor → Run**.  
+   Then locally:
+
+   ```bash
+   npm run db:generate
+   npm run dev
+   ```
+
+4. Optional: **Add-ons → IPv4** and use the IPv4 strings from the dashboard.
+
+For one-off SQL (e.g. payment invoices), use **Supabase → SQL Editor** and run `prisma/sql/payment-invoices-migration.sql`.
 
 ## 3. Verify
 
@@ -69,8 +96,8 @@ Sign in at **http://localhost:3000/login**.
 
 | Symptom | Fix |
 |--------|-----|
-| `P1001` / database unavailable | Wrong password, missing `sslmode=require`, or using **session** pooler string without `pgbouncer=true` on transaction pooler |
-| Migrations / `db:push` fail on pooler URL | Use **`DIRECT_URL`** (5432 direct), not the 6543 pooler URL, for `prisma db push` |
+| **`P1001` on pooler `:5432` or `:6543`** | Network / IP allowlist — see **Apply schema → P1001** above; use **`npm run db:export-schema-sql`** + SQL Editor |
+| Migrations / `db:push` fail on 6543 URL | `DIRECT_URL` must be **5432** (Session pooler or direct), never `:6543` |
 | Only `DATABASE_URL` set on Supabase | Add **`DIRECT_URL`** (required in `schema.prisma`) |
 | Toast says “Docker” | Update app from `sync/payrent-backend-5e51` / `sync/payrent-frontend-5e51` — messages are Supabase-aware |
 | Login 401 in logs | Wrong password — not a database issue (check `POST /api/auth/login` status) |
